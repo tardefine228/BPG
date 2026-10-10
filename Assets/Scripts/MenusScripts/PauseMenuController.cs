@@ -91,6 +91,11 @@ public sealed class PauseMenuController : MonoBehaviour
         {
             Time.timeScale = timeScaleBeforePause > 0f ? timeScaleBeforePause : 1f;
         }
+
+        if (uiSprite != null)
+        {
+            Destroy(uiSprite);
+        }
     }
 
     public void OpenPauseMenu()
@@ -234,7 +239,12 @@ public sealed class PauseMenuController : MonoBehaviour
         canvasScaler.referenceResolution = new Vector2(1920f, 1080f);
         canvasScaler.matchWidthOrHeight = 0.5f;
 
-        uiSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+        // Create a plain white UI sprite from Unity's built-in white texture;
+        // relying on UI/Skin/UISprite.psd fails in newer Unity editor versions.
+        uiSprite = Sprite.Create(
+            Texture2D.whiteTexture,
+            new Rect(0f, 0f, 1f, 1f),
+            new Vector2(0.5f, 0.5f));
         uiFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
 
         pauseButton = CreateButton(
@@ -506,7 +516,7 @@ public sealed class PauseMenuController : MonoBehaviour
     private void ConfigureImage(Image image, Color color)
     {
         image.sprite = uiSprite;
-        image.type = Image.Type.Sliced;
+        image.type = Image.Type.Simple;
         image.color = color;
         image.raycastTarget = true;
     }
