@@ -227,6 +227,15 @@ public class SlingshotController : MonoBehaviour
             aimLine.positionCount = 0;
     }
 
+    public void CancelInput()
+    {
+        isDragging = false;
+        // Pausing during the prelaunch zoom must preserve the committed shot.
+        if (!shotInProgress)
+            launchVelocity = Vector2.zero;
+        ClearTrajectory();
+    }
+
     public void Reload()
     {
         if (shotInProgress)

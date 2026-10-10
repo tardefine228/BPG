@@ -34,6 +34,8 @@ public class GameplayCameraController : MonoBehaviour
     public UnityEvent onLauncherFocused = new UnityEvent();
     public bool showControls = true;
     public bool IsBusy { get; private set; }
+    private bool CanNavigate => !IsBusy && slingshot != null
+        && slingshot.isActiveAndEnabled && !slingshot.IsDragging && Time.timeScale > 0f;
 
     private Camera view;
     private Coroutine viewTransition;
@@ -151,7 +153,7 @@ public class GameplayCameraController : MonoBehaviour
 
     public void FocusLauncher()
     {
-        if (IsBusy || slingshot.IsDragging)
+        if (!CanNavigate)
             return;
         StopViewTransition();
         viewTransition = StartCoroutine(FocusLauncherRoutine());
@@ -167,7 +169,7 @@ public class GameplayCameraController : MonoBehaviour
 
     public void ShowOverview()
     {
-        if (IsBusy || slingshot.IsDragging)
+        if (!CanNavigate)
             return;
         StopViewTransition();
         viewTransition = StartCoroutine(OverviewRoutine());
@@ -215,7 +217,7 @@ public class GameplayCameraController : MonoBehaviour
     private float ControlsScale => Mathf.Clamp(Screen.height / 720f, 0.6f, 2f);
     public bool IsPointerOverControls(Vector2 screenPosition)
     {
-        if (!showControls || IsBusy)
+        if (!showControls || !CanNavigate)
             return false;
         Vector2 guiPosition = new Vector2(screenPosition.x, Screen.height - screenPosition.y)
             / ControlsScale;
@@ -224,7 +226,8 @@ public class GameplayCameraController : MonoBehaviour
 
     private void OnGUI()
     {
-        if (!showControls || slingshot == null || IsBusy)
+        if (!showControls || slingshot == null || !slingshot.isActiveAndEnabled
+            || IsBusy || Time.timeScale <= 0f)
             return;
         Matrix4x4 previous = GUI.matrix;
         GUI.matrix = Matrix4x4.Scale(Vector3.one * ControlsScale);
