@@ -42,6 +42,8 @@ public class MainControllerScript : MonoBehaviour
 
     private void OnPlay()
     {
+        // Play before scene loading destroys this button and its feedback listener.
+        AudioManager.Instance?.PlayUiClick();
         if (playButton != null)
         {
             playButton.interactable = false;

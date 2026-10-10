@@ -3342,6 +3342,11 @@ MonoBehaviour:
   preferenceSaveDelay: 0.5
   musicSource: {fileID: 0}
   effectsSource: {fileID: 0}
+  uiClickSound: {fileID: 8300000, guid: c40f86fbbacf4e6285bfe1c19279503d, type: 3}
+  uiHoverSound: {fileID: 0}
+  uiOpenSound: {fileID: 0}
+  uiCloseSound: {fileID: 0}
+  uiSource: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
