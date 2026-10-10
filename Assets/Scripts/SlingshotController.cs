@@ -1,4 +1,5 @@
 
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 public class SlingshotController : MonoBehaviour
@@ -27,9 +28,13 @@ public class SlingshotController : MonoBehaviour
 
     private Vector2 startPosition;
 
+    public int ShotsFired { get; private set; }
+    public event Action ProjectileLaunched;
+
     void Start()
     {
         mainCamera = Camera.main;
+        ShotsFired = 0;
         SpawnProjectile();
     }
 
@@ -202,6 +207,9 @@ public class SlingshotController : MonoBehaviour
             aimLine.positionCount = 0;
 
         Destroy(firedProjectile.gameObject, 10f);
+
+        ShotsFired++;
+        ProjectileLaunched?.Invoke();
 
         StartCoroutine(SpawnNextProjectile());
     }
