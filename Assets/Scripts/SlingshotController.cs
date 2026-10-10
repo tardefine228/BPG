@@ -116,27 +116,48 @@ public class SlingshotController : MonoBehaviour
 
     
     
+    
     void Aim()
     {
         Vector2 mouse = GetMouseWorldPosition();
+
+        // Направление от курсора к оси рычага
         Vector2 pull = (Vector2)pivotPoint.position - mouse;
 
         if (pull.sqrMagnitude < 0.001f)
             return;
 
+        // Ограничиваем силу натяжения
         pull = Vector2.ClampMagnitude(pull, maxPullDistance);
 
+        // Рассчитываем угол и ограничиваем его
         float angle = Mathf.Atan2(pull.y, pull.x) * Mathf.Rad2Deg;
         angle = Mathf.Clamp(angle, -20f, 70f);
 
+        // Устанавливаем фактический угол рычага
         rotatingPart.rotation = Quaternion.Euler(0f, 0f, angle);
+
+        // Рассчитываем направление выстрела по фактическому углу рычага
+        float angleRad = angle * Mathf.Deg2Rad;
+
+        Vector2 direction = new Vector2(
+            Mathf.Cos(angleRad),
+            Mathf.Sin(angleRad)
+        );
+
+        // Сила выстрела зависит от натяжения
+        float pullStrength = Mathf.Clamp(
+            pull.magnitude,
+            0f,
+            maxPullDistance
+        );
+
+        launchVelocity = direction * pullStrength * launchPower;
+
+        // Синхронизируем снаряд с концом рычага
         projectile.position = launchPoint.position;
         projectile.rotation = angle;
 
-        // Направление и сила будущего выстрела
-        launchVelocity = pull * launchPower;
-
-        // Рисуем траекторию, не двигая снаряд
         DrawTrajectory(launchVelocity);
     }
 
