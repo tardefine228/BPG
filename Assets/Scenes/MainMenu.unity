@@ -1459,6 +1459,7 @@ GameObject:
   - component: {fileID: 689858472}
   - component: {fileID: 689858471}
   - component: {fileID: 689858473}
+  - component: {fileID: 268435903}
   m_Layer: 5
   m_Name: SettingsButtonPanel
   m_TagString: Untagged
@@ -1537,6 +1538,21 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
+--- !u!114 &268435903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 689858469}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24bf57ed50ee4ab185b88b6742aa600f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::AudioSettingsController
+  audioManager: {fileID: 268435902}
+  musicVolumeSlider: {fileID: 2085132589}
+  effectsVolumeSlider: {fileID: 1213222724}
 --- !u!1 &773331352
 GameObject:
   m_ObjectHideFlags: 0
@@ -3269,6 +3285,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2112014587}
   m_CullTransparentMesh: 1
+--- !u!1 &268435900
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 268435901}
+  - component: {fileID: 268435902}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &268435901
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 268435900}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &268435902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 268435900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d951568ee6f84656ba1b95938c24125a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  musicTracks:
+  - {fileID: 8300000, guid: f781c646ae2d44a9bb6da0b3f9a23037, type: 3}
+  - {fileID: 8300000, guid: f755c4ad35d64c50bb364a0d7e20ec31, type: 3}
+  loopPlaylist: 1
+  playMusicOnStart: 1
+  defaultMusicVolume: 0.5
+  defaultEffectsVolume: 0.5
+  saveVolumeSettings: 1
+  musicVolumePrefsKey: bpg_audio_music_volume
+  effectsVolumePrefsKey: bpg_audio_effects_volume
+  preferenceSaveDelay: 0.5
+  musicSource: {fileID: 0}
+  effectsSource: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -3278,3 +3351,4 @@ SceneRoots:
   - {fileID: 820679573}
   - {fileID: 1162827445}
   - {fileID: 936437197}
+  - {fileID: 268435901}
