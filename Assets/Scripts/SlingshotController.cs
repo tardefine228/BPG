@@ -6,7 +6,9 @@ public class SlingshotController : MonoBehaviour
     [Header("References")]
     public Rigidbody2D projectilePrefab;
     public Transform launchPoint;
+    public Transform rotatingPart;
     public LineRenderer aimLine;
+    public Transform pivotPoint;
 
     [Header("Settings")]
     public float maxPullDistance = 2.5f;
@@ -14,10 +16,14 @@ public class SlingshotController : MonoBehaviour
     public int trajectoryPoints = 30;
     public float timeStep = 0.1f;
 
+    [Header("Reload Settings")]
+    public float spawnDelay = 1.5f;
+
     private Rigidbody2D projectile;
     private Camera mainCamera;
     private bool isDragging;
     private bool hasLaunched;
+    private Vector2 launchVelocity;
 
     private Vector2 startPosition;
 
@@ -27,6 +33,15 @@ public class SlingshotController : MonoBehaviour
         SpawnProjectile();
     }
 
+    
+        System.Collections.IEnumerator SpawnNextProjectile()
+    {
+        yield return new WaitForSeconds(spawnDelay);
+
+        SpawnProjectile();
+    }
+
+    
     void SpawnProjectile()
     {
         projectile = Instantiate(
@@ -39,15 +54,26 @@ public class SlingshotController : MonoBehaviour
         projectile.gravityScale = 1f;
         projectile.linearVelocity = Vector2.zero;
 
+        projectile.transform.SetParent(null);
+
+        startPosition = launchPoint.position;
+        isDragging = false;
         hasLaunched = false;
+        launchVelocity = Vector2.zero;
 
         if (aimLine != null)
             aimLine.positionCount = 0;
     }
 
+
+
+    
     void Update()
     {
         if (projectile == null || hasLaunched)
+            return;
+
+        if (Mouse.current == null)
             return;
 
         if (Mouse.current.leftButton.wasPressedThisFrame)
@@ -64,16 +90,19 @@ public class SlingshotController : MonoBehaviour
             }
         }
 
-        if (Mouse.current.leftButton.isPressed)
+        // Прицеливание только после захвата снаряда
+        if (isDragging && Mouse.current.leftButton.isPressed)
         {
             Aim();
         }
 
-        if (isDragging && Mouse.current.leftButton.wasReleasedThisFrame)
+        if (isDragging &&
+            Mouse.current.leftButton.wasReleasedThisFrame)
         {
             Launch();
         }
     }
+
 
     Vector2 GetMouseWorldPosition()
     {
@@ -85,20 +114,33 @@ public class SlingshotController : MonoBehaviour
         return new Vector2(mouseWorld.x, mouseWorld.y);
     }
 
+    
+    
     void Aim()
     {
         Vector2 mouse = GetMouseWorldPosition();
+        Vector2 pull = (Vector2)pivotPoint.position - mouse;
 
-        Vector2 pull = startPosition - mouse;
+        if (pull.sqrMagnitude < 0.001f)
+            return;
 
-        pull = Vector2.ClampMagnitude(
-            pull,
-            maxPullDistance
-        );
+        pull = Vector2.ClampMagnitude(pull, maxPullDistance);
 
-        projectile.position = startPosition - pull;
-        DrawTrajectory(pull * launchPower);
+        float angle = Mathf.Atan2(pull.y, pull.x) * Mathf.Rad2Deg;
+        angle = Mathf.Clamp(angle, -20f, 70f);
+
+        rotatingPart.rotation = Quaternion.Euler(0f, 0f, angle);
+        projectile.position = launchPoint.position;
+        projectile.rotation = angle;
+
+        // Направление и сила будущего выстрела
+        launchVelocity = pull * launchPower;
+
+        // Рисуем траекторию, не двигая снаряд
+        DrawTrajectory(launchVelocity);
     }
+
+
 
     void DrawTrajectory(Vector2 velocity)
     {
@@ -123,21 +165,26 @@ public class SlingshotController : MonoBehaviour
         }
     }
 
+    
     void Launch()
     {
-        Vector2 pull =
-            startPosition - projectile.position;
+        Rigidbody2D firedProjectile = projectile;
+        firedProjectile.transform.SetParent(null, true);
 
         isDragging = false;
         hasLaunched = true;
 
-        projectile.bodyType = RigidbodyType2D.Dynamic;
-
-        projectile.linearVelocity = pull * launchPower;
+        firedProjectile.bodyType = RigidbodyType2D.Dynamic;
+        firedProjectile.linearVelocity = launchVelocity;
 
         if (aimLine != null)
             aimLine.positionCount = 0;
+
+        Destroy(firedProjectile.gameObject, 10f);
+
+        StartCoroutine(SpawnNextProjectile());
     }
+
 
     public void Reload()
     {
