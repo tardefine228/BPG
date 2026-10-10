@@ -9,10 +9,24 @@ public sealed class LevelTarget : MonoBehaviour
     [SerializeField] private float impactSpeed = 2f;
     private const float IgnoreCollisionsFor = 0.8f;
 
+    private Vector3 startPosition;
+
     public bool IsCleared { get; private set; }
+    public float MaxTravelDistance { get; private set; }
+
+    private void Start()
+    {
+        startPosition = transform.position;
+    }
 
     private void Update()
     {
+        float distance = Vector2.Distance(transform.position, startPosition);
+        if (distance > MaxTravelDistance)
+        {
+            MaxTravelDistance = distance;
+        }
+
         if (IsCleared)
         {
             return;
