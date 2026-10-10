@@ -207,6 +207,15 @@ public class SlingshotController : MonoBehaviour
     }
 
 
+    public void CancelInput()
+    {
+        isDragging = false;
+        launchVelocity = Vector2.zero;
+
+        if (aimLine != null)
+            aimLine.positionCount = 0;
+    }
+
     public void Reload()
     {
         if (projectile != null)
