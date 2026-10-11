@@ -2547,9 +2547,10 @@ MonoBehaviour:
   trajectoryEndScale: 0.75
   showTrajectoryLineAsWell: 0
   logTrajectoryDiagnostics: 0
-  aimSound: {fileID: 0}
-  shotSound: {fileID: 0}
-  aimVolume: 0.55
+  aimSound: {fileID: 8300000, guid: 909b2de882f05fa74622578e6050227d, type: 3}
+  shotSound: {fileID: 8300000, guid: 0b8e44aef56f0a46338bca63134b9c53, type: 3}
+  aimSoundLoops: 0
+  aimVolume: 0.7
   shotVolume: 0.9
 --- !u!114 &3000000079
 MonoBehaviour:

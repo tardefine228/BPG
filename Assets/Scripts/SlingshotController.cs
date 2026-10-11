@@ -61,13 +61,20 @@ public class SlingshotController : MonoBehaviour
     [SerializeField] private bool logTrajectoryDiagnostics;
 
     [Header("Звук рогатки")]
-    [Tooltip("Звук натяжения, играет пока игрок целится (можно задать свой файл).")]
+    [Tooltip("Мяуканье в момент, когда рогатку берут на натягивание. " +
+             "Можно подставить свой клип.")]
     [SerializeField] private AudioClip aimSound;
 
-    [Tooltip("Звук выстрела (можно задать свой файл).")]
+    [Tooltip("Долгое мяуканье, которое звучит, когда снаряд уже полетел. " +
+             "Можно подставить свой клип.")]
     [SerializeField] private AudioClip shotSound;
 
-    [SerializeField, Range(0f, 1f)] private float aimVolume = 0.55f;
+    [Tooltip("Повторять звук взятия, пока игрок целится (для звука натяжения, " +
+             "который тянется по громкости и питчу). Выключено: мяуканье " +
+             "звучит один раз и дослушивается до конца.")]
+    [SerializeField] private bool aimSoundLoops;
+
+    [SerializeField, Range(0f, 1f)] private float aimVolume = 0.7f;
     [SerializeField, Range(0f, 1f)] private float shotVolume = 0.9f;
 
     public event Action<Rigidbody2D> ShotLaunched;
@@ -79,8 +86,8 @@ public class SlingshotController : MonoBehaviour
 
     private const int MaxTrailDots = 48;
     private const int TrailSortingOrder = 15;
-    private const string AimSoundResourcePath = "Audio/Slingshot/SlingshotStretch";
-    private const string ShotSoundResourcePath = "Audio/Slingshot/SlingshotShot";
+    private const string AimSoundResourcePath = "Audio/Slingshot/CatMeowShort";
+    private const string ShotSoundResourcePath = "Audio/Slingshot/CatMeowLong";
 
     private readonly RaycastHit2D[] predictionHits = new RaycastHit2D[16];
     private readonly List<Vector2> previewPoints = new List<Vector2>();
@@ -504,7 +511,20 @@ public class SlingshotController : MonoBehaviour
 
     private void StartStretchSound()
     {
-        if (stretchSource == null || aimSound == null)
+        if (aimSound == null)
+        {
+            return;
+        }
+
+        if (!aimSoundLoops)
+        {
+            // A single meow while the sling is grabbed: it must ring out on its
+            // own, so it goes through a one-shot channel instead of the loop.
+            PlayOneShot(aimSound, aimVolume);
+            return;
+        }
+
+        if (stretchSource == null)
         {
             return;
         }
@@ -518,7 +538,7 @@ public class SlingshotController : MonoBehaviour
     /// <summary>Pitch and volume grow with the pull, so the tension is audible.</summary>
     private void UpdateStretchSound(float pullFraction)
     {
-        if (stretchSource == null || !stretchSource.isPlaying)
+        if (!aimSoundLoops || stretchSource == null || !stretchSource.isPlaying)
         {
             return;
         }
@@ -530,29 +550,45 @@ public class SlingshotController : MonoBehaviour
 
     private void StopStretchSound()
     {
+        // The one-shot meow is allowed to finish even after the drag ends.
+        if (!aimSoundLoops)
+        {
+            return;
+        }
+
         if (stretchSource != null && stretchSource.isPlaying)
         {
             stretchSource.Stop();
         }
     }
 
+    /// <summary>
+    /// Long meow that follows the shell in flight. Uses the shared effects
+    /// channel so it obeys the effects volume slider.
+    /// </summary>
     private void PlayShotSound()
     {
-        if (shotSound == null)
+        PlayOneShot(shotSound, shotVolume);
+    }
+
+    /// <summary>One-shot clip through the effects channel or a local source.</summary>
+    private void PlayOneShot(AudioClip clip, float volume)
+    {
+        if (clip == null)
         {
             return;
         }
 
         if (AudioManager.Instance != null)
         {
-            AudioManager.Instance.PlaySfx(shotSound, shotVolume);
+            AudioManager.Instance.PlaySfx(clip, volume);
             return;
         }
 
         if (oneShotSource != null)
         {
-            oneShotSource.volume = shotVolume * EffectsVolumePercent;
-            oneShotSource.PlayOneShot(shotSound);
+            oneShotSource.volume = volume * EffectsVolumePercent;
+            oneShotSource.PlayOneShot(clip);
         }
     }
 }

@@ -7,6 +7,8 @@ Generates the sound effects of the BPG project:
   Assets/Resources/Audio/Victory/Victory1Stars.wav       (level cleared, 1 star)
   Assets/Resources/Audio/Victory/Victory2Stars.wav       (level cleared, 2 stars)
   Assets/Resources/Audio/Victory/Victory3Stars.wav       (level cleared, 3 stars)
+  Assets/Resources/Audio/Slingshot/CatMeowShort.wav      (cat says "meow" when the sling is grabbed)
+  Assets/Resources/Audio/Slingshot/CatMeowLong.wav       (long "meoooow" while the shell flies)
 
 The three victory jingles are deliberately different: the better the run, the
 longer and brighter the fanfare (one short call, a two note answer, or a full
@@ -234,6 +236,132 @@ def build_victory(stars):
     return fade_edges(buffer, fade_in=0.002, fade_out=0.12)
 
 
+
+# ------------------------------------------------------------------ meow ----
+def make_track(points, count):
+    """Piecewise linear track: points are (fraction 0..1, value)."""
+    track = []
+    last_segment = len(points) - 2
+    for index in range(count):
+        t = index / max(1, count - 1)
+        for segment in range(len(points) - 1):
+            t0, v0 = points[segment]
+            t1, v1 = points[segment + 1]
+            if t <= t1 or segment == last_segment:
+                span = t1 - t0
+                fraction = 0.0 if span <= 0 else max(0.0, min(1.0, (t - t0) / span))
+                track.append(v0 + (v1 - v0) * fraction)
+                break
+    return track
+
+
+def glottal_source(pitch_track, rate, harmonics=12):
+    """Band limited saw wave: the buzz of a cat's vocal folds."""
+    source = []
+    phase = 0.0
+    for frequency in pitch_track:
+        phase += frequency / rate
+        if phase >= 1.0:
+            phase -= 1.0
+        value = 0.0
+        for harmonic in range(1, harmonics + 1):
+            component = frequency * harmonic
+            if component > rate * 0.45:
+                break
+            value += math.sin(2.0 * math.pi * harmonic * phase) / harmonic
+        source.append(value)
+    return source
+
+
+def formant(source, centers, q, gain):
+    """Formant resonance: a band pass whose center moves over time."""
+    filtered = band_pass(source, centers, q)
+    return [sample * gain for sample in filtered]
+
+
+def build_meow(duration, pitch_points, first_formant, second_formant, peak=0.85,
+               seed=31, vibrato_hz=20.0, vibrato_depth=0.05, tremolo_depth=0.09,
+               opening=0.05, closing=0.30):
+    """
+    A cat meow: a rising-then-falling pitch with two formants gliding from "ee"
+    towards "ow", plus a rasping tremolo and a bit of breath.
+    """
+    count = int(SAMPLE_RATE * duration)
+    time = [i / SAMPLE_RATE for i in range(count)]
+
+    pitch = make_track(pitch_points, count)
+    pitch = [f * (1.0 + vibrato_depth * math.sin(2.0 * math.pi * vibrato_hz * t))
+             for f, t in zip(pitch, time)]
+
+    source = glottal_source(pitch, SAMPLE_RATE)
+
+    first = make_track(first_formant, count)
+    second = make_track(second_formant, count)
+    third = [2700.0 + 500.0 * (center - 1300.0) / 900.0 for center in second]
+
+    # Filter once per formant and sum: recomputing inside a per-sample loop
+    # would be quadratic and take minutes per clip.
+    first_band = formant(source, first, 6.0, 1.0)
+    second_band = formant(source, second, 8.0, 0.75)
+    third_band = formant(source, third, 9.0, 0.22)
+    mixed = [first_band[index] + second_band[index] + third_band[index]
+             for index in range(count)]
+
+    # Body: a soft low passed copy, so the meow has weight and not only buzz.
+    body = one_pole_low_pass(source, 700.0)
+    for index in range(count):
+        mixed[index] = mixed[index] * 0.85 + body[index] * 0.35
+
+    # Breath on the way in and out.
+    breath = one_pole_high_pass(noise(count, seed), 2200.0)
+    for index in range(count):
+        mixed[index] += breath[index] * 0.045
+
+    # Envelope: the mouth opens on the "e" and closes on the "ow".
+    open_end = opening / duration
+    close_start = 1.0 - closing / duration
+    for index in range(count):
+        t = index / (count - 1)
+        if t < open_end:
+            envelope = t / open_end
+        elif t > close_start:
+            envelope = (1.0 - t) / max(1e-4, 1.0 - close_start)
+        else:
+            envelope = 1.0
+        envelope = max(0.0, min(1.0, envelope)) ** 1.2
+        rasp = 1.0 + tremolo_depth * math.sin(2.0 * math.pi * 26.0 * time[index])
+        mixed[index] *= envelope * rasp
+
+    # Gentle saturation only: a hard limiter makes the meow sound like a buzzer.
+    mixed = [math.tanh(sample * 0.45) * 0.8 for sample in mixed]
+    mixed = one_pole_low_pass(mixed, 6500.0)
+    mixed = normalize(mixed, peak)
+    return fade_edges(mixed, fade_in=0.004, fade_out=min(0.08, duration * 0.15))
+
+
+def build_short_meow():
+    """One brisk "meow" - the cat is grabbed together with the sling."""
+    return build_meow(
+        duration=0.5,
+        pitch_points=[(0.0, 620.0), (0.22, 700.0), (0.65, 470.0), (1.0, 400.0)],
+        first_formant=[(0.0, 430.0), (0.2, 720.0), (0.55, 780.0), (1.0, 520.0)],
+        second_formant=[(0.0, 1150.0), (0.22, 1950.0), (0.55, 1450.0), (1.0, 900.0)],
+        seed=41, vibrato_hz=24.0, vibrato_depth=0.06, closing=0.34)
+
+
+def build_long_meow():
+    """The long "meooooow" that follows the shell in flight."""
+    return build_meow(
+        duration=1.75,
+        pitch_points=[(0.0, 500.0), (0.18, 610.0), (0.45, 555.0), (0.78, 430.0),
+                      (1.0, 355.0)],
+        first_formant=[(0.0, 420.0), (0.18, 700.0), (0.5, 820.0), (0.8, 700.0),
+                       (1.0, 500.0)],
+        second_formant=[(0.0, 1100.0), (0.18, 1900.0), (0.5, 1500.0), (0.8, 1150.0),
+                        (1.0, 860.0)],
+        seed=42, vibrato_hz=18.0, vibrato_depth=0.045, closing=0.26)
+
+
 # ------------------------------------------------------------------- sounds ----
 def build_stretch(duration=1.6):
     """Rubber-band creak that loops seamlessly: creaks + rising tension."""
@@ -360,6 +488,8 @@ def main():
     clips = [
         (OUT_DIR, 'SlingshotStretch.wav', build_stretch(), 0),
         (OUT_DIR, 'SlingshotShot.wav', build_shot(), 0),
+        (OUT_DIR, 'CatMeowShort.wav', build_short_meow(), 0),
+        (OUT_DIR, 'CatMeowLong.wav', build_long_meow(), 0),
         (VICTORY_DIR, 'Victory1Stars.wav', build_victory(1), 0),
         (VICTORY_DIR, 'Victory2Stars.wav', build_victory(2), 0),
         (VICTORY_DIR, 'Victory3Stars.wav', build_victory(3), 0),
