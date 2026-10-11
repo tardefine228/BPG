@@ -3332,6 +3332,8 @@ MonoBehaviour:
   musicTracks:
   - {fileID: 8300000, guid: f781c646ae2d44a9bb6da0b3f9a23037, type: 3}
   - {fileID: 8300000, guid: f755c4ad35d64c50bb364a0d7e20ec31, type: 3}
+  - {fileID: 8300000, guid: 683e52063c6c4e64a73dda464d357328, type: 3}
+  - {fileID: 8300000, guid: 56a56db9bb24485eb8f173351a3fd216, type: 3}
   loopPlaylist: 1
   playMusicOnStart: 1
   defaultMusicVolume: 0.5
