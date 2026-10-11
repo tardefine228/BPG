@@ -410,6 +410,25 @@ public class SlingshotController : MonoBehaviour
 
         float unitsPerPixel = 2f * mainCamera.orthographicSize
             / Mathf.Max(1, mainCamera.pixelHeight);
+
+        // A trail that failed to build during Awake must not take the aim
+        // preview down with it: try once more on the first real aim.
+        if (trajectoryTrail == null && useDottedTrajectory)
+        {
+            trajectoryTrail = new TrajectoryDotTrail(transform, MaxTrailDots,
+                TrailSortingOrder, trajectoryDotColor, trajectoryDotOutline);
+            if (logTrajectoryDiagnostics)
+            {
+                Debug.Log("[Рогатка] точечный след создан при прицеливании");
+            }
+
+            if (aimLine != null && !showTrajectoryLineAsWell)
+            {
+                aimLine.enabled = false;
+                aimLine.positionCount = 0;
+            }
+        }
+
         bool drawn = trajectoryTrail != null && trajectoryTrail.Show(
             previewPoints, trajectoryVisibleFraction,
             trajectoryDotPixels * unitsPerPixel,
