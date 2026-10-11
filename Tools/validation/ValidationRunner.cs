@@ -358,8 +358,129 @@ public sealed class ValidationRunner : MonoBehaviour
         Pass("Normal Boot/menu loads keep the main page; pause navigation request is consumed once");
     }
 
+    private IEnumerator CatFlightChecks()
+    {
+        yield return Scene("MainMenu");
+        foreach (var level in LevelProgress.Levels)
+        {
+            LevelProgress.SelectLevel(level.Id);
+            SceneTransition.Load(level.SceneName);
+            yield return Scene(level.SceneName);
+            yield return new WaitForSecondsRealtime(0.9f);
+            var session = Find<LevelSession>();
+            var slingshot = Find<SlingshotController>();
+            int ammo = Mathf.Min(level.Id + 1, 5);
+            Require(slingshot.WaitingCatCount == ammo - 1 && All<CatProjectile>().Length == ammo,
+                "Initial cat inventory incorrect on " + level.SceneName);
+            Require(All<ParticleSystem>().All(particles => particles.name != "FurTrail(Clone)"),
+                "Queued cats shed fur before launch");
+
+            yield return Click(Action("OpenPauseMenu"));
+            yield return new WaitForSecondsRealtime(0.3f);
+            var restart = All<Button>().Single(button => button.transform.parent.name == "PausePage"
+                && Enumerable.Range(0, button.onClick.GetPersistentEventCount())
+                    .Any(index => button.onClick.GetPersistentMethodName(index) == "RestartLevel"));
+            if (level.Id == 2) yield return Capture("new-pause");
+            yield return Click(restart);
+            yield return Until(() => session == null, "pause restart unloaded the old level");
+            yield return Scene(level.SceneName);
+            yield return new WaitForSecondsRealtime(0.9f);
+            slingshot = Find<SlingshotController>();
+            Require(Time.timeScale == 1f && slingshot.ShotsFired == 0 && slingshot.WaitingCatCount == ammo - 1,
+                "Pause restart did not reset the cats/time on " + level.SceneName);
+            yield return Click(Action("FocusLauncher"));
+            yield return Until(() => !Find<GameplayCameraController>().IsBusy, "launcher camera");
+            if (level.Id == 2) yield return Capture("new-hud");
+
+            var fired = (Rigidbody2D)Get(slingshot, "projectile");
+            var effects = fired.GetComponent<CatFlightEffects>();
+            var sprite = fired.GetComponent<SpriteRenderer>();
+            Sprite originalSprite = sprite.sprite;
+            Color originalColor = sprite.color;
+            Color furColor = new Color(0.2f, 0.85f, 1f, 1f);
+            Set(effects, "furColor", furColor);
+            var targetObject = new GameObject("CatFlightCheckTarget");
+            targetObject.transform.position = slingshot.launchPoint.position + new Vector3(7f, 1.5f, 0f);
+            targetObject.AddComponent<BoxCollider2D>().size = Vector2.one * 2f;
+            targetObject.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+            var target = targetObject.AddComponent<LevelTarget>();
+            int impactEvents = 0;
+            slingshot.ProjectileImpacted += point => impactEvents++;
+            slingshot.projectileLifetime = 8f;
+            Set(slingshot, "launchVelocity", new Vector2(14f, 8f));
+            slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+            yield return Until(() => slingshot.ShotsFired == 1, "flight start");
+            yield return new WaitForSeconds(0.15f);
+            var fur = (ParticleSystem)Get(effects, "fur");
+            Require(fur != null && fur.particleCount > 0 && !effects.IsExiting
+                && fur.main.simulationSpace == ParticleSystemSimulationSpace.World,
+                "Flight does not emit world-space fur");
+            var particles = new ParticleSystem.Particle[128];
+            int count = fur.GetParticles(particles);
+            Require(count > 0 && particles[0].startColor.Equals((Color32)furColor)
+                && sprite.color == originalColor && sprite.sprite == originalSprite,
+                "Per-cat fur color changed the sprite or was not applied");
+            if (level.Id == 2) yield return Capture("cat-fur-flight");
+
+            yield return Until(() => effects.IsExiting, "first collision starts exit");
+            Require(target.HitsTaken == 1 && target.IsCleared && impactEvents == 1,
+                "Cat exit suppressed target damage or duplicated impact");
+            Require(!fired.simulated && fired.GetComponentsInChildren<Collider2D>().All(collider => !collider.enabled),
+                "Exiting cat still collides with the field");
+            Require(slingshot.HasMovingProjectiles && sprite.sortingOrder >= 30000,
+                "Exit does not stay on the foreground / block premature defeat");
+            float hitY = fired.transform.position.y;
+            yield return new WaitForSeconds(0.12f);
+            Require(fired.transform.position.y > hitY && fired.transform.localScale.x > 1f,
+                "Cat did not hop upward and approach the screen");
+            if (level.Id == 2) yield return Capture("cat-foreground-hop");
+            yield return Click(Action("OpenPauseMenu"));
+            Vector3 pausedPosition = fired.transform.position;
+            Vector3 pausedScale = fired.transform.localScale;
+            yield return new WaitForSecondsRealtime(0.2f);
+            Require(Time.timeScale == 0f && fired.transform.position == pausedPosition
+                && fired.transform.localScale == pausedScale, "Exit moved while paused");
+            yield return Click(Action("ResumeGame"));
+            yield return Until(() => fired == null, "cat fell below field and disappeared", 5f);
+            Require(impactEvents == 1 && target.HitsTaken == 1, "Exiting cat hit a target again");
+            Require(All<ParticleSystem>().All(item => item.name != "FurTrail(Clone)"), "Fur system leaked after cat removal");
+            Pass(level.SceneName + ": pause restart, colored fur, target damage, foreground hop, pause and cleanup work");
+            if (level.Id == 1)
+            {
+                yield return Until(() => !slingshot.IsShotInProgress && !slingshot.gameplayCamera.IsBusy,
+                    "first shot finished before exhaustion check");
+                slingshot.spawnDelay = 0.05f;
+                var camera = slingshot.gameplayCamera;
+                camera.transitionDuration = 0.05f;
+                camera.preShotHold = 0.05f;
+                camera.buildingHold = camera.groundHold = 0.05f;
+                camera.impactTransitionDuration = 0.1f;
+                camera.returnDuration = 0.05f;
+                var lastCat = (Rigidbody2D)Get(slingshot, "projectile");
+                Set(slingshot, "launchVelocity", new Vector2(14f, 8f));
+                slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+                yield return Until(() => lastCat.GetComponent<CatFlightEffects>().IsExiting, "last cat exiting");
+                yield return new WaitForSeconds(0.2f);
+                Require(Time.timeScale == 1f && !(bool)Get(Find<LevelSession>(), "failed"),
+                    "Defeat froze the last cat before cleanup");
+                yield return Until(() => lastCat == null, "last cat removed before defeat");
+                yield return Until(() => (bool)Get(Find<LevelSession>(), "failed"), "defeat after visual cleanup");
+                Require(Time.timeScale == 0f && All<CatProjectile>().Length == 0
+                    && All<ParticleSystem>().All(item => item.name != "FurTrail(Clone)"),
+                    "Defeat leaves cats/particles on the field");
+                Pass("Last shot finishes the exit before defeat pauses the game; no cats or fur remain");
+            }
+        }
+        Require(errors.Count == 0, "Cat flight produced runtime errors");
+    }
+
     private IEnumerator Checks()
     {
+        if (Environment.GetCommandLineArgs().Contains("-bpgCatFlightOnly"))
+        {
+            yield return CatFlightChecks();
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Contains("-bpgPauseReturnOnly"))
         {
             yield return PauseReturnChecks();

@@ -1,4 +1,4 @@
-param([string]$UnityPath, [switch]$PauseReturnOnly, [switch]$MinimalEditor)
+param([string]$UnityPath, [switch]$PauseReturnOnly, [switch]$CatFlightOnly, [switch]$MinimalEditor)
 $ErrorActionPreference = 'Stop'
 $taskRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 if (!$UnityPath) {
@@ -49,6 +49,7 @@ $taskUnityArguments = @(
 )
 if ($MinimalEditor) { $taskUnityArguments += @('-force-d3d11', '--burst-disable-compilation') }
 if ($PauseReturnOnly) { $taskUnityArguments += '-bpgPauseReturnOnly' }
+if ($CatFlightOnly) { $taskUnityArguments += '-bpgCatFlightOnly' }
 $taskProcess = Start-Process -FilePath $UnityPath -ArgumentList $taskUnityArguments -WindowStyle Hidden -Wait -PassThru
 $taskMarker = Join-Path $taskProject 'play-checks.done'
 if ($taskProcess.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskMarker) -or
