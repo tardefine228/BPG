@@ -28,6 +28,10 @@ public class GameplayCameraController : MonoBehaviour
     public float followSize = 20f;
     public float followSharpness = 12f;
     public float followLookAhead = 0.16f;
+    [Tooltip("Максимальное опережение как доля половины высоты кадра. Не даёт быстрым котам уйти за экран.")]
+    [Range(0f, 0.5f)] public float maxFollowLead = 0.35f;
+    [Tooltip("Минимальная высота центра камеры над землёй как доля половины высоты кадра.")]
+    [Range(0f, 1f)] public float groundClearance = 0.35f;
     public float groundHold = 1f;
     public float buildingHold = 2f;
     public float returnDuration = 0.7f;
@@ -92,8 +96,11 @@ public class GameplayCameraController : MonoBehaviour
     {
         if (trackedProjectile != null && !impactRecorded && Time.timeScale > 0f)
         {
-            Vector2 destination = trackedProjectile.position
-                + trackedProjectile.linearVelocity * followLookAhead + Vector2.up * 2f;
+            // Опережение в секундах без ограничения уводило камеру за быстрый снаряд,
+            // а на нисходящей части траектории — глубоко под поверхность земли.
+            Vector2 lead = Vector2.ClampMagnitude(trackedProjectile.linearVelocity * followLookAhead,
+                followSize * maxFollowLead);
+            Vector2 destination = trackedProjectile.position + lead + Vector2.up * 2f;
             float t = 1f - Mathf.Exp(-followSharpness * Time.deltaTime);
             SetView(Vector2.Lerp(transform.position, destination, t),
                 Mathf.Lerp(view.orthographicSize, followSize, t));
@@ -237,8 +244,10 @@ public class GameplayCameraController : MonoBehaviour
 
     private void SetView(Vector2 position, float size)
     {
-        transform.position = new Vector3(position.x, position.y, transform.position.z);
         view.orthographicSize = Mathf.Max(0.1f, size);
+        if (ground != null)
+            position.y = Mathf.Max(position.y, groundSurface + view.orthographicSize * groundClearance);
+        transform.position = new Vector3(position.x, position.y, transform.position.z);
         ExpandBackdrop(position, view.orthographicSize);
     }
 

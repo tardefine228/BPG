@@ -1,0 +1,49 @@
+# Поле, обучение и заставки
+
+Игровое расстояние в `Gameplay`, `Level2`–`Level5` сокращено в 1,35 раза: катапульта и цель сближены, размеры котов и построек сохранены. Камера приближена в той же пропорции. `Launch Power` и `Projectile Gravity Scale` у `GameManager → SlingshotController` настроены для полного натяжения под углом около 35° и полёта примерно 1,5 секунды. Слабые и очень высокие выстрелы имеют другое время полёта.
+
+У `Main Camera → GameplayCameraController` параметр `Max Follow Lead` ограничивает опережение снаряда относительно размера кадра, а `Ground Clearance` удерживает центр камеры над поверхностью земли. Оба по умолчанию 0,35. `Follow Look Ahead` по-прежнему задаёт желаемое опережение в секундах, но оно ограничено `Max Follow Lead`.
+
+## Две картинки обучения
+
+Откройте `Assets/Scenes/Gameplay.unity`:
+
+- `FirstLevelGuideCanvas → GuideOverlay → GuidePanel → FirstImageFrame → FirstIllustration`: назначьте первую картинку в `Image → Source Image`.
+- `FirstLevelGuideCanvas → GuideOverlay → GuidePanel → SecondImageFrame → SecondIllustration`: назначьте вторую картинку.
+
+У картинок включён `Preserve Aspect`. Текст объяснений можно включить прямо в ваши изображения. Плашка затемняет игру и блокирует стрельбу, паузу и кнопки камеры до нажатия «НАЧАТЬ».
+
+Принятие обучения сохраняется между запусками в отдельном ключе PlayerPrefs `BPG.Guide.Gameplay.v1`. Для повторной проверки откройте контекстное меню компонента `FirstLevelGuide` на `GameManager` и выберите «Сбросить показ обучения первого уровня», затем перезапустите уровень. Остальной прогресс этот сброс не затрагивает.
+
+## Заставка компании в Boot
+
+`Assets/Resources/StartupSplashSettings.asset`:
+
+- `Logo` — логотип компании, импортированный как Sprite.
+- `Company Name` — название компании.
+- `Background Color` и `Text Color` — цвета.
+- `Fade In Duration`, `Hold Duration`, `Fade Out Duration`, `Menu Reveal Duration` — длительности в реальных секундах. По умолчанию: 1,2 / 3 / 0,6 / 0,6.
+
+Размер и положение логотипа и подписи редактируются в `Assets/Prefabs/StartupSplash.prefab` или его экземпляре в Boot. Заставка сначала плавно показывает BP GAMES, затем загружает MainMenu во время выдержки и открывает меню после исчезновения надписи. Раскладка вашего экземпляра в Boot сохранена.
+
+## Тексты перехода между сценами
+
+Редактируйте **`Assets/Resources/SceneTransitionSettings.asset`** в Inspector:
+
+- `Loading Caption` — «ЗАГРУЗКА».
+- `Minimum Loading Time` и `Fade Duration` — длительности перехода.
+- `Background Color`, `Text Color`, `Accent Color` — палитра для команды «Применить оформление из SceneTransitionSettings» на компоненте перехода.
+
+`MainMenu`, `Gameplay`, `Level2`–`Level5` используют общий **`Assets/Prefabs/SceneLoadingPanel.prefab`**. В нём только фон, надпись, полоса и проценты. Положение и размер перенесены из вашего варианта Gameplay: надпись Y=30, полоса Y=-61, ширина 680 и высота 24,8765, проценты Y=-123,43799. `AccentLine`, `LogoPlaceholder`, `GameTitle`, `StudioText` удалены из этой панели.
+
+`SceneTransition` подставляет `Loading Caption` при загрузке, поэтому изменение текста только у TMP-объекта будет перезаписано. Раскладку меняйте в `SceneLoadingPanel.prefab`: общий префаб сохраняет одинаковое оформление при выходе из любой сцены и при появлении следующей.
+
+Прежний `Assets/Prefabs/SceneTransition.prefab` оставлен у отключённого перехода в Boot, чтобы сохранить его структуру. Заставка Boot использует отдельный `StartupSplash`.
+
+## Проверка
+
+Проверки Play Mode в Unity 6000.6.5f1 прошли на всех пяти уровнях, при формате камеры 4:3 и 16:9. У обычного полного выстрела под 35° полёт до первого столкновения составил около 1,4–1,5 секунды. Проверены слежение и возврат камеры, выстрел вниз, пауза, рестарт, очередь, шерсть, отскок и удаление последнего кота до поражения. Также проверены показ и принятие гайда, повторная загрузка первого уровня, выдержка заставки 3 секунды и переход в MainMenu.
+
+Команда для повторной проверки в отдельной копии проекта и с отдельными сохранениями: `./Tools/validation/run_play_checks.ps1 -PresentationOnly -CatFlightOnly -MinimalEditor`.
+
+Панель загрузки и BP GAMES проверяются отдельно: `./Tools/validation/run_play_checks.ps1 -LoadingOnly -MinimalEditor`. Проверка проходит маршруты MainMenu → каждый уровень → MainMenu через кнопку паузы, сравнивает размеры и координаты панели на входе и выходе и сохраняет кадры появления надписи в Boot.
