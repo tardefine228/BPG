@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: SceneTransitionSettings
   m_EditorClassIdentifier: Assembly-CSharp::SceneTransitionSettings
   logo: {fileID: 0}
-  title: "НАЗВАНИЕ ИГРЫ"
-  subtitle: "СТУДИЯ / ВАШ СЛОГАН"
+  title: "КОТАПУЛЬТА"
+  subtitle: BP GAMES
   startupCaption: "ГОТОВИМ КАТАПУЛЬТУ"
   loadingCaption: "ЗАГРУЗКА"
   startupHold: 1.5

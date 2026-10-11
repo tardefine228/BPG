@@ -5,8 +5,8 @@ public sealed class SceneTransitionSettings : ScriptableObject
 {
     [Header("Логотип и текст заставки")]
     public Sprite logo;
-    public string title = "НАЗВАНИЕ ИГРЫ";
-    public string subtitle = "СТУДИЯ / ВАШ СЛОГАН";
+    public string title = "КОТАПУЛЬТА";
+    public string subtitle = "BP GAMES";
     public string startupCaption = "ГОТОВИМ КАТАПУЛЬТУ";
     public string loadingCaption = "ЗАГРУЗКА";
     [Header("Время (реальные секунды)")]

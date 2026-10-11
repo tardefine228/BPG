@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
@@ -190,6 +191,15 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.4f);
         Require(ids.SetEquals(All<Button>()), "Menu buttons were replaced");
         Pass("Settings, volumes, pagination and reopening preserve all menu button objects");
+        var firstCard = All<LevelCardView>().First(card => card.LevelId == 1);
+        var hoverHighlight = (GameObject)Get(firstCard, "hoverHighlight");
+        Require(!hoverHighlight.activeSelf, "Card outline is visible without hover");
+        ExecuteEvents.Execute(firstCard.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerEnterHandler);
+        Require(hoverHighlight.activeSelf, "Card outline did not appear on hover");
+        yield return Capture("levels-hover");
+        ExecuteEvents.Execute(firstCard.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerExitHandler);
+        Require(!hoverHighlight.activeSelf, "Card outline stayed after the pointer left");
+        Pass("Level card outline follows the pointer: shown on hover, hidden on exit");
         yield return Capture("levels");
         All<LevelCardView>().First(card => card.LevelId == 1).GetComponent<Button>().onClick.Invoke();
         yield return Scene("Gameplay");
@@ -265,6 +275,7 @@ public sealed class ValidationRunner : MonoBehaviour
         slingshot = Find<SlingshotController>();
         Set(slingshot, "<ShotsFired>k__BackingField", 5);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
+        foreach (var mouse in All<MouseTarget>()) Set(mouse, "<IsDefeated>k__BackingField", true);
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf, "victory on final shot");
         Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf && LevelProgress.IsCompleted(1), "Final-shot victory lost to defeat");
         Pass("Victory on the final projectile takes priority over defeat and saves progress");
@@ -276,7 +287,8 @@ public sealed class ValidationRunner : MonoBehaviour
         Pass("Victory Continue button opens Level2 with five shots");
 
         yield return new WaitForSeconds(1f);
-        var reinforced = All<LevelTarget>().First(target => target.IsReinforced);
+        var reinforced = All<LevelTarget>().Where(target => target.IsReinforced)
+            .OrderBy(target => target.transform.position.x).First();
         Rigidbody2D targetBody = reinforced.GetComponent<Rigidbody2D>();
         targetBody.bodyType = RigidbodyType2D.Kinematic;
         targetBody.linearVelocity = Vector2.zero;
@@ -310,9 +322,24 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(Find<LevelSession>().RemainingShots == 5 && Find<SlingshotController>().CanAim, level + " initialization failed");
             Pass(level + " loads with intact UI, FX pool and five projectiles");
         }
+        yield return new WaitForSeconds(1.1f);
+        var mice = All<MouseTarget>();
+        Require(mice.Length >= 2, "Level5 must contain several mice");
+        var falling = mice[0];
+        var fallingBody = falling.GetComponent<Rigidbody2D>();
+        var groundRenderer = Find<GameplayCameraController>().ground;
+        fallingBody.position = new Vector2(Find<SlingshotController>().launchPoint.position.x + 12f,
+            groundRenderer.bounds.max.y + 1f);
+        fallingBody.linearVelocity = Vector2.zero;
+        fallingBody.angularVelocity = 0f;
+        yield return Until(() => falling.IsDefeated, "mouse touches the ground");
+        Require(falling.LivesLeft == 0 && !((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf,
+            "Ground contact must take all lives while the other mice keep the level running");
+        Pass("A mouse that touches the ground loses all lives; the level continues while other mice remain");
         slingshot = Find<SlingshotController>();
         Set(slingshot, "<ShotsFired>k__BackingField", 1);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
+        foreach (var mouse in All<MouseTarget>()) Set(mouse, "<IsDefeated>k__BackingField", true);
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf, "last level victory");
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("MainMenu");

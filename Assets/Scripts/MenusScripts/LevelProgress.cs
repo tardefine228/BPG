@@ -4,6 +4,9 @@ using UnityEngine;
 public static class LevelProgress
 {
     public const int MaxStars = 3;
+
+    // Очки за каждую побеждённую мышь — главную цель уровня.
+    public const int MouseScore = 5000;
     public const string MainMenuSceneName = "MainMenu";
     public const string GameplaySceneName = "Gameplay";
     public const string SecondLevelSceneName = "Level2";
@@ -33,32 +36,32 @@ public static class LevelProgress
             SecondLevelSceneName,
             "LevelPreviews/level_2",
             true,
-            6,
-            9),
+            2,
+            3),
         new LevelDefinition(
             3,
             "УРОВЕНЬ 3",
             ThirdLevelSceneName,
             "LevelPreviews/level_3",
             true,
-            12,
-            16),
+            2,
+            3),
         new LevelDefinition(
             4,
             "УРОВЕНЬ 4",
             FourthLevelSceneName,
             "LevelPreviews/level_4",
             true,
-            13,
-            17),
+            2,
+            4),
         new LevelDefinition(
             5,
             "УРОВЕНЬ 5",
             FifthLevelSceneName,
             "LevelPreviews/level_5",
             true,
-            15,
-            19)
+            3,
+            4)
     };
 
     public static int CurrentLevelId { get; private set; } = 1;
@@ -214,14 +217,16 @@ public static class LevelProgress
         return 1;
     }
 
-    public static int ComputeRunScore(int clearedBoxes, int shotsFired, float totalTravelDistance)
+    // Очки попытки: сбитые блоки, побеждённые мыши, разлёт блоков и бонус за экономию выстрелов.
+    public static int ComputeRunScore(int clearedBoxes, int defeatedMice, int shotsFired, float totalTravelDistance)
     {
         int boxScore = Mathf.Max(0, clearedBoxes) * 1000;
+        int mouseScore = Mathf.Max(0, defeatedMice) * MouseScore;
         int distanceScore = Mathf.RoundToInt(Mathf.Max(0f, totalTravelDistance) * 140f);
         int shotBonus = shotsFired <= 0
             ? 0
             : Mathf.Max(0, 1500 - (shotsFired - 1) * 400);
-        return boxScore + distanceScore + shotBonus;
+        return boxScore + mouseScore + distanceScore + shotBonus;
     }
 
     private static string StarsKey(int levelId)

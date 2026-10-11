@@ -472,12 +472,12 @@ GameObject:
   - component: {fileID: 42647671}
   - component: {fileID: 42647670}
   m_Layer: 5
-  m_Name: CurrentLevel_3
+  m_Name: HoverHighlight_3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &42647669
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2753,7 +2753,7 @@ MonoBehaviour:
   pageIndex: 0
   button: {fileID: 325309251}
   preview: {fileID: 1179781549}
-  currentHighlight: {fileID: 1160417238}
+  hoverHighlight: {fileID: 1160417238}
   lockOverlay: {fileID: 1780374274}
   soonOverlay: {fileID: 1250999616}
   parHint: {fileID: 2020369931}
@@ -4984,7 +4984,7 @@ MonoBehaviour:
   pageIndex: 0
   button: {fileID: 887631394}
   preview: {fileID: 572662965}
-  currentHighlight: {fileID: 1917776601}
+  hoverHighlight: {fileID: 1917776601}
   lockOverlay: {fileID: 1392383010}
   soonOverlay: {fileID: 1873234787}
   parHint: {fileID: 334075219}
@@ -6888,12 +6888,12 @@ GameObject:
   - component: {fileID: 1160417241}
   - component: {fileID: 1160417240}
   m_Layer: 5
-  m_Name: CurrentLevel_2
+  m_Name: HoverHighlight_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1160417239
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7995,7 +7995,7 @@ MonoBehaviour:
   pageIndex: 0
   button: {fileID: 1330632617}
   preview: {fileID: 41545279}
-  currentHighlight: {fileID: 42647668}
+  hoverHighlight: {fileID: 42647668}
   lockOverlay: {fileID: 390269165}
   soonOverlay: {fileID: 296035721}
   parHint: {fileID: 1233579236}
@@ -8169,7 +8169,7 @@ MonoBehaviour:
   pageIndex: 1
   button: {fileID: 1366888328}
   preview: {fileID: 1886017035}
-  currentHighlight: {fileID: 1929494973}
+  hoverHighlight: {fileID: 1929494973}
   lockOverlay: {fileID: 755926814}
   soonOverlay: {fileID: 1872543379}
   parHint: {fileID: 1534661663}
@@ -10073,12 +10073,12 @@ GameObject:
   - component: {fileID: 1745919815}
   - component: {fileID: 1745919814}
   m_Layer: 5
-  m_Name: CurrentLevel_5
+  m_Name: HoverHighlight_5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1745919813
 RectTransform:
   m_ObjectHideFlags: 0
@@ -10302,7 +10302,7 @@ MonoBehaviour:
   pageIndex: 1
   button: {fileID: 1755935460}
   preview: {fileID: 271712635}
-  currentHighlight: {fileID: 1745919812}
+  hoverHighlight: {fileID: 1745919812}
   lockOverlay: {fileID: 1209852106}
   soonOverlay: {fileID: 1602611111}
   parHint: {fileID: 209141472}
@@ -11603,12 +11603,12 @@ GameObject:
   - component: {fileID: 1917776604}
   - component: {fileID: 1917776603}
   m_Layer: 5
-  m_Name: CurrentLevel_1
+  m_Name: HoverHighlight_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1917776602
 RectTransform:
   m_ObjectHideFlags: 0
@@ -11824,12 +11824,12 @@ GameObject:
   - component: {fileID: 1929494976}
   - component: {fileID: 1929494975}
   m_Layer: 5
-  m_Name: CurrentLevel_4
+  m_Name: HoverHighlight_4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1929494974
 RectTransform:
   m_ObjectHideFlags: 0

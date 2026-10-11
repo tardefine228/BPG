@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // Проверяет результат уровня, показывает очки и начисляет награду только за первое прохождение.
+// Уровень пройден, когда побеждены все мыши (MouseTarget). На уровне без мышей нужно сбить все блоки.
 [DisallowMultipleComponent]
 public sealed class LevelSession : MonoBehaviour
 {
@@ -14,7 +15,7 @@ public sealed class LevelSession : MonoBehaviour
     [Header("Боезапас этого уровня")]
     [Tooltip("Максимум снарядов за попытку. Меняется отдельно в каждой сцене на GameManager.")]
     [SerializeField, Min(1)] private int maxProjectiles = 5;
-    [Tooltip("Сколько секунд ждать после остановки снарядов и ящиков перед поражением.")]
+    [Tooltip("Сколько секунд ждать после остановки снарядов, блоков и мышей перед поражением.")]
     [SerializeField, Min(0.2f)] private float defeatSettleDelay = 1f;
     [SerializeField, Min(0.01f)] private float targetSettleSpeed = 0.15f;
     [SerializeField, Min(0.1f)] private float targetSettleAngularSpeed = 12f;
@@ -49,6 +50,7 @@ public sealed class LevelSession : MonoBehaviour
 
     private LevelTarget[] targets;
     private Rigidbody2D[] targetBodies;
+    private MouseTarget[] mice;
     [SerializeField] private Sprite starOnSprite;
     [SerializeField] private Sprite starOffSprite;
     [SerializeField] private TMP_Text scoreValueText;
@@ -88,8 +90,11 @@ public sealed class LevelSession : MonoBehaviour
         targetBodies = new Rigidbody2D[targets.Length];
         for (int i = 0; i < targets.Length; i++)
             targetBodies[i] = targets[i].GetComponent<Rigidbody2D>();
+        mice = FindObjectsByType<MouseTarget>(FindObjectsInactive.Exclude);
         RefreshScoreHud();
     }
+
+    private bool HasGoal => (mice != null && mice.Length > 0) || (targets != null && targets.Length > 0);
 
     private void Update()
     {
@@ -100,13 +105,13 @@ public sealed class LevelSession : MonoBehaviour
                 ammoValueText.text = RemainingShots + " / " + MaxProjectiles;
         }
 
-        if (IsEnding || targets == null || targets.Length == 0)
+        if (IsEnding || !HasGoal)
         {
             return;
         }
 
         // Сначала проверяется победа, в том числе попадание последним снарядом.
-        if (AllTargetsCleared())
+        if (LevelGoalReached())
         {
             completionStarted = true;
             gameplayController?.CancelInput();
@@ -119,8 +124,19 @@ public sealed class LevelSession : MonoBehaviour
         }
     }
 
-    private bool AllTargetsCleared()
+    // Победа: побеждены все мыши. Уровень без мышей проходится по старому правилу — сбить все блоки.
+    private bool LevelGoalReached()
     {
+        if (mice != null && mice.Length > 0)
+        {
+            for (int i = 0; i < mice.Length; i++)
+            {
+                if (mice[i] != null && !mice[i].IsDefeated)
+                    return false;
+            }
+            return true;
+        }
+
         if (targets == null || targets.Length == 0)
             return false;
         for (int i = 0; i < targets.Length; i++)
@@ -138,7 +154,7 @@ public sealed class LevelSession : MonoBehaviour
         {
             // Даёт всем целям обновить состояние после физического шага.
             yield return null;
-            if (IsEnding || AllTargetsCleared())
+            if (IsEnding || LevelGoalReached())
                 break;
             bool moving = gameplayController.IsShotInProgress || gameplayController.HasMovingProjectiles
                 || (gameplayController.gameplayCamera != null && gameplayController.gameplayCamera.IsBusy)
@@ -160,19 +176,31 @@ public sealed class LevelSession : MonoBehaviour
             LevelTarget target = targets[i];
             if (target == null || target.IsCleared)
                 continue;
-            Rigidbody2D body = targetBodies[i];
-            if (body == null || !body.simulated || body.bodyType != RigidbodyType2D.Dynamic || body.IsSleeping())
-                continue;
-            if (body.linearVelocity.sqrMagnitude > targetSettleSpeed * targetSettleSpeed
-                || Mathf.Abs(body.angularVelocity) > targetSettleAngularSpeed)
+            if (IsMoving(targetBodies[i]))
+                return true;
+        }
+
+        // Падающая мышь ещё может коснуться земли, поэтому поражение ждёт и её.
+        for (int i = 0; mice != null && i < mice.Length; i++)
+        {
+            MouseTarget mouse = mice[i];
+            if (mouse != null && !mouse.IsDefeated && IsMoving(mouse.Body))
                 return true;
         }
         return false;
     }
 
+    private bool IsMoving(Rigidbody2D body)
+    {
+        if (body == null || !body.simulated || body.bodyType != RigidbodyType2D.Dynamic || body.IsSleeping())
+            return false;
+        return body.linearVelocity.sqrMagnitude > targetSettleSpeed * targetSettleSpeed
+            || Mathf.Abs(body.angularVelocity) > targetSettleAngularSpeed;
+    }
+
     private void FailLevel()
     {
-        if (IsEnding || AllTargetsCleared())
+        if (IsEnding || LevelGoalReached())
             return;
         failed = true;
         gameplayController.CancelInput();
@@ -214,9 +242,9 @@ public sealed class LevelSession : MonoBehaviour
             shots = 1;
         }
 
-        EvaluateTargets(out int clearedBoxes, out float travelDistance);
+        EvaluateTargets(out int clearedBoxes, out int defeatedMice, out float travelDistance);
         int stars = LevelProgress.StarsForShots(LevelId, shots);
-        int runScore = LevelProgress.ComputeRunScore(clearedBoxes, shots, travelDistance);
+        int runScore = LevelProgress.ComputeRunScore(clearedBoxes, defeatedMice, shots, travelDistance);
         displayedScore = scoreCounts ? runScore : 0;
 
         LevelProgress.SaveStars(LevelId, stars);
@@ -285,10 +313,20 @@ public sealed class LevelSession : MonoBehaviour
             victorySource.PlayOneShot(clip, victoryVolume);
     }
 
-    private void EvaluateTargets(out int clearedBoxes, out float travelDistance)
+    private void EvaluateTargets(out int clearedBoxes, out int defeatedMice, out float travelDistance)
     {
         clearedBoxes = 0;
+        defeatedMice = 0;
         travelDistance = 0f;
+        if (mice != null)
+        {
+            for (int i = 0; i < mice.Length; i++)
+            {
+                if (mice[i] != null && mice[i].IsDefeated)
+                    defeatedMice++;
+            }
+        }
+
         if (targets == null)
         {
             return;
@@ -318,8 +356,8 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         int shots = gameplayController != null ? gameplayController.ShotsFired : 0;
-        EvaluateTargets(out int clearedBoxes, out float travelDistance);
-        return LevelProgress.ComputeRunScore(clearedBoxes, shots, travelDistance);
+        EvaluateTargets(out int clearedBoxes, out int defeatedMice, out float travelDistance);
+        return LevelProgress.ComputeRunScore(clearedBoxes, defeatedMice, shots, travelDistance);
     }
 
     private void RefreshScoreHud()

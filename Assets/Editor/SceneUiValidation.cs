@@ -52,6 +52,7 @@ public static class SceneUiValidation
                     References(Find<GameplayCameraController>().Single(), "controlsCanvas", "controlsRect",
                         "launcherButton", "overviewButton", "targetButton");
                     References(Find<SlingshotController>().Single(), "dots");
+                    ValidateMice(scene.name, Find<GameplayCameraController>().Single());
                     var dots = new SerializedObject(Find<SlingshotController>().Single()).FindProperty("dots");
                     Require(dots.arraySize > 0, "Не сохранены точки траектории");
                     Require(Find<ComicParticleBurst>().Length > 0, "Не сохранены эффекты попадания");
@@ -65,11 +66,12 @@ public static class SceneUiValidation
                     References(select, "cards", "track", "pagingSurface", "starsSummary", "pageDots", "menuManager");
                 foreach (var card in Find<LevelCardView>())
                 {
-                    References(card, "button", "preview", "currentHighlight", "lockOverlay", "soonOverlay", "parHint", "stars");
-                    var highlight = (GameObject)new SerializedObject(card).FindProperty("currentHighlight").objectReferenceValue;
+                    References(card, "button", "preview", "hoverHighlight", "lockOverlay", "soonOverlay", "parHint", "stars");
+                    var highlight = (GameObject)new SerializedObject(card).FindProperty("hoverHighlight").objectReferenceValue;
                     if (highlight.transform.parent == card.transform.parent)
                         Require(highlight.transform.GetSiblingIndex() < card.transform.GetSiblingIndex(),
                             card.name + ": подсветка перекрывает карточку");
+                    Require(!highlight.activeSelf, card.name + ": обводка должна появляться только при наведении");
                 }
                 Debug.Log("UI CHECK OK: " + scene.name + ", кнопок: " + Find<Button>().Length);
             }
@@ -86,6 +88,24 @@ public static class SceneUiValidation
     }
 
     private static T[] Find<T>() where T : Object => Object.FindObjectsByType<T>(FindObjectsInactive.Include);
+
+    // Мыши — цели уровня: стоят на постройке внутри TargetArea, а земля помечена тегом Ground.
+    private static void ValidateMice(string sceneName, GameplayCameraController camera)
+    {
+        var mice = Find<MouseTarget>();
+        Require(mice.Length > 0, sceneName + ": на уровне нет мышей");
+        Require(camera.ground != null && camera.ground.CompareTag("Ground"),
+            sceneName + ": у FlatGround должен быть тег Ground");
+        float groundTop = camera.ground.bounds.max.y;
+        foreach (var mouse in mice)
+        {
+            Require(camera.targetFocus != null && mouse.transform.IsChildOf(camera.targetFocus),
+                sceneName + ": " + mouse.name + " должна находиться внутри TargetArea");
+            var body = mouse.GetComponent<Collider2D>();
+            Require(body != null && body.bounds.min.y > groundTop + 0.5f,
+                sceneName + ": " + mouse.name + " не должна стоять на земле");
+        }
+    }
 
     private static void ValidatePauseHierarchy(PauseMenuController pause)
     {
