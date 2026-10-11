@@ -10896,10 +10896,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1a5f4e3b7c95062e8f0a2b4c3d6e579, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
-  countsForVictory: 1
+  countsForVictory: 0
   fallY: -6
   impactSpeed: 2
-  hitsToClear: 3
+  hitsToClear: 2
   hitCooldown: 0.35
   showHitFeedback: 1
   damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}
