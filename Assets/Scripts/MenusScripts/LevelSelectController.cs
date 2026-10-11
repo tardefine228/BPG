@@ -1,27 +1,83 @@
-using TMPro;
+using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 /// <summary>
-/// Level-selection panel inside MainMenu. Progress is refreshed every time it opens.
+/// Runtime-built map lobby. Levels are laid out as pages of cards (three per
+/// page by default) and the pages can be flipped with the arrow buttons, the
+/// dots, a drag / swipe, the mouse wheel or the arrow keys. Each card shows the
+/// level name, a preview image and earned stars. Later levels stay locked until
+/// the previous one is completed.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(RectTransform), typeof(CanvasGroup))]
 public sealed class LevelSelectController : MonoBehaviour
 {
+    private const float CardWidth = 440f;
+    private const float CardHeight = 640f;
+    private const float CardSpacing = 520f;
+    private const float ViewportHeight = 700f;
+    private const float ViewportY = -18f;
+    private const float ArrowX = 848f;
+    private const float ArrowY = -18f;
+    private const float ScrollCooldown = 0.15f;
+
+    // Индикатор страниц: текущая — оранжевый кружок, остальные — серые кольца.
+    private static readonly Color CurrentPageColor = new Color32(230, 155, 82, 255);
+    private static readonly Color OtherPageColor = new Color32(150, 150, 150, 255);
+    private static readonly Color LabelColor = new Color32(120, 120, 120, 255);
+    private const float DotSize = 34f;
+    private const float DotSpacing = 58f;
+    private const float DotRowY = -420f;
+    private const float PageLabelY = -462f;
+
+    [Tooltip("Открыть все уровни сразу — удобно для тестирования новых карт.")]
+    [SerializeField] private bool unlockAllLevels;
+
+    [Tooltip("Сколько карточек уровней помещается на одну страницу " +
+             "(вёрстка рассчитана на 3 карточки в ряд).")]
+    [SerializeField, Min(1)] private int cardsPerPage = 3;
+
+    [Tooltip("Длительность анимации перелистывания страницы, секунды.")]
+    [SerializeField, Min(0.05f)] private float slideDuration = 0.32f;
+
+    [Tooltip("Сдвиг мышью или пальцем, при котором страница перелистывается.")]
+    [SerializeField, Min(0f)] private float dragFlipDistance = 90f;
+
     [SerializeField] private MenuManager menuManager;
-    private RectTransform cardsRoot;
     private bool built;
+    private TMP_Text starsSummary;
     private readonly Dictionary<string, Sprite> previews = new Dictionary<string, Sprite>();
     private readonly List<Sprite> generatedPreviews = new List<Sprite>();
 
     private Sprite uiSprite;
     private Sprite starOnSprite;
     private Sprite starOffSprite;
+    private Sprite arrowLeftSprite;
+    private Sprite arrowRightSprite;
+    private Sprite dotCurrentSprite;
+    private Sprite dotOtherSprite;
     private TMP_FontAsset uiFont;
     private GameObject comingSoonOverlay;
+    private LevelSelectPagingSurface pagingSurface;
+    private Canvas canvas;
+    private RectTransform track;
+    private Button previousPageButton;
+    private Button nextPageButton;
+    private TMP_Text pageLabel;
+    private readonly List<Image> pageDots = new List<Image>();
+    private float pageWidth = CardSpacing;
+    private int pageCount = 1;
+    private int currentPage;
+    private Coroutine slideRoutine;
+    private float dragDistance;
+    private float lastScrollTime = -10f;
+    private float suppressClickUntil = -10f;
 
     private void Awake()
     {
@@ -32,21 +88,40 @@ public sealed class LevelSelectController : MonoBehaviour
     public void Initialize(MenuManager owner)
     {
         menuManager = owner;
+        LevelProgress.UnlockAllLevels = unlockAllLevels;
+        LevelProgress.RestoreSelectedLevel();
         BuildLobby();
         RefreshCards();
     }
 
     private void OnEnable()
     {
+        BuildLobby();
+        LevelProgress.UnlockAllLevels = unlockAllLevels;
+        LevelProgress.RestoreSelectedLevel();
         RefreshCards();
-        if (comingSoonOverlay != null)
-            comingSoonOverlay.SetActive(false);
+        HideComingSoon();
+    }
+
+    private void OnDisable()
+    {
+        if (slideRoutine != null)
+            StopCoroutine(slideRoutine);
+        slideRoutine = null;
+        dragDistance = 0f;
     }
 
     private void OnDestroy()
     {
         foreach (Sprite preview in generatedPreviews)
             Destroy(preview);
+        if (pagingSurface != null)
+        {
+            pagingSurface.Dragged -= OnDraggedHorizontally;
+            pagingSurface.DragCompleted -= OnDragCompleted;
+            pagingSurface.Scrolled -= OnScrolled;
+        }
+
         if (uiSprite != null)
         {
             Destroy(uiSprite);
@@ -63,6 +138,45 @@ public sealed class LevelSelectController : MonoBehaviour
             Destroy(starOffSprite.texture);
             Destroy(starOffSprite);
         }
+
+        DestroyIcon(arrowLeftSprite);
+        DestroyIcon(arrowRightSprite);
+        DestroyIcon(dotCurrentSprite);
+        DestroyIcon(dotOtherSprite);
+    }
+
+    private void Update()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (SceneTransition.IsLoading || (comingSoonOverlay != null && comingSoonOverlay.activeSelf))
+            return;
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null)
+        {
+            return;
+        }
+
+        if (pageCount <= 1)
+        {
+            return;
+        }
+
+        if (keyboard.rightArrowKey.wasPressedThisFrame)
+        {
+            StepPage(1);
+        }
+        else if (keyboard.leftArrowKey.wasPressedThisFrame)
+        {
+            StepPage(-1);
+        }
+#endif
+    }
+
+    /// <summary>Closes the level panel inside MainMenu.</summary>
+    public void ReturnToMainMenu()
+    {
+        AudioManager.Instance?.PlayUiClose();
+        menuManager.CloseLevels();
     }
 
     private void BuildLobby()
@@ -72,6 +186,8 @@ public sealed class LevelSelectController : MonoBehaviour
         built = true;
         if (menuManager == null)
             menuManager = FindAnyObjectByType<MenuManager>();
+        canvas = GetComponentInParent<Canvas>();
+        cardsPerPage = Mathf.Clamp(cardsPerPage, 1, 3);
 
         uiSprite = Sprite.Create(
             Texture2D.whiteTexture,
@@ -80,6 +196,10 @@ public sealed class LevelSelectController : MonoBehaviour
         uiFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
         starOnSprite = StarSpriteFactory.Create(true);
         starOffSprite = StarSpriteFactory.Create(false);
+        arrowRightSprite = MenuSpriteFactory.CreateArrow(true);
+        arrowLeftSprite = MenuSpriteFactory.CreateArrow(false);
+        dotCurrentSprite = MenuSpriteFactory.CreateDot(true, (Color32)CurrentPageColor);
+        dotOtherSprite = MenuSpriteFactory.CreateDot(false, (Color32)OtherPageColor);
 
         RectTransform root = CreateRect(
             "Root",
@@ -93,38 +213,112 @@ public sealed class LevelSelectController : MonoBehaviour
         Image background = root.gameObject.AddComponent<Image>();
         ConfigureImage(background, new Color32(0, 0, 0, 255));
 
-        CreateLabel(root, "Title", "ВЫБОР УРОВНЯ", new Vector2(0f, 430f),
+        pagingSurface = root.gameObject.AddComponent<LevelSelectPagingSurface>();
+        pagingSurface.Dragged += OnDraggedHorizontally;
+        pagingSurface.DragCompleted += OnDragCompleted;
+        pagingSurface.Scrolled += OnScrolled;
+
+        CreateLabel(root, "Title", "ВЫБОР УРОВНЯ", new Vector2(0f, 436f),
             new Vector2(1100f, 90f), 58f, Color.white);
 
-        cardsRoot = CreateRect("LevelCards", root, Vector2.zero, Vector2.one,
-            new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        MenuButtonStyle.Default.CreateButton(root, "BackButton", "НАЗАД", Vector2.one,
-            new Vector2(180f, 76f), new Vector2(-38f, -38f), menuManager.CloseLevels, 30f);
+        LevelDefinition[] levels = LevelProgress.Levels;
+        starsSummary = CreateLabel(root, "StarsSummary", "СОБРАНО ЗВЁЗД: " + CountCollectedStars(levels)
+            + " / " + (levels.Length * LevelProgress.MaxStars),
+            new Vector2(0f, 360f), new Vector2(900f, 44f), 26f,
+            new Color32(150, 150, 150, 255));
+
+        pageCount = Mathf.Max(1, Mathf.CeilToInt(levels.Length / (float)cardsPerPage));
+        pageWidth = CardSpacing * cardsPerPage;
+
+        // Вьюпорт шириной ровно в страницу: маска срезает карточки соседних
+        // страниц ещё до зоны стрелок, иначе на последней странице крайняя
+        // карточка вылезает из-под кнопки листания.
+        RectTransform viewport = CreateRect(
+            "Viewport",
+            root,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(pageWidth, ViewportHeight),
+            new Vector2(0f, ViewportY));
+        viewport.gameObject.AddComponent<RectMask2D>();
+
+        track = CreateRect(
+            "Pages",
+            viewport,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, ViewportHeight),
+            Vector2.zero);
+
+
+        CreateArrowButton(root, -ArrowX, false);
+        CreateArrowButton(root, ArrowX, true);
+        BuildPageDots(root);
+        BuildBackToMainMenuButton(root);
+
+        if (pageCount > 1)
+        {
+            CreateLabel(root, "PagingHint",
+                "ЛИСТАЙТЕ СТРАНИЦЫ: СТРЕЛКИ, КОЛЕСО ИЛИ СВАЙП",
+                new Vector2(0f, -496f), new Vector2(1200f, 36f), 20f,
+                new Color32(96, 96, 96, 255));
+        }
 
         comingSoonOverlay = BuildComingSoonOverlay(root);
         comingSoonOverlay.SetActive(false);
+
+        // Страница при загрузке берётся из сохранения: открываем ту, где лежит
+        // текущий уровень игрока. Если в сохранении ничего нет (или уровень не
+        // найден), IndexOfLevel вернёт -1, Clamp превратит это в 0 — то есть
+        // первой откроется страница 1.
+        int focusIndex = Mathf.Clamp(IndexOfLevel(LevelProgress.CurrentLevelId), 0,
+            Mathf.Max(0, levels.Length - 1));
+        SetPageImmediate(focusIndex / cardsPerPage);
     }
 
     private void RefreshCards()
     {
-        if (cardsRoot == null)
+        if (track == null)
             return;
-        foreach (Transform child in cardsRoot)
+        foreach (Transform child in track)
         {
             child.gameObject.SetActive(false);
             Destroy(child.gameObject);
         }
         LevelDefinition[] levels = LevelProgress.Levels;
-        float spacing = 500f;
-        float startX = -spacing * (levels.Length - 1) * 0.5f;
         for (int i = 0; i < levels.Length; i++)
-            CreateLevelCard(cardsRoot, levels[i], new Vector2(startX + spacing * i, -20f));
+            CreateLevelCard(track, levels[i], i);
+        starsSummary.text = "СОБРАНО ЗВЁЗД: " + CountCollectedStars(levels)
+            + " / " + levels.Length * LevelProgress.MaxStars;
+        SetPageImmediate(Mathf.Max(0, IndexOfLevel(LevelProgress.CurrentLevelId)) / cardsPerPage);
+        dragDistance = 0f;
+        suppressClickUntil = -10f;
+        lastScrollTime = -10f;
     }
 
-    private void CreateLevelCard(Transform parent, LevelDefinition level, Vector2 position)
+    private void CreateLevelCard(Transform parent, LevelDefinition level, int index)
     {
         bool unlocked = LevelProgress.IsUnlocked(level.Id);
+        bool isCurrent = level.Id == LevelProgress.CurrentLevelId;
         int stars = LevelProgress.GetStars(level.Id);
+        Vector2 position = new Vector2(CardX(index), 0f);
+
+        if (isCurrent)
+        {
+            RectTransform highlight = CreateRect(
+                "CurrentLevel_" + level.Id,
+                parent,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(CardWidth + 18f, CardHeight + 18f),
+                position);
+            Image highlightImage = highlight.gameObject.AddComponent<Image>();
+            ConfigureImage(highlightImage, new Color32(230, 155, 82, 255));
+            highlightImage.raycastTarget = false;
+        }
 
         RectTransform card = CreateRect(
             "LevelCard_" + level.Id,
@@ -132,7 +326,7 @@ public sealed class LevelSelectController : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(440f, 640f),
+            new Vector2(CardWidth, CardHeight),
             position);
 
         Image cardImage = card.gameObject.AddComponent<Image>();
@@ -141,7 +335,7 @@ public sealed class LevelSelectController : MonoBehaviour
         Button button = card.gameObject.AddComponent<Button>();
         button.targetGraphic = cardImage;
         button.transition = Selectable.Transition.ColorTint;
-        button.colors = MenuColorBlock.Create();
+        button.colors = MenuButtonStyle.Default.Colors;
         Navigation navigation = button.navigation;
         navigation.mode = Navigation.Mode.None;
         button.navigation = navigation;
@@ -218,8 +412,340 @@ public sealed class LevelSelectController : MonoBehaviour
         }
 
         CreateStarRow(card, stars, new Vector2(0f, -262f));
+        CreateLabel(card, "ParHint",
+            unlocked ? "3 ЗВЕЗДЫ — ДО " + level.ThreeStarShots + " "
+                + ShotsWord(level.ThreeStarShots) : string.Empty,
+            new Vector2(0f, -180f), new Vector2(400f, 30f), 17f,
+            new Color32(90, 90, 90, 255));
     }
 
+    // ------------------------------------------------------------- pages ----
+    private float CardX(int index)
+    {
+        int page = index / cardsPerPage;
+        int firstOnPage = page * cardsPerPage;
+        int countOnPage = Mathf.Min(cardsPerPage, LevelProgress.Levels.Length - firstOnPage);
+        float slot = index - firstOnPage - (countOnPage - 1) * 0.5f;
+        return page * pageWidth + slot * CardSpacing;
+    }
+
+    private void CreateArrowButton(Transform parent, float x, bool pointsRight)
+    {
+        RectTransform rect = CreateRect(
+            pointsRight ? "NextPageButton" : "PreviousPageButton",
+            parent,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(120f, 220f),
+            new Vector2(x, ArrowY));
+
+        Image background = rect.gameObject.AddComponent<Image>();
+        ConfigureImage(background, new Color32(38, 38, 42, 255));
+
+        Button button = rect.gameObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.transition = Selectable.Transition.ColorTint;
+        button.colors = MenuColorBlock.Create();
+        Navigation navigation = button.navigation;
+        navigation.mode = Navigation.Mode.None;
+        button.navigation = navigation;
+        int step = pointsRight ? 1 : -1;
+        button.onClick.AddListener(() => StepPage(step));
+        MenuButtonStyle.Default.Apply(button);
+        rect.gameObject.AddComponent<MenuControlFeedback>();
+
+        RectTransform icon = CreateRect(
+            "Icon",
+            rect,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(96f, 96f),
+            Vector2.zero);
+        Image iconImage = icon.gameObject.AddComponent<Image>();
+        ConfigureImage(iconImage, Color.white);
+        iconImage.sprite = pointsRight ? arrowRightSprite : arrowLeftSprite;
+        iconImage.color = MenuButtonStyle.Default.textColor;
+        iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
+
+        if (pointsRight)
+        {
+            nextPageButton = button;
+        }
+        else
+        {
+            previousPageButton = button;
+        }
+    }
+
+    /// <summary>
+    /// Row of page dots under the cards: the current page is the orange filled
+    /// dot, the other pages are grey rings. Clicking a dot flips to that page.
+    /// </summary>
+    private void BuildPageDots(Transform parent)
+    {
+        if (pageCount <= 1)
+        {
+            return;
+        }
+
+        RectTransform row = CreateRect(
+            "PageDots",
+            parent,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(pageCount * DotSpacing, 44f),
+            new Vector2(0f, DotRowY));
+
+        for (int i = 0; i < pageCount; i++)
+        {
+            RectTransform dot = CreateRect(
+                "Dot" + i,
+                row,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(DotSize, DotSize),
+                new Vector2((i - (pageCount - 1) * 0.5f) * DotSpacing, 0f));
+
+            Image image = dot.gameObject.AddComponent<Image>();
+            ConfigureImage(image, Color.white);
+            image.preserveAspect = true;
+            ApplyDotState(image, i == currentPage);
+
+            Button button = dot.gameObject.AddComponent<Button>();
+            // Кнопка только принимает клик: без ColorTint, иначе она
+            // перекрашивала бы точку в белый при наведении.
+            button.targetGraphic = null;
+            button.transition = Selectable.Transition.None;
+            Navigation navigation = button.navigation;
+            navigation.mode = Navigation.Mode.None;
+            button.navigation = navigation;
+            int page = i;
+            button.onClick.AddListener(() => SetPage(page));
+
+            dot.gameObject.AddComponent<MenuControlFeedback>();
+            pageDots.Add(image);
+        }
+
+        pageLabel = CreateLabel(parent, "PageLabel", PageLabelText(),
+            new Vector2(0f, PageLabelY), new Vector2(600f, 34f), 22f,
+            LabelColor);
+    }
+
+    private string PageLabelText()
+    {
+        return "СТРАНИЦА " + (currentPage + 1) + " / " + pageCount;
+    }
+
+    private void StepPage(int delta)
+    {
+        SetPage(currentPage + delta);
+    }
+
+    private void SetPage(int page)
+    {
+        int clamped = Mathf.Clamp(page, 0, Mathf.Max(0, pageCount - 1));
+        currentPage = clamped;
+        RefreshNavigation();
+
+        float target = -currentPage * pageWidth;
+        if (track == null)
+        {
+            return;
+        }
+
+        if (slideRoutine != null)
+        {
+            StopCoroutine(slideRoutine);
+            slideRoutine = null;
+        }
+
+        if (Mathf.Abs(track.anchoredPosition.x - target) < 0.5f)
+        {
+            track.anchoredPosition = new Vector2(target, track.anchoredPosition.y);
+            return;
+        }
+
+        slideRoutine = StartCoroutine(SlideRoutine(target));
+    }
+
+    private void SetPageImmediate(int page)
+    {
+        currentPage = Mathf.Clamp(page, 0, Mathf.Max(0, pageCount - 1));
+        if (track != null)
+        {
+            track.anchoredPosition = new Vector2(-currentPage * pageWidth, track.anchoredPosition.y);
+        }
+
+        RefreshNavigation();
+    }
+
+    private IEnumerator SlideRoutine(float targetX)
+    {
+        float startX = track.anchoredPosition.x;
+        float y = track.anchoredPosition.y;
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.05f, slideDuration);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = t * t * (3f - 2f * t);
+            track.anchoredPosition = new Vector2(Mathf.Lerp(startX, targetX, eased), y);
+            yield return null;
+        }
+
+        track.anchoredPosition = new Vector2(targetX, y);
+        slideRoutine = null;
+    }
+
+    private void RefreshNavigation()
+    {
+        // An arrow is only on screen while paging that way is actually possible:
+        // on the first page there is no left arrow, after flipping there is.
+        if (previousPageButton != null)
+        {
+            bool canGoBack = pageCount > 1 && currentPage > 0;
+            previousPageButton.interactable = canGoBack;
+            previousPageButton.gameObject.SetActive(canGoBack);
+        }
+
+        if (nextPageButton != null)
+        {
+            bool canGoForward = pageCount > 1 && currentPage < pageCount - 1;
+            nextPageButton.interactable = canGoForward;
+            nextPageButton.gameObject.SetActive(canGoForward);
+        }
+
+        for (int i = 0; i < pageDots.Count; i++)
+        {
+            ApplyDotState(pageDots[i], i == currentPage);
+        }
+
+        if (pageLabel != null)
+        {
+            pageLabel.text = PageLabelText();
+        }
+    }
+
+    /// <summary>Swaps the dot sprite to show whether the page is the current one.</summary>
+    private void ApplyDotState(Image dot, bool isCurrent)
+    {
+        if (dot == null)
+        {
+            return;
+        }
+
+        // Цвет запечён в спрайт, поэтому здесь только подмена картинки —
+        // точке не нужен ни тинт, ни перекраска кнопкой.
+        dot.sprite = isCurrent ? dotCurrentSprite : dotOtherSprite;
+        dot.color = Color.white;
+    }
+
+    /// <summary>Top right button that leaves the lobby for the main menu.</summary>
+    private void BuildBackToMainMenuButton(Transform parent)
+    {
+        MenuButtonStyle.Default.CreateButton(parent, "BackButton", "НАЗАД", Vector2.one,
+            new Vector2(180f, 76f), new Vector2(-38f, -38f), ReturnToMainMenu, 30f);
+    }
+
+    private void OnDraggedHorizontally(float deltaX)
+    {
+        if (pageCount <= 1 || track == null || Mathf.Approximately(deltaX, 0f))
+        {
+            return;
+        }
+
+        if (slideRoutine != null)
+        {
+            StopCoroutine(slideRoutine);
+            slideRoutine = null;
+        }
+
+        dragDistance += deltaX;
+        float scale = canvas != null ? Mathf.Max(0.01f, canvas.scaleFactor) : 1f;
+        float min = -(pageCount - 1) * pageWidth;
+        float x = Mathf.Clamp(track.anchoredPosition.x + deltaX / scale, min, 0f);
+        track.anchoredPosition = new Vector2(x, track.anchoredPosition.y);
+    }
+
+    private void OnDragCompleted()
+    {
+        if (pageCount <= 1 || track == null)
+        {
+            dragDistance = 0f;
+            return;
+        }
+
+        float moved = dragDistance;
+        dragDistance = 0f;
+
+        if (Mathf.Abs(moved) >= 12f)
+        {
+            // A drag that ends above a card must not load the level.
+            suppressClickUntil = Time.unscaledTime + 0.25f;
+        }
+
+        int page = currentPage;
+        if (Mathf.Abs(moved) >= dragFlipDistance)
+        {
+            page = currentPage + (moved > 0f ? -1 : 1);
+        }
+        else
+        {
+            page = Mathf.RoundToInt(-track.anchoredPosition.x / pageWidth);
+        }
+
+        SetPage(page);
+    }
+
+    private void OnScrolled(float delta)
+    {
+        if (pageCount <= 1 || Mathf.Abs(delta) < 0.01f)
+        {
+            return;
+        }
+
+        if (Time.unscaledTime - lastScrollTime < ScrollCooldown)
+        {
+            return;
+        }
+
+        lastScrollTime = Time.unscaledTime;
+        StepPage(delta > 0f ? -1 : 1);
+    }
+
+    private static int IndexOfLevel(int levelId)
+    {
+        LevelDefinition[] levels = LevelProgress.Levels;
+        for (int i = 0; i < levels.Length; i++)
+        {
+            if (levels[i].Id == levelId)
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int CountCollectedStars(LevelDefinition[] levels)
+    {
+        int total = 0;
+        for (int i = 0; i < levels.Length; i++)
+        {
+            total += LevelProgress.GetStars(levels[i].Id);
+        }
+
+        return total;
+    }
+
+    // ------------------------------------------------------------ cards ----
     private void CreateStarRow(Transform parent, int filledStars, Vector2 position)
     {
         RectTransform row = CreateRect(
@@ -253,6 +779,11 @@ public sealed class LevelSelectController : MonoBehaviour
 
     private void OnLevelClicked(int levelId)
     {
+        if (SceneTransition.IsLoading || Time.unscaledTime < suppressClickUntil)
+        {
+            return;
+        }
+
         LevelDefinition level = LevelProgress.GetLevel(levelId);
         if (!LevelProgress.IsUnlocked(level.Id))
         {
@@ -308,6 +839,7 @@ public sealed class LevelSelectController : MonoBehaviour
         }
     }
 
+    // ------------------------------------------------------------- ui ------
     public bool DismissComingSoon()
     {
         bool open = comingSoonOverlay != null && comingSoonOverlay.activeSelf;
@@ -315,20 +847,14 @@ public sealed class LevelSelectController : MonoBehaviour
         return open;
     }
 
-    private Button CreateButton(
-        Transform parent,
-        string objectName,
-        string label,
-        Vector2 size,
-        Vector2 position,
-        UnityAction onClick,
-        float fontSize)
+    private Button CreateButton(Transform parent, string objectName, string label,
+        Vector2 size, Vector2 position, UnityEngine.Events.UnityAction onClick, float fontSize)
     {
         return MenuButtonStyle.Default.CreateButton(parent, objectName, label,
             new Vector2(0.5f, 0.5f), size, position, onClick, fontSize);
     }
 
-    private void CreateLabel(
+    private TMP_Text CreateLabel(
         Transform parent,
         string objectName,
         string value,
@@ -345,7 +871,7 @@ public sealed class LevelSelectController : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             size,
             position);
-        CreateText(rect, value, fontSize, color);
+        return CreateText(rect, value, fontSize, color);
     }
 
     private TMP_Text CreateText(RectTransform parent, string value, float fontSize, Color color)
@@ -393,6 +919,22 @@ public sealed class LevelSelectController : MonoBehaviour
         image.type = Image.Type.Simple;
         image.color = color;
         image.raycastTarget = true;
+    }
+
+    private static void DestroyIcon(Sprite sprite)
+    {
+        if (sprite == null)
+        {
+            return;
+        }
+
+        Destroy(sprite.texture);
+        Destroy(sprite);
+    }
+
+    private static string ShotsWord(int shots)
+    {
+        return shots == 1 ? "ВЫСТРЕЛА" : "ВЫСТРЕЛОВ";
     }
 
     private Sprite LoadPreview(string resourcePath)

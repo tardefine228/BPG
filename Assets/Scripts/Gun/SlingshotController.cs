@@ -34,6 +34,12 @@ public class SlingshotController : MonoBehaviour
     public float grabRadiusPixels = 24f;
     [Range(0.05f, 0.5f)] public float fullPullScreenFraction = 0.2f;
 
+    [Header("Звуки кота (громкость эффектов)")]
+    [SerializeField] private AudioClip grabMeow;
+    [SerializeField] private AudioClip flightMeow;
+    [SerializeField, Range(0f, 1f)] private float grabMeowVolume = 0.7f;
+    [SerializeField, Range(0f, 1f)] private float flightMeowVolume = 0.9f;
+
     [Header("Reload")]
     public float spawnDelay = 2.5f;
     public float projectileLifetime = 12f;
@@ -56,6 +62,14 @@ public class SlingshotController : MonoBehaviour
     private Transform dotsRoot;
     private Color trajectoryColor;
     private int visibleDots;
+
+    private void Awake()
+    {
+        if (grabMeow == null)
+            grabMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowShort");
+        if (flightMeow == null)
+            flightMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowLong");
+    }
 
     private void Start()
     {
@@ -106,6 +120,7 @@ public class SlingshotController : MonoBehaviour
             if (Vector2.Distance(pointer, shellScreen) <= Mathf.Max(grabRadiusPixels, visibleRadius))
             {
                 isDragging = true;
+                AudioManager.Instance?.PlaySfx(grabMeow, grabMeowVolume);
                 dragStartScreen = pointer;
             }
         }
@@ -277,6 +292,7 @@ public class SlingshotController : MonoBehaviour
         fired.linearVelocity = launchVelocity;
         ShotsFired++;
         AudioManager.Instance?.PlayShotSound();
+        AudioManager.Instance?.PlaySfx(flightMeow, flightMeowVolume);
         gameplayCamera?.FollowShot(fired);
         ShotLaunched?.Invoke(fired);
         Destroy(fired.gameObject, projectileLifetime);

@@ -174,8 +174,8 @@ MonoBehaviour:
   uiHoverSound: {fileID: 0}
   uiOpenSound: {fileID: 0}
   uiCloseSound: {fileID: 0}
-  shotSound: {fileID: 0}
-  shotSoundVolume: 1
+  shotSound: {fileID: 8300000, guid: ff6108c45e071c647b09b1aca7b04a00, type: 3}
+  shotSoundVolume: 0.8
   defaultMusicVolume: 0.5
   defaultEffectsVolume: 0.5
   saveVolumeSettings: 1
@@ -1092,6 +1092,10 @@ MonoBehaviour:
   fullPullScreenFraction: 0.2
   spawnDelay: 2.5
   projectileLifetime: 12
+  grabMeow: {fileID: 8300000, guid: 909b2de882f05fa74622578e6050227d, type: 3}
+  flightMeow: {fileID: 8300000, guid: 0b8e44aef56f0a46338bca63134b9c53, type: 3}
+  grabMeowVolume: 0.7
+  flightMeowVolume: 0.9
 --- !u!1 &933486503
 GameObject:
   m_ObjectHideFlags: 0
@@ -1231,6 +1235,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelSession
   gameplayController: {fileID: 854157704}
   completeDelay: 1.1
+  forcedLevelId: 1
+  victory3StarsSound: {fileID: 8300000, guid: c124260e1ef99ea646eb874b0d700cd8, type: 3}
+  victory2StarsSound: {fileID: 8300000, guid: e557cc1b5f428e9fab5b47b476c5c42e, type: 3}
+  victory1StarsSound: {fileID: 8300000, guid: d78853291806a7880bc4cfa0a175a750, type: 3}
+  victorySoundDelay: 0.15
+  victoryVolume: 0.9
 --- !u!1 &1428137472
 GameObject:
   m_ObjectHideFlags: 0

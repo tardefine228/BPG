@@ -14,8 +14,30 @@ public sealed class LevelSession : MonoBehaviour
     [SerializeField] private SlingshotController gameplayController;
     [SerializeField] private float completeDelay = 1.1f;
 
+    [Tooltip("Номер уровня этой сцены. 0 — взять уровень, выбранный в меню. " +
+             "Позволяет запускать карту прямо из редактора.")]
+    [SerializeField] private int forcedLevelId;
+
+    [Header("Звук победы")]
+    [Tooltip("Фанфары за 3 звезды. Если поле пустое, клип берётся из Resources.")]
+    [SerializeField] private AudioClip victory3StarsSound;
+
+    [Tooltip("Джингл за 2 звезды. Если поле пустое, клип берётся из Resources.")]
+    [SerializeField] private AudioClip victory2StarsSound;
+
+    [Tooltip("Скромный джингл за 1 звезду. Если поле пустое, клип берётся из Resources.")]
+    [SerializeField] private AudioClip victory1StarsSound;
+
+    [Tooltip("Задержка перед звуком победы, чтобы он совпал с появлением итогового окна.")]
+    [SerializeField, Min(0f)] private float victorySoundDelay = 0.15f;
+
+    [SerializeField, Range(0f, 1f)] private float victoryVolume = 0.9f;
+
     private const int HudSortingOrder = 80;
     private const int OverlaySortingOrder = 90;
+    private const string Victory3StarsPath = "Audio/Victory/Victory3Stars";
+    private const string Victory2StarsPath = "Audio/Victory/Victory2Stars";
+    private const string Victory1StarsPath = "Audio/Victory/Victory1Stars";
 
     private LevelTarget[] targets;
     private Sprite uiSprite;
@@ -28,6 +50,9 @@ public sealed class LevelSession : MonoBehaviour
     private bool completionStarted;
     private bool completed;
     private int displayedScore;
+    private AudioSource victorySource;
+
+    private int LevelId => forcedLevelId > 0 ? forcedLevelId : LevelProgress.CurrentLevelId;
 
     private void Awake()
     {
@@ -37,7 +62,7 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         LevelProgress.RestoreSelectedLevel();
-        scoreCounts = !LevelProgress.HasAwardedScore(LevelProgress.CurrentLevelId);
+        scoreCounts = !LevelProgress.HasAwardedScore(LevelId);
         BuildScoreHud();
     }
 
@@ -97,18 +122,18 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         EvaluateTargets(out int clearedBoxes, out float travelDistance);
-        int stars = LevelProgress.StarsFromShots(shots);
+        int stars = LevelProgress.StarsForShots(LevelId, shots);
         int runScore = LevelProgress.ComputeRunScore(clearedBoxes, shots, travelDistance);
         displayedScore = scoreCounts ? runScore : 0;
 
-        LevelProgress.SaveStars(LevelProgress.CurrentLevelId, stars);
+        LevelProgress.SaveStars(LevelId, stars);
         bool awardedScore = false;
         if (scoreCounts)
         {
-            awardedScore = LevelProgress.TryAwardFirstClearScore(LevelProgress.CurrentLevelId, runScore);
+            awardedScore = LevelProgress.TryAwardFirstClearScore(LevelId, runScore);
         }
 
-        LevelProgress.MarkCompleted(LevelProgress.CurrentLevelId);
+        LevelProgress.MarkCompleted(LevelId);
         RefreshScoreHud();
 
         if (gameplayController != null)
@@ -117,7 +142,62 @@ public sealed class LevelSession : MonoBehaviour
             gameplayController.enabled = false;
         }
 
-        BuildCompletionOverlay(stars, awardedScore ? runScore : 0, awardedScore);
+        BuildCompletionOverlay(stars, awardedScore ? runScore : 0, awardedScore, shots);
+        PlayVictorySound(stars);
+    }
+
+    /// <summary>Plays the jingle that matches the earned star count.</summary>
+    private void PlayVictorySound(int stars)
+    {
+        AudioClip clip = stars >= 3
+            ? (victory3StarsSound != null ? victory3StarsSound
+                : Resources.Load<AudioClip>(Victory3StarsPath))
+            : stars == 2
+                ? (victory2StarsSound != null ? victory2StarsSound
+                    : Resources.Load<AudioClip>(Victory2StarsPath))
+                : (victory1StarsSound != null ? victory1StarsSound
+                    : Resources.Load<AudioClip>(Victory1StarsPath));
+        if (clip == null)
+        {
+            return;
+        }
+
+        if (victorySoundDelay > 0f)
+        {
+            StartCoroutine(PlayVictoryAfterDelay(clip));
+            return;
+        }
+
+        PlayVictoryClip(clip);
+    }
+
+    private IEnumerator PlayVictoryAfterDelay(AudioClip clip)
+    {
+        // Unscaled time: the jingle must land even if the game is paused.
+        yield return new WaitForSecondsRealtime(victorySoundDelay);
+        PlayVictoryClip(clip);
+    }
+
+    private void PlayVictoryClip(AudioClip clip)
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySfx(clip, victoryVolume);
+            return;
+        }
+
+        // No manager in the scene (for example a bare test scene): fall back to
+        // a local source so the jingle is still audible.
+        if (victorySource == null)
+        {
+            victorySource = gameObject.AddComponent<AudioSource>();
+            victorySource.playOnAwake = false;
+            victorySource.loop = false;
+            victorySource.spatialBlend = 0f;
+            victorySource.dopplerLevel = 0f;
+        }
+
+        victorySource.PlayOneShot(clip, victoryVolume);
     }
 
     private void EvaluateTargets(out int clearedBoxes, out float travelDistance)
@@ -250,7 +330,7 @@ public sealed class LevelSession : MonoBehaviour
             scoreCounts ? new Color32(230, 155, 82, 255) : new Color32(140, 140, 140, 255));
     }
 
-    private void BuildCompletionOverlay(int stars, int score, bool awardedScore)
+    private void BuildCompletionOverlay(int stars, int score, bool awardedScore, int shots)
     {
         int uiLayer = LayerMask.NameToLayer("UI");
         if (uiLayer < 0)
@@ -305,8 +385,20 @@ public sealed class LevelSession : MonoBehaviour
                 ? new Color32(230, 155, 82, 255)
                 : new Color32(200, 200, 200, 255));
 
+        int threeStarShots = LevelProgress.ThreeStarShots(LevelId);
+        CreateLabel(overlay, "ShotsLine",
+            "ВЫСТРЕЛОВ: " + shots + "      3 ЗВЕЗДЫ — ДО " + threeStarShots + " "
+            + ShotsWord(threeStarShots),
+            new Vector2(0f, -58f), new Vector2(1100f, 44f), 25f,
+            new Color32(190, 190, 190, 255));
+
         CreateButton(overlay, "ContinueButton", "ДАЛЬШЕ",
             new Vector2(640f, 88f), new Vector2(0f, -160f), ReturnToLobby, 42f);
+    }
+
+    private static string ShotsWord(int shots)
+    {
+        return shots == 1 ? "ВЫСТРЕЛА" : "ВЫСТРЕЛОВ";
     }
 
     private void EnsureUiAssets()
