@@ -20,8 +20,26 @@ public sealed class LevelSession : MonoBehaviour
              "Позволяет запускать карту прямо из редактора.")]
     [SerializeField] private int forcedLevelId;
 
+    [Header("Звук победы")]
+    [Tooltip("Фанфары за 3 звезды. Если поле пустое, клип берётся из Resources.")]
+    [SerializeField] private AudioClip victory3StarsSound;
+
+    [Tooltip("Джингл за 2 звезды. Если поле пустое, клип берётся из Resources.")]
+    [SerializeField] private AudioClip victory2StarsSound;
+
+    [Tooltip("Скромный джингл за 1 звезду. Если поле пустое, клип берётся из Resources.")]
+    [SerializeField] private AudioClip victory1StarsSound;
+
+    [Tooltip("Задержка перед звуком победы, чтобы он совпал с появлением итогового окна.")]
+    [SerializeField, Min(0f)] private float victorySoundDelay = 0.15f;
+
+    [SerializeField, Range(0f, 1f)] private float victoryVolume = 0.9f;
+
     private const int HudSortingOrder = 80;
     private const int OverlaySortingOrder = 90;
+    private const string Victory3StarsPath = "Audio/Victory/Victory3Stars";
+    private const string Victory2StarsPath = "Audio/Victory/Victory2Stars";
+    private const string Victory1StarsPath = "Audio/Victory/Victory1Stars";
 
     private LevelTarget[] targets;
     private Sprite uiSprite;
@@ -34,6 +52,7 @@ public sealed class LevelSession : MonoBehaviour
     private bool completionStarted;
     private bool completed;
     private int displayedScore;
+    private AudioSource victorySource;
 
     private int LevelId => forcedLevelId > 0 ? forcedLevelId : LevelProgress.CurrentLevelId;
 
@@ -122,6 +141,61 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         BuildCompletionOverlay(stars, awardedScore ? runScore : 0, awardedScore, shots);
+        PlayVictorySound(stars);
+    }
+
+    /// <summary>Plays the jingle that matches the earned star count.</summary>
+    private void PlayVictorySound(int stars)
+    {
+        AudioClip clip = stars >= 3
+            ? (victory3StarsSound != null ? victory3StarsSound
+                : Resources.Load<AudioClip>(Victory3StarsPath))
+            : stars == 2
+                ? (victory2StarsSound != null ? victory2StarsSound
+                    : Resources.Load<AudioClip>(Victory2StarsPath))
+                : (victory1StarsSound != null ? victory1StarsSound
+                    : Resources.Load<AudioClip>(Victory1StarsPath));
+        if (clip == null)
+        {
+            return;
+        }
+
+        if (victorySoundDelay > 0f)
+        {
+            StartCoroutine(PlayVictoryAfterDelay(clip));
+            return;
+        }
+
+        PlayVictoryClip(clip);
+    }
+
+    private IEnumerator PlayVictoryAfterDelay(AudioClip clip)
+    {
+        // Unscaled time: the jingle must land even if the game is paused.
+        yield return new WaitForSecondsRealtime(victorySoundDelay);
+        PlayVictoryClip(clip);
+    }
+
+    private void PlayVictoryClip(AudioClip clip)
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySfx(clip, victoryVolume);
+            return;
+        }
+
+        // No manager in the scene (for example a bare test scene): fall back to
+        // a local source so the jingle is still audible.
+        if (victorySource == null)
+        {
+            victorySource = gameObject.AddComponent<AudioSource>();
+            victorySource.playOnAwake = false;
+            victorySource.loop = false;
+            victorySource.spatialBlend = 0f;
+            victorySource.dopplerLevel = 0f;
+        }
+
+        victorySource.PlayOneShot(clip, victoryVolume);
     }
 
     private void EvaluateTargets(out int clearedBoxes, out float travelDistance)

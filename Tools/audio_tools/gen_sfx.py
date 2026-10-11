@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """
-Generates the slingshot sound effects for the BPG project:
+Generates the sound effects of the BPG project:
 
   Assets/Resources/Audio/Slingshot/SlingshotStretch.wav  (seamless loop)
   Assets/Resources/Audio/Slingshot/SlingshotShot.wav     (one shot)
+  Assets/Resources/Audio/Victory/Victory1Stars.wav       (level cleared, 1 star)
+  Assets/Resources/Audio/Victory/Victory2Stars.wav       (level cleared, 2 stars)
+  Assets/Resources/Audio/Victory/Victory3Stars.wav       (level cleared, 3 stars)
+
+The three victory jingles are deliberately different: the better the run, the
+longer and brighter the fanfare (one short call, a two note answer, or a full
+rising arpeggio with a chord and sparkles).
 
 The clips are synthesized from scratch (no third party samples): the stretch is
 a rubber-band creak that rises with the pull, the shot is a snap + twang with a
@@ -19,6 +26,7 @@ import wave
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT_DIR = os.path.join(ROOT, 'Assets/Resources/Audio/Slingshot')
+VICTORY_DIR = os.path.join(ROOT, 'Assets/Resources/Audio/Victory')
 SAMPLE_RATE = 44100
 
 META_TEMPLATE = """fileFormatVersion: 2
@@ -136,6 +144,94 @@ def stats(name, samples):
         bars.append('#' * int(round(level * 60 / max(0.0001, peak))))
     for index, bar in enumerate(bars):
         print('   %5.2fs %s' % (index * size / SAMPLE_RATE, bar))
+
+
+def add_tone(buffer, start, length, frequency, decay, amplitude,
+             harmonics=((1.0, 1.0), (2.0, 0.38), (3.0, 0.16), (4.0, 0.07)),
+             attack=0.006):
+    """Adds an exponentially decaying additive tone into `buffer`, in place."""
+    offset = int(start * SAMPLE_RATE)
+    size = int(length * SAMPLE_RATE)
+    attack = max(1e-4, attack)
+    for index in range(size):
+        position = offset + index
+        if position >= len(buffer):
+            return
+        t = index / SAMPLE_RATE
+        envelope = (1.0 - math.exp(-t / attack)) * math.exp(-t / decay)
+        value = 0.0
+        for multiplier, gain in harmonics:
+            frequency_component = frequency * multiplier
+            if frequency_component >= SAMPLE_RATE * 0.45:
+                continue
+            value += math.sin(2.0 * math.pi * frequency_component * t) * gain
+        buffer[position] += value * envelope * amplitude
+
+
+def add_sparkle(buffer, start, frequency, amplitude=0.25, decay=0.09):
+    """A tiny high bell used as confetti at the end of the jingles."""
+    add_tone(buffer, start, decay * 4.0, frequency, decay, amplitude,
+             harmonics=((1.0, 1.0), (2.7, 0.35), (4.1, 0.15)), attack=0.002)
+
+
+def add_shimmer(buffer, start, duration=0.28, amplitude=0.16, cutoff=7000.0):
+    """Short bright noise burst, the cartoon "tada" air."""
+    offset = int(start * SAMPLE_RATE)
+    size = int(duration * SAMPLE_RATE)
+    hiss = one_pole_high_pass(noise(size, int(start * 1000) + 7), cutoff)
+    for index in range(size):
+        position = offset + index
+        if position >= len(buffer):
+            return
+        t = index / SAMPLE_RATE
+        envelope = math.exp(-t / (duration * 0.35)) * (1.0 - math.exp(-t / 0.004))
+        buffer[position] += hiss[index] * envelope * amplitude
+
+
+NOTE = {
+    'C4': 261.63, 'E4': 329.63, 'G4': 392.00, 'A4': 440.00, 'C5': 523.25,
+    'D5': 587.33, 'E5': 659.25, 'G5': 783.99, 'A5': 880.00, 'C6': 1046.50,
+    'E6': 1318.51, 'G6': 1567.98, 'C7': 2093.00,
+}
+
+
+def build_victory(stars):
+    """
+    Victory jingle: 3 stars is a full rising fanfare with a chord and sparkles,
+    2 stars a shorter two note answer, 1 star a single modest call.
+    """
+    if stars >= 3:
+        duration, peak, sparkles = 1.75, 0.95, (('C7', 0.56), ('G6', 0.68), ('C7', 0.80))
+    elif stars == 2:
+        duration, peak, sparkles = 1.20, 0.90, (('E6', 0.40), ('C7', 0.56))
+    else:
+        duration, peak, sparkles = 0.95, 0.85, ()
+
+    buffer = [0.0] * int(SAMPLE_RATE * duration)
+
+    if stars >= 3:
+        for index, note in enumerate(('C5', 'E5', 'G5')):
+            add_tone(buffer, 0.02 + 0.13 * index, 0.5, NOTE[note], 0.16, 0.5)
+        add_shimmer(buffer, 0.48)
+        for note, gain in (('C5', 0.45), ('E5', 0.35), ('G5', 0.32), ('C6', 0.5)):
+            add_tone(buffer, 0.46, 1.3, NOTE[note], 0.75, gain)
+        add_tone(buffer, 0.46, 1.1, NOTE['C4'], 0.55, 0.55)
+    elif stars == 2:
+        for index, note in enumerate(('C5', 'G5')):
+            add_tone(buffer, 0.02 + 0.16 * index, 0.55, NOTE[note], 0.19, 0.55)
+        add_tone(buffer, 0.38, 0.9, NOTE['E5'], 0.5, 0.4)
+        add_tone(buffer, 0.38, 0.9, NOTE['C5'], 0.5, 0.35)
+    else:
+        add_tone(buffer, 0.02, 0.6, NOTE['C5'], 0.22, 0.55)
+        add_tone(buffer, 0.24, 0.9, NOTE['G4'], 0.45, 0.45)
+        add_tone(buffer, 0.24, 0.9, NOTE['E4'], 0.45, 0.3)
+
+    for note, when in sparkles:
+        add_sparkle(buffer, when, NOTE[note], 0.22 if stars >= 3 else 0.18)
+
+    buffer = one_pole_low_pass(buffer, 12000.0)
+    buffer = normalize(buffer, peak)
+    return fade_edges(buffer, fade_in=0.002, fade_out=0.12)
 
 
 # ------------------------------------------------------------------- sounds ----
@@ -258,15 +354,19 @@ def collect_guids():
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    os.makedirs(VICTORY_DIR, exist_ok=True)
     guids = collect_guids()
 
     clips = [
-        ('SlingshotStretch.wav', build_stretch(), 0),
-        ('SlingshotShot.wav', build_shot(), 0),
+        (OUT_DIR, 'SlingshotStretch.wav', build_stretch(), 0),
+        (OUT_DIR, 'SlingshotShot.wav', build_shot(), 0),
+        (VICTORY_DIR, 'Victory1Stars.wav', build_victory(1), 0),
+        (VICTORY_DIR, 'Victory2Stars.wav', build_victory(2), 0),
+        (VICTORY_DIR, 'Victory3Stars.wav', build_victory(3), 0),
     ]
 
-    for name, samples, load_type in clips:
-        path = os.path.join(OUT_DIR, name)
+    for directory, name, samples, load_type in clips:
+        path = os.path.join(directory, name)
         write_wav(path, samples)
         stats(name, samples)
         meta_path = path + '.meta'

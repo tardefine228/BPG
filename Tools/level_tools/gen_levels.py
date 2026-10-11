@@ -237,6 +237,54 @@ def level_target_body(go_id, hits, push_resistance, sliding_friction):
 
 STEEL = (0.62, 0.66, 0.74, 1)
 
+# Victory jingles referenced by the LevelSession component of every scene. The
+# GUIDs are read from the .meta files, so re-importing the wavs keeps working.
+VICTORY_CLIP_PATHS = {
+    3: 'Assets/Resources/Audio/Victory/Victory3Stars.wav',
+    2: 'Assets/Resources/Audio/Victory/Victory2Stars.wav',
+    1: 'Assets/Resources/Audio/Victory/Victory1Stars.wav',
+}
+
+
+def audio_clip_ref(clip_path):
+    meta_path = os.path.join(ROOT, clip_path + '.meta')
+    if not os.path.exists(meta_path):
+        raise FileNotFoundError('missing audio meta: ' + clip_path)
+    with open(meta_path, encoding='utf-8') as handle:
+        guid = re.search(r'^guid: (\w+)$', handle.read(), re.M).group(1)
+    return '{fileID: 8300000, guid: %s, type: 3}' % guid
+
+
+def apply_victory_sounds(scene_text):
+    """
+    Keeps exactly one victory-sound block in the scene: the Gameplay template
+    already carries the fields, so they are refreshed (clip GUIDs) instead of
+    being appended a second time.
+    """
+    existing = re.compile(r'^  (?:victory3StarsSound|victory2StarsSound|'
+                          r'victory1StarsSound|victorySoundDelay|victoryVolume):.*\n',
+                          re.M)
+    scene_text = existing.sub('', scene_text)
+
+    lines = scene_text.splitlines(keepends=True)
+    output = []
+    for line in lines:
+        output.append(line)
+        if line.strip() == 'completeDelay: %s' % 1.1:
+            output.append(victory_sound_fields())
+    return ''.join(output)
+
+
+def victory_sound_fields():
+    return ('  victory3StarsSound: %s\n'
+            '  victory2StarsSound: %s\n'
+            '  victory1StarsSound: %s\n'
+            '  victorySoundDelay: 0.15\n'
+            '  victoryVolume: 0.9\n' % (
+                audio_clip_ref(VICTORY_CLIP_PATHS[3]),
+                audio_clip_ref(VICTORY_CLIP_PATHS[2]),
+                audio_clip_ref(VICTORY_CLIP_PATHS[1])))
+
 LEVEL2 = {
     'file': 'Assets/Scenes/Level2.unity',
     'level_id': 2,
@@ -450,7 +498,7 @@ def build(cfg):
     b.clone('AudioManager', name='AudioManager')
     b.clone('EventSystem', name='EventSystem')
 
-    return b.finalize()
+    return apply_victory_sounds(b.finalize())
 
 
 # ------------------------------------------------------------------ validation ----

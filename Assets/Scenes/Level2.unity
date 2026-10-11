@@ -2212,6 +2212,11 @@ MonoBehaviour:
   lobbySceneName: LevelSelect
   forcedLevelId: 2
   completeDelay: 1.1
+  victory3StarsSound: {fileID: 8300000, guid: c124260e1ef99ea646eb874b0d700cd8, type: 3}
+  victory2StarsSound: {fileID: 8300000, guid: e557cc1b5f428e9fab5b47b476c5c42e, type: 3}
+  victory1StarsSound: {fileID: 8300000, guid: d78853291806a7880bc4cfa0a175a750, type: 3}
+  victorySoundDelay: 0.15
+  victoryVolume: 0.9
 --- !u!1 &3000000070
 GameObject:
   m_ObjectHideFlags: 0
