@@ -53,6 +53,13 @@ public class SlingshotController : MonoBehaviour
     [Tooltip("Размер точки в конце следа относительно начала (1 — не уменьшать).")]
     [SerializeField, Range(0.3f, 1f)] private float trajectoryEndScale = 0.75f;
 
+    [Tooltip("Дополнительно рисовать тонкую линию под точками — прицел видно даже " +
+             "на светлом фоне и в окне редактора.")]
+    [SerializeField] private bool showTrajectoryLineAsWell;
+
+    [Tooltip("Писать в консоль, что происходит со следом (для отладки прицела).")]
+    [SerializeField] private bool logTrajectoryDiagnostics;
+
     [Header("Звук рогатки")]
     [Tooltip("Звук натяжения, играет пока игрок целится (можно задать свой файл).")]
     [SerializeField] private AudioClip aimSound;
@@ -78,6 +85,9 @@ public class SlingshotController : MonoBehaviour
     private readonly RaycastHit2D[] predictionHits = new RaycastHit2D[16];
     private readonly List<Vector2> previewPoints = new List<Vector2>();
     private TrajectoryDotTrail trajectoryTrail;
+    private bool lineFallbackActive;
+    private bool trailFailureReported;
+    private bool trailLoggedThisDrag;
     private AudioSource stretchSource;
     private AudioSource oneShotSource;
     private Rigidbody2D projectile;
@@ -116,10 +126,13 @@ public class SlingshotController : MonoBehaviour
         {
             trajectoryTrail = new TrajectoryDotTrail(transform, MaxTrailDots,
                 TrailSortingOrder, trajectoryDotColor, trajectoryDotOutline);
-            if (aimLine != null)
-            {
-                aimLine.enabled = false;
-            }
+        }
+
+        if (aimLine != null)
+        {
+            // The thin line is either requested explicitly or kept as the safety
+            // net for the case when the dotted trail cannot be drawn at all.
+            aimLine.enabled = showTrajectoryLineAsWell || trajectoryTrail == null;
         }
     }
 
@@ -174,6 +187,7 @@ public class SlingshotController : MonoBehaviour
             {
                 isDragging = true;
                 dragStartScreen = pointer;
+                trailLoggedThisDrag = false;
                 StartStretchSound();
             }
         }
@@ -246,7 +260,7 @@ public class SlingshotController : MonoBehaviour
         if (draw)
         {
             previewPoints.Clear();
-            if (aimLine != null && !useDottedTrajectory)
+            if (aimLine != null && aimLine.enabled)
                 aimLine.positionCount = 0;
         }
         impactPoint = start;
@@ -331,6 +345,8 @@ public class SlingshotController : MonoBehaviour
         {
             trajectoryTrail.Hide();
         }
+
+        lineFallbackActive = false;
     }
 
     public void CancelInput()
@@ -374,7 +390,7 @@ public class SlingshotController : MonoBehaviour
         }
 
         previewPoints.Add(point);
-        if (aimLine != null && !useDottedTrajectory)
+        if (aimLine != null && aimLine.enabled)
         {
             aimLine.positionCount = previewPoints.Count;
             aimLine.SetPosition(previewPoints.Count - 1, point);
@@ -387,17 +403,80 @@ public class SlingshotController : MonoBehaviour
     /// </summary>
     private void ShowTrajectoryPreview()
     {
-        if (trajectoryTrail == null || mainCamera == null || previewPoints.Count < 2)
+        if (mainCamera == null || previewPoints.Count < 2)
         {
             return;
         }
 
         float unitsPerPixel = 2f * mainCamera.orthographicSize
             / Mathf.Max(1, mainCamera.pixelHeight);
-        trajectoryTrail.Show(previewPoints, trajectoryVisibleFraction,
+        bool drawn = trajectoryTrail != null && trajectoryTrail.Show(
+            previewPoints, trajectoryVisibleFraction,
             trajectoryDotPixels * unitsPerPixel,
             trajectoryDotGapPixels * unitsPerPixel,
             trajectoryEndScale);
+
+        if (drawn && logTrajectoryDiagnostics && !trailLoggedThisDrag)
+        {
+            trailLoggedThisDrag = true;
+            Debug.Log("[Рогатка] след: точек пути " + previewPoints.Count
+                + ", точек на следе " + trajectoryTrail.VisibleDots
+                + ", размер " + (trajectoryDotPixels * unitsPerPixel).ToString("0.###")
+                + " юнита, порядок отрисовки " + TrailSortingOrder);
+        }
+
+        if (drawn)
+        {
+            DisableLineFallback();
+            return;
+        }
+
+        // Nothing was drawn (no trail, or the path is degenerate): show the
+        // thin line instead, so the aim is never invisible.
+        if (trajectoryTrail != null && trajectoryTrail.LastFailure != null
+            && !trailFailureReported)
+        {
+            trailFailureReported = true;
+            Debug.LogWarning("[Рогатка] точечный след не нарисован ("
+                + trajectoryTrail.LastFailure + "), показываю линию прицела.");
+        }
+
+        EnableLineFallback(unitsPerPixel);
+    }
+
+    /// <summary>Draws the collected path with the LineRenderer.</summary>
+    private void EnableLineFallback(float unitsPerPixel)
+    {
+        if (aimLine == null)
+        {
+            return;
+        }
+
+        if (!aimLine.enabled)
+        {
+            aimLine.enabled = true;
+            lineFallbackActive = true;
+        }
+
+        aimLine.widthMultiplier = Mathf.Max(0.02f, trajectoryWidthPixels * unitsPerPixel);
+        aimLine.positionCount = previewPoints.Count;
+        for (int i = 0; i < previewPoints.Count; i++)
+        {
+            aimLine.SetPosition(i, previewPoints[i]);
+        }
+    }
+
+    /// <summary>Turns the automatic line off again once the dots work.</summary>
+    private void DisableLineFallback()
+    {
+        if (!lineFallbackActive || aimLine == null)
+        {
+            return;
+        }
+
+        lineFallbackActive = false;
+        aimLine.enabled = false;
+        aimLine.positionCount = 0;
     }
 
     private float EffectsVolumePercent => AudioManager.Instance != null

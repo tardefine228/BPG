@@ -978,6 +978,8 @@ MonoBehaviour:
   trajectoryDotColor: {r: 1, g: 1, b: 1, a: 1}
   trajectoryDotOutline: {r: 0.1882353, g: 0.1882353, b: 0.1882353, a: 1}
   trajectoryEndScale: 0.75
+  showTrajectoryLineAsWell: 0
+  logTrajectoryDiagnostics: 0
   aimSound: {fileID: 0}
   shotSound: {fileID: 0}
   aimVolume: 0.55

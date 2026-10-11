@@ -25,6 +25,12 @@ public sealed class TrajectoryDotTrail
     private readonly Color baseColor;
     private int visibleCount;
 
+    /// <summary>Why the last <see cref="Show"/> call drew nothing, or null.</summary>
+    public string LastFailure { get; private set; }
+
+    /// <summary>How many dots the last <see cref="Show"/> call placed.</summary>
+    public int VisibleDots => visibleCount;
+
     /// <summary>Dots below this distance from the start are never shown.</summary>
     private const float MinimumPathLength = 0.05f;
 
@@ -76,20 +82,22 @@ public sealed class TrajectoryDotTrail
     /// <paramref name="visibleFraction"/> of its length with a fade towards the
     /// far end. Sizes are given in world units.
     /// </summary>
-    public void Show(IList<Vector2> path, float visibleFraction, float dotSize,
+    public bool Show(IList<Vector2> path, float visibleFraction, float dotSize,
         float dotGap, float endScale)
     {
         if (path == null || path.Count < 2)
         {
             Hide();
-            return;
+            LastFailure = "в пути меньше двух точек";
+            return false;
         }
 
         float totalLength = PathLength(path);
         if (totalLength <= MinimumPathLength)
         {
             Hide();
-            return;
+            LastFailure = "путь почти нулевой (" + totalLength.ToString("0.####") + ")";
+            return false;
         }
 
         float visibleLength = Mathf.Clamp(visibleFraction, 0.05f, 1f) * totalLength;
@@ -131,6 +139,8 @@ public sealed class TrajectoryDotTrail
         }
 
         visibleCount = count;
+        LastFailure = null;
+        return true;
     }
 
     /// <summary>Hides the whole trail.</summary>

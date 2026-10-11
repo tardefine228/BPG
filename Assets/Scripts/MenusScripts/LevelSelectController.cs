@@ -379,7 +379,6 @@ public sealed class LevelSelectController : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             new Vector2(120f, 220f),
             new Vector2(x, ArrowY));
-        rect.gameObject.SetActive(pageCount > 1);
 
         Image background = rect.gameObject.AddComponent<Image>();
         ConfigureImage(background, new Color32(38, 38, 42, 255));
@@ -529,14 +528,20 @@ public sealed class LevelSelectController : MonoBehaviour
 
     private void RefreshNavigation()
     {
+        // An arrow is only on screen while paging that way is actually possible:
+        // on the first page there is no left arrow, after flipping there is.
         if (previousPageButton != null)
         {
-            previousPageButton.interactable = currentPage > 0;
+            bool canGoBack = pageCount > 1 && currentPage > 0;
+            previousPageButton.interactable = canGoBack;
+            previousPageButton.gameObject.SetActive(canGoBack);
         }
 
         if (nextPageButton != null)
         {
-            nextPageButton.interactable = currentPage < pageCount - 1;
+            bool canGoForward = pageCount > 1 && currentPage < pageCount - 1;
+            nextPageButton.interactable = canGoForward;
+            nextPageButton.gameObject.SetActive(canGoForward);
         }
 
         for (int i = 0; i < pageDots.Count; i++)
