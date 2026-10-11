@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 1364067904824712672}
   - component: {fileID: 3322088846922271424}
   - component: {fileID: 180000000001}
+  - component: {fileID: -1192857117097735967}
   m_Layer: 0
   m_Name: Projectile
   m_TagString: Untagged
@@ -168,7 +169,40 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: def73d5cf2d74aed88839fc6029f1bd9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileSurfaceFriction
   groundDeceleration: 60
   rollingDeceleration: 720
+--- !u!114 &-1192857117097735967
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e239b279a5f2cf4cb402ea1199cc411, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectileComicEffects
+  comicMaterial: {fileID: 2100000, guid: cb3726d0797fd724c931e8651bff0c6c, type: 2}
+  trailLifetime: 0.12
+  maxTrailLength: 5
+  trailWidth: 0.38
+  outlineWidth: 0.13
+  tailOffset: 0.35
+  trailColor: {r: 1, g: 0.91, b: 0.4, a: 1}
+  inkColor: {r: 0.1, g: 0.08, b: 0.13, a: 0.85}
+  groundLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  minImpactSpeed: 2
+  impactCooldown: 0.18
+  dustCount: 9
+  chipCount: 7
+  impactScale: 1.5
+  groundDust: {r: 0.88, g: 0.74, b: 0.56, a: 1}
+  boxDust: {r: 0.95, g: 0.85, b: 0.66, a: 1}
+  woodChips: {r: 0.76, g: 0.43, b: 0.2, a: 1}
+  flashColor: {r: 1, g: 0.95, b: 0.5, a: 1}
+  effectsSortingOrder: 10
