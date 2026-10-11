@@ -1,10 +1,6 @@
 using UnityEngine;
 
-/// <summary>
-/// Persistent level catalog, unlock rules, star records and first-clear scores.
-/// Stars are overwritten on every clear. Score is awarded only the first time
-/// a level is completed. Level N stays locked until level N-1 has been cleared.
-/// </summary>
+// Каталог уровней и сохранение прогресса: звёзды обновляются при прохождении, очки начисляются один раз, следующий уровень открывается после предыдущего.
 public static class LevelProgress
 {
     public const int MaxStars = 3;
@@ -67,10 +63,7 @@ public static class LevelProgress
 
     public static int CurrentLevelId { get; private set; } = 1;
 
-    /// <summary>
-    /// Opened from the level select screen ("открыть все уровни"): lets the
-    /// designer jump straight into any map without replaying the previous one.
-    /// </summary>
+    // Режим тестирования позволяет открывать все уровни без последовательного прохождения.
     public static bool UnlockAllLevels { get; set; }
 
     public static bool IsGameplayScene(string sceneName)
@@ -162,10 +155,7 @@ public static class LevelProgress
         PlayerPrefs.Save();
     }
 
-    /// <summary>
-    /// Stores the run score only if this is the first time the level is cleared.
-    /// Returns false when the score is ignored on a replay.
-    /// </summary>
+    // Сохраняет очки только за первое прохождение; повторное не приносит новую награду.
     public static bool TryAwardFirstClearScore(int levelId, int score)
     {
         if (HasAwardedScore(levelId))
@@ -180,7 +170,7 @@ public static class LevelProgress
         return true;
     }
 
-    /// <summary>Stars for a run, using the shot targets of the given level.</summary>
+    // Количество звёзд зависит от числа выстрелов и порогов уровня.
     public static int StarsForShots(int levelId, int shotsFired)
     {
         LevelDefinition level = GetLevel(levelId);
@@ -202,15 +192,13 @@ public static class LevelProgress
         return 1;
     }
 
-    /// <summary>Shots needed for three stars on the given level.</summary>
+    // Порог выстрелов для трёх звёзд.
     public static int ThreeStarShots(int levelId)
     {
         return Mathf.Max(1, GetLevel(levelId).ThreeStarShots);
     }
 
-    /// <summary>
-    /// Kept for the default one-shot rule (levels without their own targets).
-    /// </summary>
+    // Общее правило оценки для уровней без собственных порогов.
     public static int StarsFromShots(int shotsFired)
     {
         if (shotsFired <= 1)
@@ -260,10 +248,10 @@ public readonly struct LevelDefinition
     public readonly string PreviewResourcePath;
     public readonly bool IsImplemented;
 
-    /// <summary>Shots allowed for three stars.</summary>
+    // Максимум выстрелов для трёх звёзд.
     public readonly int ThreeStarShots;
 
-    /// <summary>Shots allowed for two stars.</summary>
+    // Максимум выстрелов для двух звёзд.
     public readonly int TwoStarShots;
 
     public LevelDefinition(

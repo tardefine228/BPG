@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 
 public class SlingshotController : MonoBehaviour
 {
-    [Header("References")]
+    [Header("Ссылки")]
     public Rigidbody2D projectilePrefab;
     public Transform launchPoint;
     public Transform rotatingPart;
@@ -14,14 +14,14 @@ public class SlingshotController : MonoBehaviour
     public Transform pivotPoint;
     public GameplayCameraController gameplayCamera;
 
-    [Header("Shot physics")]
+    [Header("Физика выстрела")]
     public float maxPullDistance = 2.5f;
     public float launchPower = 22f;
     public float projectileGravityScale = 2f;
     [Min(0f)] public float airResistance = 0.06f;
     public LayerMask impactLayers = ~0;
 
-    [Header("Dotted trajectory")]
+    [Header("Точечная траектория")]
     public int trajectoryPoints = 180;
     public float timeStep = 0.04f;
     public float trajectoryDotPixels = 7f;
@@ -30,7 +30,7 @@ public class SlingshotController : MonoBehaviour
     public Color mediumPullColor = new Color(1f, 0.77f, 0.12f);
     public Color strongPullColor = new Color(0.23f, 0.8f, 0.35f);
 
-    [Header("Aiming from the overview")]
+    [Header("Прицеливание из общего вида")]
     public float grabRadiusPixels = 24f;
     [Range(0.05f, 0.5f)] public float fullPullScreenFraction = 0.2f;
 
@@ -40,7 +40,7 @@ public class SlingshotController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float grabMeowVolume = 0.7f;
     [SerializeField, Range(0f, 1f)] private float flightMeowVolume = 0.9f;
 
-    [Header("Reload")]
+    [Header("Перезарядка")]
     public float spawnDelay = 2.5f;
     public float projectileLifetime = 12f;
 
@@ -57,7 +57,7 @@ public class SlingshotController : MonoBehaviour
     private bool CanLoadProjectile => levelSession == null
         || (!levelSession.IsEnding && levelSession.RemainingShots > 0);
 
-    // Keep all previous shells in the check: they can still roll into a target.
+    // Проверяет и ранее выпущенные снаряды: они ещё могут докатиться до цели.
     public bool HasMovingProjectiles
     {
         get
@@ -80,14 +80,13 @@ public class SlingshotController : MonoBehaviour
     }
 
     private readonly RaycastHit2D[] predictionHits = new RaycastHit2D[16];
-    private readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
+    [SerializeField] private List<SpriteRenderer> dots = new List<SpriteRenderer>();
     private Rigidbody2D projectile;
     private Camera mainCamera;
     private bool isDragging;
     private bool shotInProgress;
     private Vector2 launchVelocity;
     private Vector2 dragStartScreen;
-    private Transform dotsRoot;
     private Color trajectoryColor;
     private int visibleDots;
 
@@ -109,8 +108,6 @@ public class SlingshotController : MonoBehaviour
             ProjectileRadius = circle.radius * Mathf.Max(
                 Mathf.Abs(projectilePrefab.transform.lossyScale.x),
                 Mathf.Abs(projectilePrefab.transform.lossyScale.y));
-        dotsRoot = new GameObject("TrajectoryDots").transform;
-        dotsRoot.SetParent(transform, false);
         if (aimLine != null)
             aimLine.enabled = false;
         SpawnProjectile();
@@ -224,7 +221,7 @@ public class SlingshotController : MonoBehaviour
 
         for (int i = 1; i <= steps; i++)
         {
-            // Match the fixed-step Physics2D integrator, including air resistance.
+            // Прогноз повторяет фиксированный шаг физики, включая сопротивление воздуха.
             velocity = (velocity + gravity * step) * damping;
             Vector2 point = previous + velocity * step;
             Vector2 segment = point - previous;
@@ -272,16 +269,8 @@ public class SlingshotController : MonoBehaviour
 
     private void DrawDot(Vector2 position)
     {
-        if (visibleDots == dots.Count)
-        {
-            SpriteRenderer original = projectilePrefab.GetComponent<SpriteRenderer>();
-            SpriteRenderer dot = new GameObject("Dot_" + dots.Count).AddComponent<SpriteRenderer>();
-            dot.transform.SetParent(dotsRoot, false);
-            dot.sprite = original.sprite;
-            dot.sharedMaterial = original.sharedMaterial;
-            dot.sortingOrder = 100;
-            dots.Add(dot);
-        }
+        if (visibleDots >= dots.Count)
+            return;
         SpriteRenderer renderer = dots[visibleDots++];
         float diameter = 2f * mainCamera.orthographicSize * trajectoryDotPixels
             / Mathf.Max(1, mainCamera.pixelHeight);
@@ -311,8 +300,6 @@ public class SlingshotController : MonoBehaviour
 
         Rigidbody2D fired = projectile;
         ProjectileImpactReporter reporter = fired.GetComponent<ProjectileImpactReporter>();
-        if (reporter == null)
-            reporter = fired.gameObject.AddComponent<ProjectileImpactReporter>();
         bool impacted = false;
         reporter.Arm(point =>
         {
@@ -354,7 +341,7 @@ public class SlingshotController : MonoBehaviour
     public void CancelInput()
     {
         isDragging = false;
-        // Pausing the pre-shot hold must preserve the committed velocity.
+        // Пауза перед выстрелом сохраняет уже выбранную скорость запуска.
         if (!shotInProgress)
             launchVelocity = Vector2.zero;
         ClearTrajectory();
@@ -371,8 +358,6 @@ public class SlingshotController : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (dotsRoot != null)
-            Destroy(dotsRoot.gameObject);
         if (projectile != null)
             Destroy(projectile.gameObject);
         for (int i = 0; i < launchedProjectiles.Count; i++)

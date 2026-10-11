@@ -1,9 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Connects the music and effects sliders in the settings panel to AudioManager.
-/// </summary>
+// Связывает ползунки музыки и эффектов с AudioManager.
 public sealed class AudioSettingsController : MonoBehaviour
 {
     [SerializeField] private AudioManager audioManager;

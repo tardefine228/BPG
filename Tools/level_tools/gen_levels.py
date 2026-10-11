@@ -560,6 +560,11 @@ def validate(text):
 
 
 def main():
+    # Старый генератор переносит только игровые объекты и не умеет сохранять готовый UI.
+    if 'm_Name: LevelScoreCanvas' in open(SRC, encoding='utf-8').read():
+        raise SystemExit('После переноса UI уровни создаются дублированием Gameplay в Unity. '
+                         'Этот старый генератор остановлен, чтобы не потерять панели и связи кнопок. '
+                         'См. REFACTORING.md.')
     for cfg in (LEVEL2, LEVEL3, LEVEL4, LEVEL5):
         text = build(cfg)
         problems = validate(text)

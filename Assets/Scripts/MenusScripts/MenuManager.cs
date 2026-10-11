@@ -29,55 +29,20 @@ public class MenuManager : MonoBehaviour
     {
         if (settingsFade != null && levelsFade != null)
             return true;
-
-        Canvas canvas = mainMenuGroup != null ? mainMenuGroup.GetComponentInParent<Canvas>() : null;
-        if (canvas == null || settingsGroup == null)
+        if (mainMenuGroup == null || settingsGroup == null || levelSelectGroup == null)
         {
-            Debug.LogError("MenuManager needs the main-menu CanvasGroup and settings CanvasGroup.", this);
+            Debug.LogError("Назначьте три панели меню в Inspector.", this);
             return false;
         }
-
-        if (levelSelectGroup == null)
-        {
-            Transform panel = canvas.transform.Find("LevelSelectPanel");
-            if (panel == null)
-            {
-                // Also supports a menu scene already open before the panel was added.
-                GameObject panelObject = new GameObject("LevelSelectPanel", typeof(RectTransform), typeof(CanvasGroup));
-                panelObject.layer = canvas.gameObject.layer;
-                panelObject.SetActive(false);
-                RectTransform rect = panelObject.GetComponent<RectTransform>();
-                rect.SetParent(canvas.transform, false);
-                rect.anchorMin = Vector2.zero;
-                rect.anchorMax = Vector2.one;
-                rect.sizeDelta = Vector2.zero;
-                panel = rect;
-            }
-            levelSelectGroup = panel.GetComponent<CanvasGroup>();
-            if (levelSelectGroup == null)
-                levelSelectGroup = panel.gameObject.AddComponent<CanvasGroup>();
-        }
-
+        settingsFade = settingsGroup.GetComponent<PanelFade>();
+        levelsFade = levelSelectGroup.GetComponent<PanelFade>();
         levelSelect = levelSelectGroup.GetComponent<LevelSelectController>();
-        if (levelSelect == null)
-            levelSelect = levelSelectGroup.gameObject.AddComponent<LevelSelectController>();
         levelSelect.Initialize(this);
-        settingsFade = ConfigureFade(settingsGroup);
-        levelsFade = ConfigureFade(levelSelectGroup);
+        settingsFade.duration = levelsFade.duration = fadeDuration;
         settingsFade.SetVisible(false, true);
         levelsFade.SetVisible(false, true);
         return true;
     }
-
-    private PanelFade ConfigureFade(CanvasGroup group)
-    {
-        PanelFade fade = group.GetComponent<PanelFade>();
-        if (fade == null)
-            fade = group.gameObject.AddComponent<PanelFade>();
-        fade.duration = fadeDuration;
-        return fade;
-    }
-
     public void OpenSettings()
     {
         if (SceneTransition.IsLoading || !InitializePanels() || SettingsOpen || LevelsOpen)

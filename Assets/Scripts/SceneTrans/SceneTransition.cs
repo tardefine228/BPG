@@ -4,80 +4,95 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-/// <summary>One persistent loading overlay for Boot and all scene changes.</summary>
+// В каждой сцене есть готовый экран загрузки. Состояние передаётся следующей сцене.
 public sealed class SceneTransition : MonoBehaviour
 {
     private static SceneTransition instance;
-    private SceneTransitionSettings settings;
-    private CanvasGroup group;
-    private Image progressFill;
-    private TMP_Text caption;
-    private TMP_Text percent;
-    private bool busy;
-    private bool startup;
-    public static bool IsLoading => instance != null && instance.busy;
-    public static bool StartupVisible => instance != null && instance.startup;
+    private static bool busy;
+    private static bool startup;
+    private bool arriving;
+    [SerializeField] private SceneTransitionSettings settings;
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private Image progressFill;
+    [SerializeField] private TMP_Text caption;
+    [SerializeField] private TMP_Text percent;
+    [SerializeField] private Image logoImage;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private TMP_Text subtitleText;
+    [SerializeField] private Image backgroundImage;
+    [SerializeField] private Image accentLine;
+    public static bool IsLoading => busy;
+    public static bool StartupVisible => startup;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetStatics() => instance = null;
-
-    private static SceneTransition GetOrCreate()
+    private static void ResetStatics()
     {
+        instance = null;
+        busy = startup = false;
+    }
+
+    public static void Load(string sceneName) => BeginLoad(sceneName, false);
+    public static void ShowStartup(string sceneName) => BeginLoad(sceneName, true);
+
+    private static void BeginLoad(string sceneName, bool isStartup)
+    {
+        if (busy) return;
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError("Сцена отсутствует в списке сборки: " + sceneName);
+            return;
+        }
         if (instance == null)
-            instance = new GameObject("SceneTransition").AddComponent<SceneTransition>();
-        return instance;
-    }
-
-    public static void Load(string sceneName)
-    {
-        if (IsLoading)
+            instance = FindAnyObjectByType<SceneTransition>(FindObjectsInactive.Include);
+        if (instance == null)
+        {
+            Debug.LogError("В сцене отсутствует настроенный SceneTransition.");
             return;
-        SceneTransition loader = GetOrCreate();
-        loader.StartCoroutine(loader.LoadRoutine(sceneName, false));
-    }
-
-    public static void ShowStartup(string sceneName)
-    {
-        if (IsLoading)
-            return;
-        SceneTransition loader = GetOrCreate();
-        loader.StartCoroutine(loader.LoadRoutine(sceneName, true));
+        }
+        instance.StartCoroutine(instance.LoadRoutine(sceneName, isStartup));
     }
 
     private void Awake()
     {
-        DontDestroyOnLoad(gameObject);
-        settings = Resources.Load<SceneTransitionSettings>("SceneTransitionSettings");
+        arriving = busy;
+        instance = this;
         if (settings == null)
-            settings = ScriptableObject.CreateInstance<SceneTransitionSettings>();
-        BuildInterface();
+            settings = Resources.Load<SceneTransitionSettings>("SceneTransitionSettings");
+        RefreshContent();
+        group.gameObject.SetActive(busy);
+        group.alpha = busy ? 1f : 0f;
+        group.interactable = false;
+        group.blocksRaycasts = busy;
+    }
+
+    private IEnumerator Start()
+    {
+        if (!arriving) yield break;
+        caption.text = settings.loadingCaption;
+        SetProgress(1f);
+        // Новая сцена успевает подготовить интерфейс под непрозрачным экраном.
+        yield return null;
+        yield return Fade(0f);
         group.gameObject.SetActive(false);
+        busy = startup = false;
     }
 
     private IEnumerator LoadRoutine(string sceneName, bool isStartup)
     {
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
-        {
-            Debug.LogError("Scene is missing from Build Settings: " + sceneName);
-            yield break;
-        }
         busy = true;
         startup = isStartup;
         Time.timeScale = 1f;
         group.gameObject.SetActive(true);
         group.blocksRaycasts = true;
-        group.interactable = false;
         group.alpha = isStartup ? 1f : 0f;
         SetProgress(0f);
         caption.text = isStartup ? settings.startupCaption : settings.loadingCaption;
-        if (!isStartup)
-            yield return Fade(1f);
-        if (isStartup)
-            yield return new WaitForSecondsRealtime(settings.startupHold);
-
+        if (!isStartup) yield return Fade(1f);
+        if (isStartup) yield return new WaitForSecondsRealtime(settings.startupHold);
         caption.text = settings.loadingCaption;
+
         float elapsed = 0f;
-        float shownProgress = 0f;
+        float shown = 0f;
         AsyncOperation load = SceneManager.LoadSceneAsync(sceneName);
         load.allowSceneActivation = false;
         while (load.progress < 0.9f || elapsed < settings.minimumLoadingTime)
@@ -85,24 +100,18 @@ public sealed class SceneTransition : MonoBehaviour
             elapsed += Time.unscaledDeltaTime;
             float target = Mathf.Min(load.progress / 0.9f,
                 elapsed / Mathf.Max(0.01f, settings.minimumLoadingTime));
-            shownProgress = Mathf.MoveTowards(shownProgress, target, Time.unscaledDeltaTime * 2f);
-            SetProgress(shownProgress);
+            shown = Mathf.MoveTowards(shown, target, Time.unscaledDeltaTime * 2f);
+            SetProgress(shown);
             yield return null;
         }
-        while (shownProgress < 1f)
+        while (shown < 1f)
         {
-            shownProgress = Mathf.MoveTowards(shownProgress, 1f, Time.unscaledDeltaTime * 3f);
-            SetProgress(shownProgress);
+            shown = Mathf.MoveTowards(shown, 1f, Time.unscaledDeltaTime * 3f);
+            SetProgress(shown);
             yield return null;
         }
+        // После активации эта сцена выгружается. Завершает переход её новый SceneTransition.
         load.allowSceneActivation = true;
-        yield return load;
-        // Give the destination UI a frame to initialize under the opaque overlay.
-        yield return null;
-        yield return Fade(0f);
-        group.gameObject.SetActive(false);
-        startup = false;
-        busy = false;
     }
 
     private IEnumerator Fade(float target)
@@ -125,96 +134,27 @@ public sealed class SceneTransition : MonoBehaviour
         percent.text = Mathf.RoundToInt(progress * 100f) + "%";
     }
 
-    private void BuildInterface()
+    private void RefreshContent()
     {
-        GameObject canvasObject = new GameObject("LoadingCanvas", typeof(RectTransform),
-            typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster), typeof(CanvasGroup));
-        canvasObject.layer = 5;
-        canvasObject.transform.SetParent(transform, false);
-        Canvas canvas = canvasObject.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 1000;
-        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
-        group = canvasObject.GetComponent<CanvasGroup>();
-
-        RectTransform backdrop = Stretch("Background", canvasObject.transform);
-        Image background = backdrop.gameObject.AddComponent<Image>();
-        background.color = settings.backgroundColor;
-        background.raycastTarget = true;
-
-        RectTransform accent = Center("AccentLine", backdrop, new Vector2(76f, 5f), new Vector2(0f, 260f));
-        accent.gameObject.AddComponent<Image>().color = settings.accentColor;
-
-        RectTransform logoRect = Center("LogoPlaceholder", backdrop,
-            new Vector2(560f, 210f), new Vector2(0f, 100f));
-        Image logo = logoRect.gameObject.AddComponent<Image>();
-        logo.sprite = settings.logo;
-        logo.preserveAspect = true;
-        logo.raycastTarget = false;
-        logo.enabled = settings.logo != null;
-        Label(backdrop, "GameTitle", settings.title,
-            new Vector2(0f, settings.logo != null ? -60f : 100f),
-            new Vector2(1100f, 100f), settings.logo != null ? 48f : 74f, settings.textColor);
-        Label(backdrop, "StudioText", settings.subtitle, new Vector2(0f, -125f),
-            new Vector2(1100f, 60f), 26f, settings.textColor * new Color(1f, 1f, 1f, 0.65f));
-
-        caption = Label(backdrop, "LoadingCaption", settings.loadingCaption, new Vector2(0f, -285f),
-            new Vector2(680f, 40f), 22f, settings.textColor);
-        RectTransform track = Center("ProgressTrack", backdrop,
-            new Vector2(680f, 5f), new Vector2(0f, -330f));
-        track.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
-        RectTransform fill = Stretch("ProgressFill", track);
-        progressFill = fill.gameObject.AddComponent<Image>();
-        progressFill.color = settings.accentColor;
-        progressFill.raycastTarget = false;
-        percent = Label(backdrop, "ProgressPercent", "0%", new Vector2(0f, -375f),
-            new Vector2(180f, 40f), 20f, settings.accentColor);
+        titleText.text = settings.title;
+        subtitleText.text = settings.subtitle;
+        logoImage.sprite = settings.logo;
+        logoImage.enabled = settings.logo != null;
     }
 
-    private static RectTransform Stretch(string name, Transform parent)
+    // Явное применение палитры в редакторе сохраняет возможность оформлять prefab вручную.
+    [ContextMenu("Применить оформление из SceneTransitionSettings")]
+    public void ApplyAppearanceSettings()
     {
-        RectTransform rect = Center(name, parent, Vector2.zero, Vector2.zero);
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        return rect;
-    }
-
-    private static RectTransform Center(string name, Transform parent, Vector2 size, Vector2 position)
-    {
-        GameObject obj = new GameObject(name, typeof(RectTransform));
-        obj.layer = 5;
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = size;
-        rect.anchoredPosition = position;
-        return rect;
-    }
-
-    private TMP_Text Label(Transform parent, string name, string value, Vector2 position,
-        Vector2 size, float fontSize, Color color)
-    {
-        RectTransform rect = Center(name, parent, size, position);
-        TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
-        text.font = MenuButtonStyle.Default.font;
-        text.text = value;
-        text.fontSize = fontSize;
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = TextAlignmentOptions.Center;
-        text.color = color;
-        text.raycastTarget = false;
-        text.enableAutoSizing = true;
-        text.fontSizeMin = fontSize * 0.65f;
-        text.fontSizeMax = fontSize;
-        return text;
-    }
-
-    private void OnDestroy()
-    {
-        if (instance == this)
-            instance = null;
+        RefreshContent();
+        backgroundImage.color = settings.backgroundColor;
+        accentLine.color = progressFill.color = percent.color = settings.accentColor;
+        titleText.color = caption.color = settings.textColor;
+        subtitleText.color = settings.textColor * new Color(1f, 1f, 1f, 0.65f);
+        Vector2 position = titleText.rectTransform.anchoredPosition;
+        position.y = settings.logo != null ? -60f : 100f;
+        titleText.rectTransform.anchoredPosition = position;
+        titleText.fontSize = titleText.fontSizeMax = settings.logo != null ? 48f : 74f;
+        titleText.fontSizeMin = titleText.fontSizeMax * 0.65f;
     }
 }

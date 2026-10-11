@@ -14,7 +14,7 @@ public sealed class ProjectileSurfaceFriction : MonoBehaviour
     {
         if (!body.simulated || body.bodyType != RigidbodyType2D.Dynamic || Time.fixedTime > groundedUntil)
             return;
-        // Contact friction alone leaves a round shell rolling. Resist rolling only on the surface.
+        // Дополнительное торможение останавливает качение круглого снаряда по земле.
         Vector2 velocity = body.linearVelocity;
         velocity.x = Mathf.MoveTowards(velocity.x, 0f, groundDeceleration * Time.fixedDeltaTime);
         body.linearVelocity = velocity;

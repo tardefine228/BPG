@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>Boot has no AudioManager. Main-menu music starts after the splash fades away.</summary>
+// В Boot нет AudioManager; музыка меню начинается после исчезновения заставки.
 public sealed class StartupController : MonoBehaviour
 {
     private void Start()

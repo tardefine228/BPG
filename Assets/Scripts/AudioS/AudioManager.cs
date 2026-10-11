@@ -2,14 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
-/// <summary>
-/// Persistent manager for the background-music playlist and game sound effects.
-/// Music clips are assigned to the playlist in the Inspector. All other
-/// AudioSources in loaded scenes are treated as sound effects and receive the
-/// separate effects-volume setting.
-/// </summary>
+// Менеджер музыки и эффектов сохраняется между сценами. Ползунки регулируют музыку и эффекты отдельно.
 [DisallowMultipleComponent]
 public sealed class AudioManager : MonoBehaviour
 {
@@ -66,7 +60,7 @@ public sealed class AudioManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            // MainMenu owns the persistent manager; each level supplies its shot clip.
+            // Главное меню сохраняет менеджер, а уровень передаёт ему свой звук выстрела.
             if (LevelProgress.IsGameplayScene(gameObject.scene.name))
             {
                 Instance.shotSound = shotSound;
@@ -80,9 +74,9 @@ public sealed class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        musicSource = GetOrCreateSource(musicSource, "MusicSource");
-        effectsSource = GetOrCreateSource(effectsSource, "EffectsSource");
-        uiSource = GetOrCreateSource(uiSource, "InterfaceSource");
+        musicSource = ConfigureSource(musicSource, "MusicSource");
+        effectsSource = ConfigureSource(effectsSource, "EffectsSource");
+        uiSource = ConfigureSource(uiSource, "InterfaceSource");
         uiSource.ignoreListenerPause = true;
 
         string musicKey = string.IsNullOrWhiteSpace(musicVolumePrefsKey)
@@ -104,7 +98,6 @@ public sealed class AudioManager : MonoBehaviour
     {
         if (isDuplicate)
             yield break;
-        BindInterfaceControls();
         while (SceneTransition.StartupVisible)
             yield return null;
         if (playMusicOnStart)
@@ -146,7 +139,7 @@ public sealed class AudioManager : MonoBehaviour
         SaveVolumePreferences();
     }
 
-    /// <summary>Starts the configured playlist from its first valid track.</summary>
+    // Запускает плейлист с первого доступного трека.
     public void PlayPlaylist()
     {
         if (musicSource == null)
@@ -160,7 +153,7 @@ public sealed class AudioManager : MonoBehaviour
         PlayNextTrack();
     }
 
-    /// <summary>Skips to the next valid track in the configured playlist.</summary>
+    // Переключает плейлист на следующий доступный трек.
     public void PlayNextTrack()
     {
         if (musicSource == null || musicTracks == null || musicTracks.Length == 0)
@@ -199,7 +192,7 @@ public sealed class AudioManager : MonoBehaviour
         StopMusic();
     }
 
-    /// <summary>Stops the playlist without changing the saved music volume.</summary>
+    // Останавливает музыку, сохраняя выбранную громкость.
     public void StopMusic()
     {
         playlistIsActive = false;
@@ -242,11 +235,7 @@ public sealed class AudioManager : MonoBehaviour
         ScheduleVolumePreferenceSave();
     }
 
-    /// <summary>
-    /// Plays a non-spatial sound effect through the managed effects channel.
-    /// Use this for one-shot game sounds; scene AudioSources are also covered
-    /// automatically by the effects-volume setting.
-    /// </summary>
+    // Проигрывает эффект через общий канал; громкость подчиняется настройке эффектов.
     public void PlaySfx(AudioClip clip, float volumeScale = 1f)
     {
         if (clip == null || effectsSource == null)
@@ -259,7 +248,7 @@ public sealed class AudioManager : MonoBehaviour
 
     public void PlayShotSound() => PlaySfx(shotSound, shotSoundVolume);
 
-    /// <summary>UI one-shots share EffectsVolume and remain audible in pause menus.</summary>
+    // Звуки интерфейса подчиняются громкости эффектов и работают во время паузы.
     public void PlayUiSound(AudioClip clip, float volumeScale = 1f)
     {
         if (clip != null && uiSource != null)
@@ -277,37 +266,22 @@ public sealed class AudioManager : MonoBehaviour
     public void PlayUiOpen() => PlayUiSound(uiOpenSound != null ? uiOpenSound : uiClickSound);
     public void PlayUiClose() => PlayUiSound(uiCloseSound != null ? uiCloseSound : uiClickSound);
 
-    private void BindInterfaceControls()
-    {
-        foreach (Selectable control in FindObjectsByType<Selectable>(FindObjectsInactive.Include))
-            if (control.GetComponent<MenuControlFeedback>() == null)
-                control.gameObject.AddComponent<MenuControlFeedback>();
-    }
-
-    private AudioSource GetOrCreateSource(AudioSource source, string sourceName)
+    private static AudioSource ConfigureSource(AudioSource source, string sourceName)
     {
         if (source == null)
         {
-            GameObject sourceObject = new GameObject(sourceName);
-            sourceObject.transform.SetParent(transform, false);
-            source = sourceObject.AddComponent<AudioSource>();
+            Debug.LogError("В сцене не назначен источник звука " + sourceName);
+            return null;
         }
-        else if (source.transform != transform && !source.transform.IsChildOf(transform))
-        {
-            source.transform.SetParent(transform, true);
-        }
-
         source.playOnAwake = false;
         source.loop = false;
         source.spatialBlend = 0f;
         source.dopplerLevel = 0f;
         return source;
     }
-
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         ApplyEffectsVolumeToAllSources();
-        BindInterfaceControls();
     }
 
     private void ApplyEffectsVolumeToAllSources()

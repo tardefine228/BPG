@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
 
 [CreateAssetMenu(menuName = "UI/Menu Button Style")]
@@ -50,37 +49,4 @@ public sealed class MenuButtonStyle : ScriptableObject
         }
     }
 
-    public Button CreateButton(Transform parent, string name, string label, Vector2 anchor,
-        Vector2 size, Vector2 position, UnityAction onClick, float fontSize)
-    {
-        GameObject obj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
-        obj.layer = parent.gameObject.layer;
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = rect.anchorMax = rect.pivot = anchor;
-        rect.sizeDelta = size;
-        rect.anchoredPosition = position;
-        Button button = obj.GetComponent<Button>();
-        button.targetGraphic = obj.GetComponent<Image>();
-        button.navigation = new Navigation { mode = Navigation.Mode.None };
-        button.onClick.AddListener(onClick);
-        GameObject labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-        labelObject.layer = obj.layer;
-        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
-        labelRect.SetParent(rect, false);
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.sizeDelta = new Vector2(-18f, -10f);
-        TextMeshProUGUI text = labelObject.GetComponent<TextMeshProUGUI>();
-        text.text = label;
-        text.fontSize = fontSize;
-        text.fontSizeMin = Mathf.Max(18f, fontSize - 12f);
-        text.fontSizeMax = fontSize;
-        text.enableAutoSizing = true;
-        text.alignment = TextAlignmentOptions.Center;
-        text.raycastTarget = false;
-        Apply(button);
-        obj.AddComponent<MenuControlFeedback>();
-        return button;
-    }
 }
