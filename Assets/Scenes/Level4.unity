@@ -2069,56 +2069,12 @@ PrefabInstance:
   m_Modification:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 552.1174
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 796.4115
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8446061413755758111, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
-      propertyPath: m_Name
-      value: SceneTransition
-      objectReference: {fileID: 0}
+    m_Modifications: []
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
+  m_SourcePrefab: {fileID: 100100000, guid: b6a7b4c2415946d6b834f324da4e959b, type: 3}
 --- !u!1 &361040599
 GameObject:
   m_ObjectHideFlags: 0
@@ -10056,7 +10012,7 @@ Transform:
   m_GameObject: {fileID: 3000000012}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -66, y: -0.43, z: 0}
+  m_LocalPosition: {x: -47.592593, y: -0.43, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10480,7 +10436,7 @@ Transform:
   m_GameObject: {fileID: 3000000027}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 36, y: 0, z: 0}
+  m_LocalPosition: {x: 27.962963, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -11519,7 +11475,7 @@ Transform:
   m_GameObject: {fileID: 3000000059}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 43, y: -1.41, z: 0}
+  m_LocalPosition: {x: 34.962963, y: -1.41, z: 0}
   m_LocalScale: {x: 11, y: 2.4, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -11813,18 +11769,20 @@ MonoBehaviour:
   targetFocus: {fileID: 3000000028}
   ground: {fileID: 3000000003}
   background: {fileID: 3000000008}
-  mapMin: {x: -88, y: -7.5}
-  mapMax: {x: 98, y: 62.5}
-  overviewPadding: 4
-  launcherSize: 8
-  impactSize: 16
-  launcherOffset: {x: 2, y: 2}
+  mapMin: {x: -63.888889, y: -7.500000}
+  mapMax: {x: 73.888889, y: 44.351852}
+  overviewPadding: 2.962963
+  launcherSize: 5.925926
+  impactSize: 11.851852
+  launcherOffset: {x: 1.481481, y: 0.25}
   transitionDuration: 0.5
-  shotLauncherSize: 20
+  shotLauncherSize: 14.814815
   preShotHold: 1
-  followSize: 20
+  followSize: 14.814815
   followSharpness: 12
   followLookAhead: 0.5
+  maxFollowLead: 0.35
+  groundClearance: 0.35
   groundHold: 1
   buildingHold: 2
   returnDuration: 0.7
@@ -11905,8 +11863,8 @@ MonoBehaviour:
   queueSpacing: {x: -1.4, y: 0}
   catLoadDuration: 0.35
   maxPullDistance: 2.5
-  launchPower: 25
-  projectileGravityScale: 2
+  launchPower: 27.314931
+  projectileGravityScale: 5.255155
   airResistance: 0.06
   impactLayers:
     serializedVersion: 2

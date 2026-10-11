@@ -36,8 +36,18 @@ public static class SceneUiValidation
                     }
                 }
 
-                References(Find<SceneTransition>().Single(), "settings", "group", "progressFill", "caption", "percent",
-                    "logoImage", "titleText", "subtitleText", "backgroundImage", "accentLine");
+                References(Find<SceneTransition>().Single(), "settings", "group", "progressFill", "caption", "percent", "backgroundImage");
+                if (scene.name != "Boot")
+                {
+                    var transition = Find<SceneTransition>().Single();
+                    var names = transition.GetComponentsInChildren<Transform>(true).Select(child => child.name).ToArray();
+                    Require(new[] { "AccentLine", "LogoPlaceholder", "GameTitle", "StudioText" }.All(name => !names.Contains(name)),
+                        scene.name + ": лишние объекты на панели загрузки");
+                }
+                foreach (var splash in Find<StartupController>())
+                    References(splash, "settings", "screenGroup", "brandingGroup", "backgroundImage", "logoImage", "companyNameText");
+                foreach (var guide in Find<FirstLevelGuide>())
+                    References(guide, "overlayFade", "firstIllustration", "secondIllustration", "gameplayController", "pauseButton");
                 foreach (var audio in Find<AudioManager>()) References(audio, "musicSource", "effectsSource", "uiSource");
                 foreach (var session in Find<LevelSession>())
                 {
@@ -76,6 +86,8 @@ public static class SceneUiValidation
                 foreach (var card in Find<LevelCardView>())
                 {
                     References(card, "button", "preview", "currentHighlight", "lockOverlay", "soonOverlay", "parHint", "stars");
+                    if (card.LevelId >= 1 && card.LevelId <= 5)
+                        References(card, "hoverOutline");
                     var highlight = (GameObject)new SerializedObject(card).FindProperty("currentHighlight").objectReferenceValue;
                     if (highlight.transform.parent == card.transform.parent)
                         Require(highlight.transform.GetSiblingIndex() < card.transform.GetSiblingIndex(),

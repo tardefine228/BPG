@@ -56,7 +56,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     private void Update()
     {
-        if (resultScreenOpen || SceneTransition.IsLoading || !PauseKeyPressed())
+        if (resultScreenOpen || FirstLevelGuide.IsOpen || SceneTransition.IsLoading || !PauseKeyPressed())
         {
             return;
         }
@@ -102,7 +102,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     public void OpenPauseMenu()
     {
-        if (resultScreenOpen || isPaused || SceneTransition.IsLoading)
+        if (resultScreenOpen || FirstLevelGuide.IsOpen || isPaused || SceneTransition.IsLoading)
         {
             return;
         }

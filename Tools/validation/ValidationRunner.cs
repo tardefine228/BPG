@@ -79,7 +79,17 @@ public sealed class ValidationRunner : MonoBehaviour
     private IEnumerator Scene(string name)
     {
         yield return Until(() => SceneManager.GetActiveScene().name == name && !SceneTransition.IsLoading, "scene " + name, 60f);
+        if (Camera.main != null) Camera.main.aspect = 16f / 9f;
         yield return null;
+        if (!Environment.GetCommandLineArgs().Contains("-bpgPresentationOnly") && name == "Gameplay")
+        {
+            yield return null;
+            if (FirstLevelGuide.IsOpen)
+            {
+                Find<FirstLevelGuide>().StartPlaying();
+                yield return Until(() => !FirstLevelGuide.IsOpen, "guide auto acceptance");
+            }
+        }
     }
     private IEnumerator Capture(string name)
     {
@@ -400,14 +410,17 @@ public sealed class ValidationRunner : MonoBehaviour
             Color furColor = new Color(0.2f, 0.85f, 1f, 1f);
             Set(effects, "furColor", furColor);
             var targetObject = new GameObject("CatFlightCheckTarget");
-            targetObject.transform.position = slingshot.launchPoint.position + new Vector3(7f, 1.5f, 0f);
+            float targetTime = 7f / 14f;
+            targetObject.transform.position = slingshot.launchPoint.position
+                + new Vector3(7f, 22f * targetTime + 0.5f * Physics2D.gravity.y
+                    * slingshot.projectileGravityScale * targetTime * targetTime, 0f);
             targetObject.AddComponent<BoxCollider2D>().size = Vector2.one * 2f;
             targetObject.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
             var target = targetObject.AddComponent<LevelTarget>();
             int impactEvents = 0;
             slingshot.ProjectileImpacted += point => impactEvents++;
             slingshot.projectileLifetime = 8f;
-            Set(slingshot, "launchVelocity", new Vector2(14f, 8f));
+            Set(slingshot, "launchVelocity", new Vector2(14f, 22f));
             slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
             yield return Until(() => slingshot.ShotsFired == 1, "flight start");
             yield return new WaitForSeconds(0.15f);
@@ -474,8 +487,245 @@ public sealed class ValidationRunner : MonoBehaviour
         Require(errors.Count == 0, "Cat flight produced runtime errors");
     }
 
+    private static void CheckLoadingLayout(SceneTransition transition)
+    {
+        var caption = (TMPro.TMP_Text)Get(transition, "caption");
+        var percent = (TMPro.TMP_Text)Get(transition, "percent");
+        var fill = (Image)Get(transition, "progressFill");
+        var track = (RectTransform)fill.transform.parent;
+        Require(caption.rectTransform.anchoredPosition == new Vector2(0f, 30f)
+            && Mathf.Abs(caption.fontSize - 54f) < 0.01f, "Loading caption differs from Gameplay layout");
+        Require(track.anchoredPosition == new Vector2(0f, -61f)
+            && Mathf.Abs(track.sizeDelta.x - 680f) < 0.01f && Mathf.Abs(track.sizeDelta.y - 24.8765f) < 0.01f,
+            "Loading bar differs from Gameplay layout");
+        Require(Mathf.Abs(percent.rectTransform.anchoredPosition.y + 123.43799f) < 0.01f
+            && Mathf.Abs(percent.fontSize - 28f) < 0.01f, "Loading percent differs from Gameplay layout");
+        Require(transition.GetComponentsInChildren<Transform>(true).All(child =>
+            !new[] { "AccentLine", "LogoPlaceholder", "GameTitle", "StudioText" }.Contains(child.name)),
+            "Removed objects reappeared on the loading panel");
+    }
+
+    private IEnumerator CheckLoadingRoute(string destination)
+    {
+        string source = SceneManager.GetActiveScene().name;
+        var outgoing = Find<SceneTransition>();
+        CheckLoadingLayout(outgoing);
+        var group = (CanvasGroup)Get(outgoing, "group");
+        SceneTransition.Load(destination);
+        yield return Until(() => group.alpha == 1f && ((Image)Get(outgoing, "progressFill")).rectTransform.anchorMax.x >= 0.15f,
+            "outgoing loading screen fully rendered");
+        Require(group.gameObject.activeInHierarchy && group.blocksRaycasts, "Outgoing loading screen is invisible / does not block clicks");
+        Require(((Image)Get(outgoing, "backgroundImage")).canvasRenderer.GetInheritedAlpha() == 1f,
+            "Loading background is not opaque");
+        yield return Capture("loading-" + source + "-to-" + destination);
+        yield return Until(() => SceneManager.GetActiveScene().name == destination, "incoming scene activation");
+        var incoming = Find<SceneTransition>();
+        CheckLoadingLayout(incoming);
+        group = (CanvasGroup)Get(incoming, "group");
+        Require(group.gameObject.activeInHierarchy && group.alpha > 0f, "Incoming loading panel did not preserve the layout during fade");
+        yield return Scene(destination);
+        Require(!group.gameObject.activeInHierarchy, "Loading panel blocks the destination UI");
+        Pass(source + " -> " + destination + ": identical minimal loading layout on departure and arrival; panel releases UI");
+    }
+
+    private IEnumerator LoadingChecks()
+    {
+        var splash = Find<StartupController>();
+        Require(splash != null && SceneTransition.StartupVisible, "No Boot splash");
+        var branding = (CanvasGroup)Get(splash, "brandingGroup");
+        var screen = (CanvasGroup)Get(splash, "screenGroup");
+        Require(branding.alpha < 0.2f, "BP GAMES starts already opaque");
+        var company = (TMPro.TMP_Text)Get(splash, "companyNameText");
+        Require(company.text == "BP GAMES", "Wrong company name");
+        yield return Capture("bp-games-black-frame");
+        yield return Until(() => branding.alpha >= 0.15f, "visible BP GAMES fade");
+        Require(branding.alpha < 0.95f && screen.alpha == 1f
+            && SceneManager.GetActiveScene().name == "Boot", "Company fade skipped to full opacity / menu appeared early");
+        yield return Capture("bp-games-fading-in");
+        yield return Until(() => branding.alpha == 1f, "BP GAMES fully visible");
+        Require(company.GetComponent<CanvasRenderer>().GetInheritedAlpha() > 0.99f && company.transform.lossyScale.x > 0f,
+            "BP GAMES has a transparent parent or zero scale");
+        yield return Capture("bp-games-visible");
+        yield return Scene("MainMenu");
+        Require(splash == null && !SceneTransition.StartupVisible, "Boot splash persists in MainMenu");
+        Pass("Boot: BP GAMES renders transparent, partially visible and fully visible before MainMenu loads; fades then releases the menu");
+        foreach (var level in LevelProgress.Levels)
+        {
+            LevelProgress.SelectLevel(level.Id);
+            yield return CheckLoadingRoute(level.SceneName);
+            yield return Click(Action("OpenPauseMenu"));
+            yield return new WaitForSecondsRealtime(0.3f);
+            // Проверяем реальную кнопку выхода: она открывает выбор уровней в MainMenu.
+            var outgoing = Find<SceneTransition>();
+            var group = (CanvasGroup)Get(outgoing, "group");
+            yield return Click(Action("ReturnToMainMenu"));
+            yield return Until(() => group.alpha == 1f && ((Image)Get(outgoing, "progressFill")).rectTransform.anchorMax.x >= 0.15f,
+                "pause exit loading screen fully rendered");
+            CheckLoadingLayout(outgoing);
+            yield return Capture("loading-" + level.SceneName + "-exit-menu");
+            yield return Until(() => SceneManager.GetActiveScene().name == "MainMenu", "pause exit activation");
+            CheckLoadingLayout(Find<SceneTransition>());
+            yield return Scene("MainMenu");
+            Require(Find<MenuManager>().LevelsOpen, "Pause exit did not open level selection");
+            Pass(level.SceneName + " -> MainMenu: pause exit retains the same loading layout and opens usable level selection");
+        }
+        Require(errors.Count == 0, "Loading routes produced runtime errors");
+    }
+
+    private IEnumerator PresentationChecks()
+    {
+        var splash = Find<StartupController>();
+        Require(splash != null && SceneTransition.StartupVisible, "No company splash in Boot");
+        var branding = (CanvasGroup)Get(splash, "brandingGroup");
+        var screen = (CanvasGroup)Get(splash, "screenGroup");
+        float configuredHold = ((StartupSplashSettings)Get(splash, "settings")).holdDuration;
+        yield return Until(() => branding.alpha == 1f, "splash fade in");
+        float holdStarted = Time.realtimeSinceStartup;
+        Require(screen.alpha == 1f && screen.blocksRaycasts
+            && !((CanvasGroup)Get(Find<SceneTransition>(), "group")).gameObject.activeSelf,
+            "Boot shows the ordinary loading overlay");
+        yield return Capture("company-splash");
+        while (Time.realtimeSinceStartup - holdStarted < Mathf.Max(0f, configuredHold - 0.3f)) yield return null;
+        Require(splash != null && branding.alpha == 1f, "Company splash did not hold for the configured duration");
+        yield return Scene("MainMenu");
+        Require(splash == null && !SceneTransition.StartupVisible, "Splash leaked into MainMenu");
+        Pass("Boot: company splash fades in, holds " + configuredHold + " s, fades out and reveals MainMenu; regular loading overlay hidden");
+
+        LevelProgress.SelectLevel(1);
+        SceneTransition.Load("Gameplay");
+        yield return Scene("Gameplay");
+        yield return Until(() => FirstLevelGuide.IsOpen, "first-visit guide");
+        yield return new WaitForSecondsRealtime(0.35f);
+        var guide = Find<FirstLevelGuide>();
+        var slingshot = Find<SlingshotController>();
+        var camera = Find<GameplayCameraController>();
+        Vector3 before = camera.transform.position;
+        Find<PauseMenuController>().OpenPauseMenu();
+        camera.FocusLauncher();
+        yield return null;
+        Require(Time.timeScale == 0f && !slingshot.enabled && camera.transform.position == before
+            && !((GameObject)Get(Find<PauseMenuController>(), "pausePage")).activeInHierarchy,
+            "Guide allows gameplay, camera navigation or pause");
+        yield return Capture("first-level-guide");
+        yield return Click(Action("StartPlaying"));
+        yield return Until(() => !FirstLevelGuide.IsOpen, "guide closes");
+        Require(FirstLevelGuide.HasBeenCompleted && Time.timeScale == 1f && slingshot.CanAim,
+            "Guide did not persist acceptance / restore gameplay");
+        SceneTransition.Load("Gameplay");
+        yield return Until(() => guide == null, "reload guide scene");
+        yield return Scene("Gameplay");
+        yield return new WaitForSecondsRealtime(0.35f);
+        Require(!FirstLevelGuide.IsOpen && Time.timeScale == 1f, "Accepted guide reopened on restart");
+        SceneTransition.Load("MainMenu");
+        yield return Scene("MainMenu");
+        Pass("Gameplay: guide blocks play/pause/camera, Start restores controls and persists across scene reload");
+
+        foreach (var level in LevelProgress.Levels)
+        {
+            LevelProgress.SelectLevel(level.Id);
+            SceneTransition.Load(level.SceneName);
+            yield return Scene(level.SceneName);
+            yield return new WaitForSecondsRealtime(0.6f);
+            slingshot = Find<SlingshotController>();
+            camera = Find<GameplayCameraController>();
+            Pass(level.SceneName + ": overview center " + camera.transform.position
+                + ", size " + Camera.main.orthographicSize + ", ground top " + camera.ground.bounds.max.y);
+            yield return Capture(level.SceneName + "-compact-overview");
+            yield return CheckCameraButtons();
+            yield return Click(Action("FocusLauncher"));
+            yield return Until(() => !camera.IsBusy, "compact launcher view");
+            if (level.Id == 1) yield return Capture("compact-launcher");
+            slingshot.rotatingPart.rotation = Quaternion.Euler(0f, 0f, 35f);
+            var fired = (Rigidbody2D)Get(slingshot, "projectile");
+            fired.position = slingshot.launchPoint.position;
+            fired.rotation = 35f;
+            Vector2 velocity = new Vector2(Mathf.Cos(35f * Mathf.Deg2Rad), Mathf.Sin(35f * Mathf.Deg2Rad))
+                * slingshot.maxPullDistance * slingshot.launchPower;
+            Physics2D.SyncTransforms();
+            bool predicted = slingshot.TryPredictImpact(fired.position, velocity, fired.gravityScale,
+                out Vector2 point, out float predictedTime, out Collider2D collider);
+            Require(predicted && predictedTime >= 1.15f && predictedTime <= 1.85f,
+                level.SceneName + ": full 35-degree shot duration " + predictedTime);
+            Require(collider.transform.IsChildOf(camera.targetFocus), level.SceneName + ": reference shot misses the structure; hit " + collider.name);
+            Find<LevelSession>().enabled = false;
+            float launchTime = 0f;
+            float impactTime = 0f;
+            slingshot.ShotLaunched += body => launchTime = Time.time;
+            slingshot.ProjectileImpacted += hit => impactTime = Time.time;
+            Set(slingshot, "launchVelocity", velocity);
+            slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+            yield return Until(() => launchTime > 0f, "reference launch");
+            float maxCatOffset = 0f;
+            float maxGroundFraction = 0f;
+            bool captured = false;
+            while (impactTime == 0f)
+            {
+                Vector3 viewport = Camera.main.WorldToViewportPoint(fired.position);
+                maxCatOffset = Mathf.Max(maxCatOffset, Mathf.Abs(viewport.x - 0.5f), Mathf.Abs(viewport.y - 0.5f));
+                maxGroundFraction = Mathf.Max(maxGroundFraction, Camera.main.WorldToViewportPoint(
+                    new Vector3(camera.transform.position.x, camera.ground.bounds.max.y, 0f)).y);
+                if (!captured && level.Id == 1 && Time.time - launchTime > 0.7f)
+                {
+                    captured = true;
+                    yield return Capture("compact-cat-flight");
+                }
+                Require(Time.time - launchTime < 3f, "Reference shot did not collide");
+                yield return null;
+            }
+            float actualTime = impactTime - launchTime;
+            Pass(level.SceneName + ": reference flight " + actualTime.ToString("F2") + " s; predicted "
+                + predictedTime.ToString("F2") + " s; max cat offset " + maxCatOffset.ToString("F2")
+                + "; ground fraction " + maxGroundFraction.ToString("F2"));
+            Require(Mathf.Abs(actualTime - predictedTime) < 0.16f, "Prediction differs from physics");
+            Require(maxCatOffset < 0.49f && maxGroundFraction < 0.5f, "Camera leaves the cat / flies into the ground");
+            yield return Until(() => !camera.IsBusy, "camera returns after reference flight");
+            Require(Mathf.Abs(camera.transform.position.x - (camera.mapMin.x + camera.mapMax.x) * 0.5f) < 0.05f,
+                "Camera did not return to overview");
+            yield return Until(() => slingshot.CanAim, "next cat ready");
+            // Низкий выстрел раньше опускал центр камеры под поверхность поля.
+            slingshot.rotatingPart.rotation = Quaternion.Euler(0f, 0f, -20f);
+            fired = (Rigidbody2D)Get(slingshot, "projectile");
+            fired.position = slingshot.launchPoint.position;
+            launchTime = impactTime = 0f;
+            captured = false;
+            Set(slingshot, "launchVelocity", new Vector2(Mathf.Cos(-20f * Mathf.Deg2Rad),
+                Mathf.Sin(-20f * Mathf.Deg2Rad)) * slingshot.maxPullDistance * slingshot.launchPower);
+            slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+            yield return Until(() => launchTime > 0f, "downward launch");
+            while (camera.IsBusy)
+            {
+                Require(Camera.main.WorldToViewportPoint(new Vector3(camera.transform.position.x,
+                    camera.ground.bounds.max.y, 0f)).y <= 0.34f, "Downward shot pulled the camera underground");
+                Require(Time.time - launchTime < 7f, "Downward shot camera did not return");
+                if (level.Id == 1 && impactTime > 0f && !captured)
+                {
+                    captured = true;
+                    yield return Capture("downward-shot-camera");
+                }
+                yield return null;
+            }
+            Pass(level.SceneName + ": low -20-degree shot keeps the camera above the ground and returns to overview");
+        }
+        Require(errors.Count == 0, "Presentation produced runtime errors");
+    }
+
     private IEnumerator Checks()
     {
+        if (Environment.GetCommandLineArgs().Contains("-bpgLoadingOnly"))
+        {
+            yield return LoadingChecks();
+            yield break;
+        }
+        if (Environment.GetCommandLineArgs().Contains("-bpgPresentationOnly"))
+        {
+            yield return PresentationChecks();
+            if (Environment.GetCommandLineArgs().Contains("-bpgCatFlightOnly"))
+            {
+                SceneTransition.Load("MainMenu");
+                yield return CatFlightChecks();
+            }
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Contains("-bpgCatFlightOnly"))
         {
             yield return CatFlightChecks();

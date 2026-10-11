@@ -16,11 +16,7 @@ public sealed class SceneTransition : MonoBehaviour
     [SerializeField] private Image progressFill;
     [SerializeField] private TMP_Text caption;
     [SerializeField] private TMP_Text percent;
-    [SerializeField] private Image logoImage;
-    [SerializeField] private TMP_Text titleText;
-    [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private Image backgroundImage;
-    [SerializeField] private Image accentLine;
     public static bool IsLoading => busy;
     public static bool StartupVisible => startup;
 
@@ -31,10 +27,18 @@ public sealed class SceneTransition : MonoBehaviour
         busy = startup = false;
     }
 
-    public static void Load(string sceneName) => BeginLoad(sceneName, false);
-    public static void ShowStartup(string sceneName) => BeginLoad(sceneName, true);
+    public static void Load(string sceneName) => BeginLoad(sceneName);
 
-    private static void BeginLoad(string sceneName, bool isStartup)
+    // Boot показывает собственную заставку и сам раскрывает меню из чёрного.
+    public static void BeginStartupPresentation()
+    {
+        busy = startup = true;
+        Time.timeScale = 1f;
+    }
+
+    public static void FinishStartupPresentation() => busy = startup = false;
+
+    private static void BeginLoad(string sceneName)
     {
         if (busy) return;
         if (!Application.CanStreamedLevelBeLoaded(sceneName))
@@ -49,20 +53,20 @@ public sealed class SceneTransition : MonoBehaviour
             Debug.LogError("В сцене отсутствует настроенный SceneTransition.");
             return;
         }
-        instance.StartCoroutine(instance.LoadRoutine(sceneName, isStartup));
+        instance.StartCoroutine(instance.LoadRoutine(sceneName));
     }
 
     private void Awake()
     {
-        arriving = busy;
+        arriving = busy && !startup;
         instance = this;
         if (settings == null)
             settings = Resources.Load<SceneTransitionSettings>("SceneTransitionSettings");
         RefreshContent();
-        group.gameObject.SetActive(busy);
-        group.alpha = busy ? 1f : 0f;
+        group.gameObject.SetActive(arriving);
+        group.alpha = arriving ? 1f : 0f;
         group.interactable = false;
-        group.blocksRaycasts = busy;
+        group.blocksRaycasts = arriving;
     }
 
     private IEnumerator Start()
@@ -77,19 +81,17 @@ public sealed class SceneTransition : MonoBehaviour
         busy = startup = false;
     }
 
-    private IEnumerator LoadRoutine(string sceneName, bool isStartup)
+    private IEnumerator LoadRoutine(string sceneName)
     {
         busy = true;
-        startup = isStartup;
+        startup = false;
         Time.timeScale = 1f;
         group.gameObject.SetActive(true);
         group.blocksRaycasts = true;
-        group.alpha = isStartup ? 1f : 0f;
+        group.alpha = 0f;
         SetProgress(0f);
-        caption.text = isStartup ? settings.startupCaption : settings.loadingCaption;
-        if (!isStartup) yield return Fade(1f);
-        if (isStartup) yield return new WaitForSecondsRealtime(settings.startupHold);
         caption.text = settings.loadingCaption;
+        yield return Fade(1f);
 
         float elapsed = 0f;
         float shown = 0f;
@@ -136,10 +138,7 @@ public sealed class SceneTransition : MonoBehaviour
 
     private void RefreshContent()
     {
-        titleText.text = settings.title;
-        subtitleText.text = settings.subtitle;
-        logoImage.sprite = settings.logo;
-        logoImage.enabled = settings.logo != null;
+        caption.text = settings.loadingCaption;
     }
 
     // Явное применение палитры в редакторе сохраняет возможность оформлять prefab вручную.
@@ -148,13 +147,7 @@ public sealed class SceneTransition : MonoBehaviour
     {
         RefreshContent();
         backgroundImage.color = settings.backgroundColor;
-        accentLine.color = progressFill.color = percent.color = settings.accentColor;
-        titleText.color = caption.color = settings.textColor;
-        subtitleText.color = settings.textColor * new Color(1f, 1f, 1f, 0.65f);
-        Vector2 position = titleText.rectTransform.anchoredPosition;
-        position.y = settings.logo != null ? -60f : 100f;
-        titleText.rectTransform.anchoredPosition = position;
-        titleText.fontSize = titleText.fontSizeMax = settings.logo != null ? 48f : 74f;
-        titleText.fontSizeMin = titleText.fontSizeMax * 0.65f;
+        progressFill.color = percent.color = settings.accentColor;
+        caption.color = settings.textColor;
     }
 }
