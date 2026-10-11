@@ -489,7 +489,7 @@ public sealed class LevelSelectController : MonoBehaviour
             pageDots.Add(image);
         }
 
-        pageLabel = CreateLabel(root, "PageLabel", "СТРАНИЦА 1 / " + pageCount,
+        pageLabel = CreateLabel(parent, "PageLabel", "СТРАНИЦА 1 / " + pageCount,
             new Vector2(0f, -462f), new Vector2(600f, 34f), 22f,
             new Color32(120, 120, 120, 255));
     }
