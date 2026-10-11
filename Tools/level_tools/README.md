@@ -19,6 +19,9 @@ python3 Tools/level_tools/gen_previews.py   # Assets/Resources/LevelPreviews/lev
 * `target_area` — куда сдвинута группа мишеней;
 * `blocks` — список блоков: имя, позиция, масштаб, масса, цвет и `hits`
   (прочность, то же поле `Hits To Clear`, что и в инспекторе);
+* `ARMOR_PUSH_RESISTANCE` и `ARMOR_SLIDING_FRICTION` — насколько бронированные
+  блоки (у которых `hits` > 1) сопротивляются толчку и скользят: то же, что
+  поля `Push Resistance` и `Sliding Friction` в инспекторе `LevelTarget`;
 * `slabs` — статичные каменные площадки (подиумы);
 * `ground_color`, `background_color`, `light_color`, `map_min`, `map_max`,
   `impact_size` — палитра, границы камеры и приближение после выстрела.

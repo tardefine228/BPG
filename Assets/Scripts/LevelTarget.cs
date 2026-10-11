@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -14,12 +13,16 @@ using UnityEngine.Events;
 /// impact and are only knocked down after the configured number of hits.</item>
 /// </list>
 /// The durability is a plain Inspector field, so every block can be tuned
-/// without touching the code.
+/// without touching the code. Reinforced blocks can also be made much harder to
+/// shove around: they absorb most of the hit and brake harder while sliding, so
+/// the player sees them budge only slightly instead of flying off.
 /// </summary>
 public sealed class LevelTarget : MonoBehaviour
 {
     private const float IgnoreCollisionsFor = 0.8f;
-    private const int HitCounterSortingOrder = 82;
+
+    /// <summary>How long a contact keeps the extra sliding friction active.</summary>
+    private const float SurfaceContactGrace = 0.12f;
 
     [Header("Сбивание")]
     [Tooltip("Блок считается сбитым, если упал ниже этой отметки.")]
@@ -30,8 +33,8 @@ public sealed class LevelTarget : MonoBehaviour
 
     [Header("Прочность блока")]
     [Tooltip("Сколько ударов выдерживает блок. 1 — обычный блок (как в 1 уровне). " +
-             "3–5 — бронированный: он двигается от каждого удара, но сносится только " +
-             "после нужного количества попаданий.")]
+             "3–6 — бронированный: держит несколько попаданий и сдвигается от них " +
+             "слабее обычного (см. «Сопротивление сдвигу» ниже).")]
     [SerializeField, Min(1)] private int hitsToClear = 1;
 
     [Tooltip("Пауза между засчитанными ударами, чтобы одно касание снаряда не сняло сразу несколько единиц прочности.")]
@@ -60,15 +63,15 @@ public sealed class LevelTarget : MonoBehaviour
     [Tooltip("Вращение блока после последнего удара.")]
     [SerializeField, Min(0f)] private float breakTorque = 30f;
 
-    [Header("Счётчик ударов")]
-    [Tooltip("Показывать над блоком, сколько ударов ещё нужно.")]
-    [SerializeField] private bool showRemainingHits;
+    [Header("Сопротивление сдвигу")]
+    [Tooltip("Какая доля толчка гасится в момент попадания. 0 — обычный блок отлетает как есть, " +
+             "0.6 — бронированный заметно тяжелее и только подаётся назад, " +
+             "0.9 — почти не сдвинуть.")]
+    [SerializeField, Range(0f, 0.95f)] private float pushResistance;
 
-    [Tooltip("Смещение счётчика относительно центра блока (в юнитах сцены).")]
-    [SerializeField] private Vector3 hitCounterOffset = new Vector3(0f, 2.4f, 0f);
-
-    [Tooltip("Цвет цифры счётчика ударов.")]
-    [SerializeField] private Color hitCounterColor = new Color32(230, 155, 82, 255);
+    [Tooltip("Дополнительное трение: во сколько раз сильнее блок тормозит, скользя по поверхности. " +
+             "1 — как обычный блок, 1.8 — тяжело скользит и быстро останавливается.")]
+    [SerializeField, Min(1f)] private float slidingFriction = 1f;
 
     [Header("События")]
     [Tooltip("Вызывается после каждого удара, который не снёс блок.")]
@@ -83,12 +86,8 @@ public sealed class LevelTarget : MonoBehaviour
     private Rigidbody2D body;
     private Vector3 startPosition;
     private float nextHitTime;
-    private float counterPopUntil;
+    private float surfaceContactUntil;
     private Coroutine flashRoutine;
-    private Canvas counterCanvas;
-    private RectTransform counterRect;
-    private TMP_Text counterText;
-    private Camera counterCamera;
 
     public bool IsCleared { get; private set; }
     public float MaxTravelDistance { get; private set; }
@@ -101,6 +100,12 @@ public sealed class LevelTarget : MonoBehaviour
 
     /// <summary>Hits left before the block is knocked down.</summary>
     public int HitsRemaining => Mathf.Max(0, HitsToClear - HitsTaken);
+
+    /// <summary>How strongly the block absorbs a hit (0 — ordinary block).</summary>
+    public float PushResistance => Mathf.Clamp(pushResistance, 0f, 0.95f);
+
+    /// <summary>Extra sliding friction multiplier (1 — ordinary block).</summary>
+    public float SlidingFriction => Mathf.Max(1f, slidingFriction);
 
     /// <summary>True for multi-hit (reinforced) blocks.</summary>
     public bool IsReinforced => HitsToClear > 1;
@@ -117,7 +122,6 @@ public sealed class LevelTarget : MonoBehaviour
 
         startPosition = transform.position;
         ApplyDamageTint();
-        BuildHitCounter();
     }
 
     private void Update()
@@ -127,8 +131,6 @@ public sealed class LevelTarget : MonoBehaviour
         {
             MaxTravelDistance = distance;
         }
-
-        UpdateHitCounter();
 
         if (IsCleared)
         {
@@ -178,6 +180,7 @@ public sealed class LevelTarget : MonoBehaviour
 
         nextHitTime = Time.time + hitCooldown;
         HitsTaken++;
+        AbsorbHit();
 
         if (HitsTaken >= HitsToClear)
         {
@@ -189,10 +192,66 @@ public sealed class LevelTarget : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// A reinforced block swallows most of the momentum it just received, so it
+    /// barely shifts where an ordinary block would be thrown.
+    /// </summary>
+    private void AbsorbHit()
+    {
+        if (pushResistance <= 0f || body == null || body.bodyType != RigidbodyType2D.Dynamic)
+        {
+            return;
+        }
+
+        float keep = 1f - PushResistance;
+        body.linearVelocity *= keep;
+        body.angularVelocity *= keep;
+    }
+
+    /// <summary>
+    /// Extra friction while the block rests on a surface: heavy blocks brake
+    /// much faster than ordinary ones, so a hit barely slides them.
+    /// </summary>
+    private void FixedUpdate()
+    {
+        float extraFriction = SlidingFriction - 1f;
+        if (extraFriction <= 0.0001f || body == null || IsCleared)
+        {
+            return;
+        }
+
+        if (body.bodyType != RigidbodyType2D.Dynamic || Time.time > surfaceContactUntil)
+        {
+            return;
+        }
+
+        Vector2 velocity = body.linearVelocity;
+        if (Mathf.Abs(velocity.x) < 0.01f)
+        {
+            return;
+        }
+
+        // Extra dry friction, as if the ground had a bigger friction coefficient.
+        float deceleration = extraFriction * Mathf.Abs(Physics2D.gravity.y)
+            * Time.fixedDeltaTime;
+        body.linearVelocity = new Vector2(
+            Mathf.MoveTowards(velocity.x, 0f, deceleration), velocity.y);
+    }
+
+    /// <summary>Any continuous contact keeps the sliding friction switched on.</summary>
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (IsCleared || collision == null)
+        {
+            return;
+        }
+
+        surfaceContactUntil = Time.time + SurfaceContactGrace;
+    }
+
     private void PlayHitFeedback()
     {
         ApplyDamageTint();
-        counterPopUntil = Time.time + 0.18f;
 
         if (!IsReinforced || !showHitFeedback || damageSprites.Count == 0)
         {
@@ -226,7 +285,6 @@ public sealed class LevelTarget : MonoBehaviour
 
         IsCleared = true;
         ApplyDamageTint();
-        HideHitCounter();
 
         if (byImpact && breakOnCleared && hitDirection.sqrMagnitude > 0.0001f)
         {
@@ -285,105 +343,6 @@ public sealed class LevelTarget : MonoBehaviour
             }
 
             sprite.color = color ?? baseColors[i];
-        }
-    }
-
-    private void BuildHitCounter()
-    {
-        if (!showRemainingHits || !IsReinforced)
-        {
-            return;
-        }
-
-        int uiLayer = LayerMask.NameToLayer("UI");
-        if (uiLayer < 0)
-        {
-            uiLayer = 5;
-        }
-
-        GameObject canvasObject = new GameObject("HitCounterCanvas", typeof(RectTransform), typeof(Canvas));
-        canvasObject.layer = uiLayer;
-        counterCanvas = canvasObject.GetComponent<Canvas>();
-        counterCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        counterCanvas.sortingOrder = HitCounterSortingOrder;
-
-        GameObject label = new GameObject("HitsLeft", typeof(RectTransform));
-        label.layer = uiLayer;
-        counterRect = label.GetComponent<RectTransform>();
-        counterRect.SetParent(canvasObject.transform, false);
-        counterRect.anchorMin = Vector2.zero;
-        counterRect.anchorMax = Vector2.zero;
-        counterRect.pivot = new Vector2(0.5f, 0.5f);
-        counterRect.sizeDelta = new Vector2(160f, 90f);
-
-        counterText = label.AddComponent<TextMeshProUGUI>();
-        counterText.font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-        counterText.text = HitsRemaining.ToString();
-        counterText.fontSize = 54f;
-        counterText.fontStyle = FontStyles.Bold;
-        counterText.alignment = TextAlignmentOptions.Center;
-        counterText.color = hitCounterColor;
-        counterText.raycastTarget = false;
-    }
-
-    private void UpdateHitCounter()
-    {
-        if (counterText == null || counterRect == null)
-        {
-            return;
-        }
-
-        if (IsCleared)
-        {
-            HideHitCounter();
-            return;
-        }
-
-        counterText.text = HitsRemaining.ToString();
-
-        if (counterCamera == null)
-        {
-            counterCamera = Camera.main;
-            if (counterCamera == null)
-            {
-                return;
-            }
-        }
-
-        Vector3 screenPoint = counterCamera.WorldToScreenPoint(transform.position + hitCounterOffset);
-        if (screenPoint.z <= 0f)
-        {
-            counterCanvas.enabled = false;
-            return;
-        }
-
-        counterCanvas.enabled = true;
-        counterRect.anchoredPosition = new Vector2(screenPoint.x, screenPoint.y);
-
-        // Small pop so the player notices that the durability went down.
-        float popT = Mathf.Clamp01((counterPopUntil - Time.time) / 0.18f);
-        float scale = 1f + 0.45f * popT;
-        counterRect.localScale = new Vector3(scale, scale, 1f);
-    }
-
-    private void HideHitCounter()
-    {
-        if (counterText != null)
-        {
-            counterText.gameObject.SetActive(false);
-        }
-
-        if (counterCanvas != null)
-        {
-            counterCanvas.enabled = false;
-        }
-    }
-
-    private void OnDestroy()
-    {
-        if (counterCanvas != null)
-        {
-            Destroy(counterCanvas.gameObject);
         }
     }
 }

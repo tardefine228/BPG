@@ -1128,6 +1128,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
   fallY: -6
   impactSpeed: 2
+  hitsToClear: 1
+  hitCooldown: 0.35
+  showHitFeedback: 1
+  damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}
+  hitFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}
+  hitFlashDuration: 0.12
+  breakOnCleared: 1
+  breakImpulse: 6
+  breakTorque: 30
+  pushResistance: 0
+  slidingFriction: 1
+  onHit:
+    m_PersistentCalls:
+      m_Calls: []
+  onCleared:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &3000000035
 GameObject:
   m_ObjectHideFlags: 0
@@ -1310,6 +1327,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
   fallY: -6
   impactSpeed: 2
+  hitsToClear: 1
+  hitCooldown: 0.35
+  showHitFeedback: 1
+  damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}
+  hitFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}
+  hitFlashDuration: 0.12
+  breakOnCleared: 1
+  breakImpulse: 6
+  breakTorque: 30
+  pushResistance: 0
+  slidingFriction: 1
+  onHit:
+    m_PersistentCalls:
+      m_Calls: []
+  onCleared:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &3000000041
 GameObject:
   m_ObjectHideFlags: 0
@@ -1501,9 +1535,8 @@ MonoBehaviour:
   breakOnCleared: 1
   breakImpulse: 6
   breakTorque: 30
-  showRemainingHits: 1
-  hitCounterOffset: {x: 0, y: 2.25, z: 0}
-  hitCounterColor: {r: 0.902, g: 0.608, b: 0.322, a: 1}
+  pushResistance: 0.6
+  slidingFriction: 1.8
   onHit:
     m_PersistentCalls:
       m_Calls: []
@@ -1692,6 +1725,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
   fallY: -6
   impactSpeed: 2
+  hitsToClear: 1
+  hitCooldown: 0.35
+  showHitFeedback: 1
+  damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}
+  hitFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}
+  hitFlashDuration: 0.12
+  breakOnCleared: 1
+  breakImpulse: 6
+  breakTorque: 30
+  pushResistance: 0
+  slidingFriction: 1
+  onHit:
+    m_PersistentCalls:
+      m_Calls: []
+  onCleared:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &3000000053
 GameObject:
   m_ObjectHideFlags: 0
@@ -1874,6 +1924,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
   fallY: -6
   impactSpeed: 2
+  hitsToClear: 1
+  hitCooldown: 0.35
+  showHitFeedback: 1
+  damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}
+  hitFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}
+  hitFlashDuration: 0.12
+  breakOnCleared: 1
+  breakImpulse: 6
+  breakTorque: 30
+  pushResistance: 0
+  slidingFriction: 1
+  onHit:
+    m_PersistentCalls:
+      m_Calls: []
+  onCleared:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &3000000059
 GameObject:
   m_ObjectHideFlags: 0
@@ -2065,9 +2132,8 @@ MonoBehaviour:
   breakOnCleared: 1
   breakImpulse: 6
   breakTorque: 30
-  showRemainingHits: 1
-  hitCounterOffset: {x: 0, y: 2.15, z: 0}
-  hitCounterColor: {r: 0.902, g: 0.608, b: 0.322, a: 1}
+  pushResistance: 0.6
+  slidingFriction: 1.8
   onHit:
     m_PersistentCalls:
       m_Calls: []

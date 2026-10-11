@@ -147,14 +147,18 @@ class Builder:
         return go_id, comp_ids[TRANSFORM], comp_ids
 
     def add_block(self, name, local_pos, parent, scale=0.6391, mass=2,
-                  color=(1, 1, 1, 1), hits=None, counter_offset=2.2):
+                  color=(1, 1, 1, 1), hits=None):
         go_id, tr_id, comps = self.clone(
             'Box', name=name, position=(local_pos[0], local_pos[1], 0),
             scale=(scale, scale, 1), parent=parent,
             fields={SPRITE: [('m_Color', col(color))],
                     BODY: [('m_Mass', str(mass))]})
         self.docs = [d for d in self.docs if d[1] != comps[SCRIPT]]
-        self.emit(MONO, comps[SCRIPT], level_target_body(go_id, hits, counter_offset))
+        reinforced = hits is not None and hits > 1
+        self.emit(MONO, comps[SCRIPT], level_target_body(
+            go_id, hits,
+            ARMOR_PUSH_RESISTANCE if reinforced else 0,
+            ARMOR_SLIDING_FRICTION if reinforced else 1))
         return tr_id
 
     def add_static_slab(self, name, center, size, color, sorting_order=0):
@@ -194,7 +198,8 @@ class Builder:
         return HEADER + ''.join(out)
 
 
-def level_target_body(go_id, hits, counter_offset):
+def level_target_body(go_id, hits, push_resistance, sliding_friction):
+    """Serialised LevelTarget. Ordinary blocks keep hits = 1 and no resistance."""
     lines = [
         'MonoBehaviour:',
         '  m_ObjectHideFlags: 0',
@@ -209,28 +214,24 @@ def level_target_body(go_id, hits, counter_offset):
         '  m_EditorClassIdentifier: Assembly-CSharp::LevelTarget',
         '  fallY: -6',
         '  impactSpeed: 2',
+        '  hitsToClear: %d' % (1 if hits is None else hits),
+        '  hitCooldown: 0.35',
+        '  showHitFeedback: 1',
+        '  damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}',
+        '  hitFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}',
+        '  hitFlashDuration: 0.12',
+        '  breakOnCleared: 1',
+        '  breakImpulse: 6',
+        '  breakTorque: 30',
+        '  pushResistance: %s' % push_resistance,
+        '  slidingFriction: %s' % sliding_friction,
+        '  onHit:',
+        '    m_PersistentCalls:',
+        '      m_Calls: []',
+        '  onCleared:',
+        '    m_PersistentCalls:',
+        '      m_Calls: []',
     ]
-    if hits is not None:
-        lines += [
-            '  hitsToClear: %d' % hits,
-            '  hitCooldown: 0.35',
-            '  showHitFeedback: 1',
-            '  damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}',
-            '  hitFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}',
-            '  hitFlashDuration: 0.12',
-            '  breakOnCleared: 1',
-            '  breakImpulse: 6',
-            '  breakTorque: 30',
-            '  showRemainingHits: 1',
-            '  hitCounterOffset: {x: 0, y: %s, z: 0}' % counter_offset,
-            '  hitCounterColor: {r: 0.902, g: 0.608, b: 0.322, a: 1}',
-            '  onHit:',
-            '    m_PersistentCalls:',
-            '      m_Calls: []',
-            '  onCleared:',
-            '    m_PersistentCalls:',
-            '      m_Calls: []',
-        ]
     return '\n'.join(lines) + '\n'
 
 
@@ -251,7 +252,7 @@ LEVEL2 = {
         {'name': 'Box_A1', 'pos': (36.57, -1.20)},
         {'name': 'Box_A2', 'pos': (39.43, -1.20)},
         {'name': 'DurableBlock_A', 'pos': (38.00, 1.905), 'scale': 0.75,
-         'mass': 5, 'color': STEEL, 'hits': 3, 'counter': 2.25},
+         'mass': 5, 'color': STEEL, 'hits': 3},
         {'name': 'Box_B1', 'pos': (52.00, -1.20)},
         {'name': 'Box_B2', 'pos': (52.00, 1.657)},
     ],
@@ -273,11 +274,11 @@ LEVEL3 = {
         {'name': 'Box_A1', 'pos': (30.57, -1.20)},
         {'name': 'Box_A2', 'pos': (33.43, -1.20)},
         {'name': 'DurableBlock_A', 'pos': (32.00, 1.905), 'scale': 0.75,
-         'mass': 5, 'color': STEEL, 'hits': 4, 'counter': 2.25},
+         'mass': 5, 'color': STEEL, 'hits': 4},
         {'name': 'Box_B1', 'pos': (46.57, 2.03)},
         {'name': 'Box_B2', 'pos': (49.43, 2.03)},
         {'name': 'DurableBlock_B', 'pos': (48.00, 5.02), 'scale': 0.70,
-         'mass': 5, 'color': STEEL, 'hits': 5, 'counter': 2.15},
+         'mass': 5, 'color': STEEL, 'hits': 5},
     ],
     'slabs': [
         {'name': 'StonePodium', 'center': (46.0, -1.15), 'size': (16.0, 3.5),
@@ -306,6 +307,11 @@ def on_top(top, scale=0.6391):
     return round(top + half_h(scale) - 0.02, 3)
 
 
+# Reinforced blocks swallow most of the hit and brake hard while sliding, so a
+# shot only nudges them where an ordinary crate would be thrown aside.
+ARMOR_PUSH_RESISTANCE = 0.6
+ARMOR_SLIDING_FRICTION = 1.8
+
 STAND = 0.6391              # ordinary crate scale
 ARMOR = 0.75                # reinforced block scale (large)
 ARMOR_SMALL = 0.70          # reinforced block scale (compact)
@@ -330,13 +336,13 @@ LEVEL4 = {
     'preview_top': 9.0,
     'blocks': [
         {'name': 'DurableBlock_A', 'pos': (30.00, on_ground(ARMOR)), 'scale': ARMOR,
-         'mass': 5, 'color': STEEL, 'hits': 3, 'counter': 2.25},
+         'mass': 5, 'color': STEEL, 'hits': 3},
         {'name': 'DurableBlock_B', 'pos': (33.80, on_ground(ARMOR)), 'scale': ARMOR,
-         'mass': 5, 'color': STEEL, 'hits': 3, 'counter': 2.25},
-        {'name': 'Box_A1', 'pos': (31.90, on_top(GATE_TOP, STAND)), 'counter': 2.3},
+         'mass': 5, 'color': STEEL, 'hits': 3},
+        {'name': 'Box_A1', 'pos': (31.90, on_top(GATE_TOP, STAND))},
         {'name': 'Box_B1', 'pos': (43.00, on_top(STEP_TOP, STAND))},
         {'name': 'DurableBlock_C', 'pos': (43.00, on_top(STEP_BOX_TOP, ARMOR_SMALL)),
-         'scale': ARMOR_SMALL, 'mass': 5, 'color': STEEL, 'hits': 4, 'counter': 2.15},
+         'scale': ARMOR_SMALL, 'mass': 5, 'color': STEEL, 'hits': 4},
     ],
     'slabs': [
         {'name': 'StoneStep', 'center': (43.0, -1.41), 'size': (11.0, 2.4),
@@ -367,10 +373,10 @@ LEVEL5 = {
         {'name': 'Box_A1', 'pos': (36.70, on_top(TOWER_BASE_TOP, STAND))},
         {'name': 'Box_A2', 'pos': (41.30, on_top(TOWER_BASE_TOP, STAND))},
         {'name': 'DurableBlock_A', 'pos': (39.00, on_top(TOWER_BOX_TOP, ARMOR)),
-         'scale': ARMOR, 'mass': 6, 'color': STEEL, 'hits': 6, 'counter': 2.3},
-        {'name': 'Box_B1', 'pos': (39.00, on_top(TOWER_ARMOR_TOP, STAND)), 'counter': 2.3},
+         'scale': ARMOR, 'mass': 6, 'color': STEEL, 'hits': 6},
+        {'name': 'Box_B1', 'pos': (39.00, on_top(TOWER_ARMOR_TOP, STAND))},
         {'name': 'DurableBlock_B', 'pos': (52.00, on_top(PODIUM_TOP, ARMOR_SMALL)),
-         'scale': ARMOR_SMALL, 'mass': 6, 'color': STEEL, 'hits': 5, 'counter': 2.15},
+         'scale': ARMOR_SMALL, 'mass': 6, 'color': STEEL, 'hits': 5},
     ],
     'slabs': [
         {'name': 'TowerBase', 'center': (39.0, -1.11), 'size': (13.0, 3.0),
@@ -421,7 +427,7 @@ def build(cfg):
                      block['pos'][1] - cfg['target_area'][1]),
                     area[1], scale=block.get('scale', 0.6391),
                     mass=block.get('mass', 2), color=block.get('color', (1, 1, 1, 1)),
-                    hits=block.get('hits'), counter_offset=block.get('counter', 2.2))
+                    hits=block.get('hits'))
 
     for slab in cfg['slabs']:
         b.add_static_slab(slab['name'], slab['center'], slab['size'],
