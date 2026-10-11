@@ -10,6 +10,8 @@ public static class LevelProgress
     public const int MaxStars = 3;
     public const string LobbySceneName = "LevelSelect";
     public const string GameplaySceneName = "Gameplay";
+    public const string SecondLevelSceneName = "Level2";
+    public const string ThirdLevelSceneName = "Level3";
 
     private const string StarsKeyPrefix = "bpg_level_stars_";
     private const string CompletedKeyPrefix = "bpg_level_completed_";
@@ -24,22 +26,34 @@ public static class LevelProgress
             "УРОВЕНЬ 1",
             GameplaySceneName,
             "LevelPreviews/level_1",
-            true),
+            true,
+            1,
+            2),
         new LevelDefinition(
             2,
             "УРОВЕНЬ 2",
-            string.Empty,
+            SecondLevelSceneName,
             "LevelPreviews/level_2",
-            false),
+            true,
+            6,
+            9),
         new LevelDefinition(
             3,
             "УРОВЕНЬ 3",
-            string.Empty,
+            ThirdLevelSceneName,
             "LevelPreviews/level_3",
-            false)
+            true,
+            12,
+            16)
     };
 
     public static int CurrentLevelId { get; private set; } = 1;
+
+    /// <summary>
+    /// Opened from the level select screen ("открыть все уровни"): lets the
+    /// designer jump straight into any map without replaying the previous one.
+    /// </summary>
+    public static bool UnlockAllLevels { get; set; }
 
     public static LevelDefinition GetLevel(int levelId)
     {
@@ -67,7 +81,7 @@ public static class LevelProgress
 
     public static bool IsUnlocked(int levelId)
     {
-        if (levelId <= 1)
+        if (UnlockAllLevels || levelId <= 1)
         {
             return true;
         }
@@ -140,6 +154,37 @@ public static class LevelProgress
         return true;
     }
 
+    /// <summary>Stars for a run, using the shot targets of the given level.</summary>
+    public static int StarsForShots(int levelId, int shotsFired)
+    {
+        LevelDefinition level = GetLevel(levelId);
+        if (shotsFired <= 0)
+        {
+            shotsFired = 1;
+        }
+
+        if (shotsFired <= level.ThreeStarShots)
+        {
+            return 3;
+        }
+
+        if (shotsFired <= level.TwoStarShots)
+        {
+            return 2;
+        }
+
+        return 1;
+    }
+
+    /// <summary>Shots needed for three stars on the given level.</summary>
+    public static int ThreeStarShots(int levelId)
+    {
+        return Mathf.Max(1, GetLevel(levelId).ThreeStarShots);
+    }
+
+    /// <summary>
+    /// Kept for the default one-shot rule (levels without their own targets).
+    /// </summary>
     public static int StarsFromShots(int shotsFired)
     {
         if (shotsFired <= 1)
@@ -189,18 +234,28 @@ public readonly struct LevelDefinition
     public readonly string PreviewResourcePath;
     public readonly bool IsImplemented;
 
+    /// <summary>Shots allowed for three stars.</summary>
+    public readonly int ThreeStarShots;
+
+    /// <summary>Shots allowed for two stars.</summary>
+    public readonly int TwoStarShots;
+
     public LevelDefinition(
         int id,
         string displayName,
         string sceneName,
         string previewResourcePath,
-        bool isImplemented)
+        bool isImplemented,
+        int threeStarShots = 1,
+        int twoStarShots = 2)
     {
         Id = id;
         DisplayName = displayName;
         SceneName = sceneName;
         PreviewResourcePath = previewResourcePath;
         IsImplemented = isImplemented;
+        ThreeStarShots = Mathf.Max(1, threeStarShots);
+        TwoStarShots = Mathf.Max(ThreeStarShots, twoStarShots);
     }
 
     public bool CanLoad =>

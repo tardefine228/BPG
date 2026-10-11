@@ -164,6 +164,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c3a91e4b2d84f6a9e1c0f5d8a2b4731, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::LevelSelectController
+  unlockAllLevels: 0
 --- !u!114 &1000000004
 MonoBehaviour:
   m_ObjectHideFlags: 0

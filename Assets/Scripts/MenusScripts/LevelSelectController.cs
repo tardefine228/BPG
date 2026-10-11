@@ -13,6 +13,9 @@ public sealed class LevelSelectController : MonoBehaviour
 {
     private const int CanvasSortingOrder = 10;
 
+    [Tooltip("Открыть все уровни сразу — удобно для тестирования новых карт.")]
+    [SerializeField] private bool unlockAllLevels;
+
     private Sprite uiSprite;
     private Sprite starOnSprite;
     private Sprite starOffSprite;
@@ -22,6 +25,7 @@ public sealed class LevelSelectController : MonoBehaviour
     private void Awake()
     {
         Time.timeScale = 1f;
+        LevelProgress.UnlockAllLevels = unlockAllLevels;
         LevelProgress.RestoreSelectedLevel();
         BuildLobby();
     }
@@ -202,6 +206,11 @@ public sealed class LevelSelectController : MonoBehaviour
         }
 
         CreateStarRow(card, stars, new Vector2(0f, -262f));
+        CreateLabel(card, "ParHint",
+            unlocked ? "3 ЗВЕЗДЫ — ДО " + level.ThreeStarShots + " "
+                + ShotsWord(level.ThreeStarShots) : string.Empty,
+            new Vector2(0f, -180f), new Vector2(400f, 30f), 17f,
+            new Color32(90, 90, 90, 255));
     }
 
     private void CreateStarRow(Transform parent, int filledStars, Vector2 position)
@@ -395,6 +404,11 @@ public sealed class LevelSelectController : MonoBehaviour
         image.type = Image.Type.Simple;
         image.color = color;
         image.raycastTarget = true;
+    }
+
+    private static string ShotsWord(int shots)
+    {
+        return shots == 1 ? "ВЫСТРЕЛА" : "ВЫСТРЕЛОВ";
     }
 
     private static Sprite LoadPreview(string resourcePath)

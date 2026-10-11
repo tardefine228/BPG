@@ -16,6 +16,10 @@ public sealed class LevelSession : MonoBehaviour
     [SerializeField] private string lobbySceneName = LevelProgress.LobbySceneName;
     [SerializeField] private float completeDelay = 1.1f;
 
+    [Tooltip("Номер уровня этой сцены. 0 — взять уровень, выбранный в меню. " +
+             "Позволяет запускать карту прямо из редактора.")]
+    [SerializeField] private int forcedLevelId;
+
     private const int HudSortingOrder = 80;
     private const int OverlaySortingOrder = 90;
 
@@ -31,6 +35,8 @@ public sealed class LevelSession : MonoBehaviour
     private bool completed;
     private int displayedScore;
 
+    private int LevelId => forcedLevelId > 0 ? forcedLevelId : LevelProgress.CurrentLevelId;
+
     private void Awake()
     {
         if (gameplayController == null)
@@ -39,7 +45,7 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         LevelProgress.RestoreSelectedLevel();
-        scoreCounts = !LevelProgress.HasAwardedScore(LevelProgress.CurrentLevelId);
+        scoreCounts = !LevelProgress.HasAwardedScore(LevelId);
         BuildScoreHud();
     }
 
@@ -95,18 +101,18 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         EvaluateTargets(out int clearedBoxes, out float travelDistance);
-        int stars = LevelProgress.StarsFromShots(shots);
+        int stars = LevelProgress.StarsForShots(LevelId, shots);
         int runScore = LevelProgress.ComputeRunScore(clearedBoxes, shots, travelDistance);
         displayedScore = scoreCounts ? runScore : 0;
 
-        LevelProgress.SaveStars(LevelProgress.CurrentLevelId, stars);
+        LevelProgress.SaveStars(LevelId, stars);
         bool awardedScore = false;
         if (scoreCounts)
         {
-            awardedScore = LevelProgress.TryAwardFirstClearScore(LevelProgress.CurrentLevelId, runScore);
+            awardedScore = LevelProgress.TryAwardFirstClearScore(LevelId, runScore);
         }
 
-        LevelProgress.MarkCompleted(LevelProgress.CurrentLevelId);
+        LevelProgress.MarkCompleted(LevelId);
         RefreshScoreHud();
 
         if (gameplayController != null)
@@ -115,7 +121,7 @@ public sealed class LevelSession : MonoBehaviour
             gameplayController.enabled = false;
         }
 
-        BuildCompletionOverlay(stars, awardedScore ? runScore : 0, awardedScore);
+        BuildCompletionOverlay(stars, awardedScore ? runScore : 0, awardedScore, shots);
     }
 
     private void EvaluateTargets(out int clearedBoxes, out float travelDistance)
@@ -249,7 +255,7 @@ public sealed class LevelSession : MonoBehaviour
             scoreCounts ? new Color32(230, 155, 82, 255) : new Color32(140, 140, 140, 255));
     }
 
-    private void BuildCompletionOverlay(int stars, int score, bool awardedScore)
+    private void BuildCompletionOverlay(int stars, int score, bool awardedScore, int shots)
     {
         int uiLayer = LayerMask.NameToLayer("UI");
         if (uiLayer < 0)
@@ -304,8 +310,20 @@ public sealed class LevelSession : MonoBehaviour
                 ? new Color32(230, 155, 82, 255)
                 : new Color32(200, 200, 200, 255));
 
+        int threeStarShots = LevelProgress.ThreeStarShots(LevelId);
+        CreateLabel(overlay, "ShotsLine",
+            "ВЫСТРЕЛОВ: " + shots + "      3 ЗВЕЗДЫ — ДО " + threeStarShots + " "
+            + ShotsWord(threeStarShots),
+            new Vector2(0f, -58f), new Vector2(1100f, 44f), 25f,
+            new Color32(190, 190, 190, 255));
+
         CreateButton(overlay, "ContinueButton", "ДАЛЬШЕ",
             new Vector2(640f, 88f), new Vector2(0f, -160f), ReturnToLobby, 42f);
+    }
+
+    private static string ShotsWord(int shots)
+    {
+        return shots == 1 ? "ВЫСТРЕЛА" : "ВЫСТРЕЛОВ";
     }
 
     private void EnsureUiAssets()
