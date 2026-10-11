@@ -118,7 +118,10 @@ public sealed class PauseMenuController : MonoBehaviour
         }
 
         Time.timeScale = 0f;
-        pauseButton.interactable = false;
+        if (pauseButton != null)
+        {
+            pauseButton.interactable = false;
+        }
         overlayObject.SetActive(true);
         ShowPausePage();
     }
@@ -132,7 +135,11 @@ public sealed class PauseMenuController : MonoBehaviour
 
         isPaused = false;
         overlayObject.SetActive(false);
-        pauseButton.interactable = true;
+        if (pauseButton != null)
+        {
+            pauseButton.interactable = true;
+        }
+
         Time.timeScale = timeScaleBeforePause > 0f ? timeScaleBeforePause : 1f;
 
         if (gameplayController != null)

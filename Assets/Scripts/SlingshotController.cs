@@ -32,6 +32,7 @@ public class SlingshotController : MonoBehaviour
 
     public event Action<Rigidbody2D> ShotLaunched;
     public event Action<Vector2> ProjectileImpacted;
+    public int ShotsFired { get; private set; }
     public bool IsDragging => isDragging;
     public bool CanAim => projectile != null && !shotInProgress;
     public float ProjectileRadius { get; private set; } = 0.5f;
@@ -47,6 +48,7 @@ public class SlingshotController : MonoBehaviour
     private void Start()
     {
         mainCamera = Camera.main;
+        ShotsFired = 0;
         CircleCollider2D circle = projectilePrefab.GetComponent<CircleCollider2D>();
         if (circle != null)
             ProjectileRadius = circle.radius * Mathf.Max(
@@ -218,6 +220,7 @@ public class SlingshotController : MonoBehaviour
         fired.simulated = true;
         fired.linearVelocity = launchVelocity;
         ShotLaunched?.Invoke(fired);
+        ShotsFired++;
         Destroy(fired.gameObject, projectileLifetime);
 
         float flightDeadline = Time.time + Mathf.Min(projectileLifetime, 7f);

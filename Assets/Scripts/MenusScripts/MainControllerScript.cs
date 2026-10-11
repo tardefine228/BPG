@@ -49,7 +49,7 @@ public class MainControllerScript : MonoBehaviour
             playButton.interactable = false;
         }
 
-        SceneManager.LoadScene("Gameplay");
+        SceneManager.LoadScene(LevelProgress.LobbySceneName);
     }
 
     private void OnSettings()
