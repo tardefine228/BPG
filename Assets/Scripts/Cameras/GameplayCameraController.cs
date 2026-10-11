@@ -32,6 +32,8 @@ public class GameplayCameraController : MonoBehaviour
     public float groundHold = 1f;
     public float buildingHold = 2f;
     public float returnDuration = 0.7f;
+    [Tooltip("Плавное перемещение к месту попадания без дополнительного увеличения.")]
+    [Min(0.1f)] public float impactTransitionDuration = 0.75f;
 
     [Header("Future upgrade menu")]
     public UnityEvent onLauncherFocused = new UnityEvent();
@@ -151,7 +153,7 @@ public class GameplayCameraController : MonoBehaviour
                 : (Vector2)transform.position;
         }
         trackedProjectile = null;
-        yield return MoveView(impactFocus, impactSize, 0.18f);
+        yield return MoveView(impactFocus, view.orthographicSize, impactTransitionDuration);
         yield return new WaitForSeconds(buildingImpact ? buildingHold : groundHold);
         yield return MoveView(OverviewPosition, OverviewSize, returnDuration);
         shotSequence = false;
