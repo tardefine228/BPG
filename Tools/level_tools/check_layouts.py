@@ -4,6 +4,7 @@
     pip install Box2D
     python Tools/level_tools/check_layouts.py            # устойчивость + пристрелка
     python Tools/level_tools/check_layouts.py --quick    # только устойчивость
+    python Tools/level_tools/check_layouts.py --ammo     # + серии выстрелов в пределах боезапаса
 
 Повторяются настройки проекта: шаг 0.02 с, итерации 8/3, «кожа» коллайдеров 0.01,
 материал блоков (трение 0.4, упругость 0.1), снаряд массой 1 и радиусом 0.5,
@@ -13,14 +14,21 @@
   1. постройка стоит 12 секунд без толчков: ни один блок не сдвинулся, мыши живы;
   2. ни одна мышь не стоит на земле;
   3. пристрелка: перебор углов и силы — сколько мышей можно победить одним выстрелом
-     (мышь побеждена при касании земли, падении за карту или ударах сильнее порога).
+     (мышь побеждена при касании земли, падении за карту или ударах сильнее порога);
+  4. --ammo: «внимательный игрок» стреляет сериями в пределах боезапаса уровня
+     (Max Projectiles читается из сцены). Как точки прогноза в игре, он видит траекторию
+     до первого столкновения и выбирает ту, что упирается в живую мышь; если таких нет —
+     в блок рядом с мышью. Между выстрелами 8 с, кот исчезает через 12 с (Projectile Lifetime).
 Правила урона мыши совпадают со скриптом MouseTarget.
 """
 import math
+import os
+import random
+import re
 import sys
 
 try:
-    from Box2D import b2World, b2ContactListener
+    from Box2D import b2World, b2ContactListener, b2RayCastCallback
 except ImportError:  # pragma: no cover
     sys.exit("Нужен пакет Box2D: pip install Box2D")
 
@@ -41,6 +49,7 @@ MOUSE_SETTLE = 1.0
 MOUSE_HIT_COOLDOWN = 0.2
 MOUSE_MASS = 0.6
 FALL_Y = -6.0
+SERIES_GAMES = 20
 
 
 class Listener(b2ContactListener):
@@ -239,6 +248,95 @@ def sweep(layout, angles, powers, seconds=9.0):
     return results
 
 
+# ------------------------------------------------------------ серии выстрелов (--ammo)
+SCENES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Assets", "Scenes")
+SHOT_INTERVAL = 8.0
+PROJECTILE_LIFETIME = 12.0
+AIM_ANGLES = [a * 1.25 for a in range(-8, 49)]
+AIM_POWERS = [0.55 + 0.025 * i for i in range(19)]
+
+
+def scene_ammo(layout):
+    """Боезапас уровня: LevelSession → Max Projectiles в сцене."""
+    with open(os.path.join(SCENES, layout.scene + ".unity"), encoding="utf-8") as f:
+        m = re.search(r"^  maxProjectiles: (\d+)", f.read(), re.M)
+    return int(m.group(1)) if m else 5
+
+
+class _FirstHit(b2RayCastCallback):
+    def __init__(self):
+        b2RayCastCallback.__init__(self)
+        self.body = None
+        self.fraction = 2.0
+
+    def ReportFixture(self, fixture, point, normal, fraction):
+        if (fixture.body.userData or {}).get("kind") == "projectile" or not fixture.body.active:
+            return -1.0
+        if fraction < self.fraction:
+            self.body, self.fraction = fixture.body, fraction
+        return fraction
+
+
+def first_hit(sim, angle_deg, power):
+    """Первое тело на траектории — то, на чём обрываются точки прогноза в игре."""
+    x = sim.layout.sling_x + LAUNCH_LOCAL[0]
+    y = SLING_Y + LAUNCH_LOCAL[1]
+    a = math.radians(angle_deg)
+    vx, vy = math.cos(a) * MAX_SPEED * power, math.sin(a) * MAX_SPEED * power
+    damp = 1.0 / (1.0 + DT * 0.06)
+    for _ in range(600):
+        vy += GRAVITY * 2.0 * DT
+        vx, vy = vx * damp, vy * damp
+        nx, ny = x + vx * DT, y + vy * DT
+        d = math.hypot(nx - x, ny - y) or 1e-9
+        px, py = -(ny - y) / d * 0.45, (nx - x) / d * 0.45
+        hit, best = None, 2.0
+        for ox, oy in ((0.0, 0.0), (px, py), (-px, -py)):
+            cb = _FirstHit()
+            sim.world.RayCast(cb, (x + ox, y + oy), (nx + ox, ny + oy))
+            if cb.body is not None and cb.fraction < best:
+                hit, best = cb.body, cb.fraction
+        if hit is not None:
+            return hit
+        x, y = nx, ny
+        if y < FALL_Y or x > sim.layout.target_x + 40:
+            return None
+    return None
+
+
+def careful_shot(sim, rng):
+    live = [b for b, st in sim.mice.values() if not st["dead"]]
+    direct, near, other = [], [], []
+    for ang in AIM_ANGLES:
+        for pw in AIM_POWERS:
+            hit = first_hit(sim, ang, pw)
+            kind = (hit.userData or {}).get("kind") if hit is not None else None
+            if kind == "mouse" and hit in live:
+                direct.append((ang, pw))
+            elif kind in ("wood", "stone"):
+                close = any(abs(hit.position.x - m.position.x) < 2.5 for m in live)
+                (near if close else other).append((ang, pw))
+    return rng.choice(direct or near or other or [(20.0, 0.8)])
+
+
+def play_series(layout, ammo, rng):
+    """Номер выстрела, после которого побеждены все мыши, или None."""
+    sim = Sim(layout)
+    sim.step(MOUSE_SETTLE + 0.2)
+    flying = []
+    for shot in range(1, ammo + 1):
+        flying.append((sim.time, sim.launch(*careful_shot(sim, rng))))
+        for _ in range(int(round(SHOT_INTERVAL / DT))):
+            sim.step(DT)
+            for i, (t0, body) in enumerate(flying):
+                if body is not None and sim.time - t0 >= PROJECTILE_LIFETIME:
+                    sim.world.DestroyBody(body)
+                    flying[i] = (t0, None)
+        if all(st["dead"] for _, st in sim.mice.values()):
+            return shot
+    return None
+
+
 def main():
     quick = "--quick" in sys.argv
     only = [int(a) for a in sys.argv[1:] if a.isdigit()]
@@ -270,6 +368,14 @@ def main():
         full = sum(1 for r in res if r[2] == total)
         print("   пристрелка: выстрелов %d, задевают мышей %d, лучший выстрел: %d из %d мышей, "
               "все мыши одним выстрелом: %d вариантов" % (len(res), hits, best, total, full))
+        if "--ammo" in sys.argv:
+            ammo = scene_ammo(lay)
+            rng = random.Random(lay.level_id)
+            games = [play_series(lay, ammo, rng) for _ in range(SERIES_GAMES)]
+            wins = [g for g in games if g is not None]
+            print("   серии (котов %d): внимательный игрок побеждает в %d из %d попыток; "
+                  "выстрелов до победы: %s" % (ammo, len(wins), len(games),
+                                               ", ".join("%d — %d" % (k, wins.count(k)) for k in range(1, ammo + 1))))
     print("ИТОГ:", "OK" if ok else "ЕСТЬ ПРОБЛЕМЫ")
     return 0 if ok else 1
 

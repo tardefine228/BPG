@@ -5,6 +5,19 @@ using UnityEngine.InputSystem;
 
 public class MenuManager : MonoBehaviour
 {
+    private static bool openLevelsOnArrival;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetNavigation() => openLevelsOnArrival = false;
+
+    // Запрос действует только для следующего открытия главного меню.
+    public static void ReturnToLevelSelect()
+    {
+        if (SceneTransition.IsLoading) return;
+        openLevelsOnArrival = true;
+        SceneTransition.Load(LevelProgress.MainMenuSceneName);
+    }
+
     [SerializeField] private CanvasGroup mainMenuGroup;
     [SerializeField] private CanvasGroup settingsGroup;
     [SerializeField] private CanvasGroup levelSelectGroup;
@@ -19,7 +32,14 @@ public class MenuManager : MonoBehaviour
     private void Start()
     {
         Time.timeScale = 1f;
-        InitializePanels();
+        bool showLevels = openLevelsOnArrival;
+        openLevelsOnArrival = false;
+        if (InitializePanels() && showLevels)
+        {
+            // Панель готовится под экраном загрузки, до появления нового меню.
+            SetMainMenuEnabled(false);
+            levelsFade.SetVisible(true, true);
+        }
 #if UNITY_ANDROID
         Application.wantsMobileBackButton = true;
 #endif

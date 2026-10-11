@@ -14,6 +14,14 @@ public class SlingshotController : MonoBehaviour
     public Transform pivotPoint;
     public GameplayCameraController gameplayCamera;
 
+    [Header("Коты в очереди")]
+    [Tooltip("Пять видов котов. Порядок списка задаёт порядок выстрелов.")]
+    [SerializeField] private Rigidbody2D[] catProjectilePrefabs;
+    [Tooltip("Место первого ожидающего кота позади катапульты.")]
+    [SerializeField] private Transform queueOrigin;
+    [SerializeField] private Vector2 queueSpacing = new Vector2(-1.4f, 0f);
+    [SerializeField, Min(0f)] private float catLoadDuration = 0.35f;
+
     [Header("Физика выстрела")]
     public float maxPullDistance = 2.5f;
     public float launchPower = 22f;
@@ -47,6 +55,7 @@ public class SlingshotController : MonoBehaviour
     public event Action<Rigidbody2D> ShotLaunched;
     public event Action<Vector2> ProjectileImpacted;
     public int ShotsFired { get; private set; }
+    public int WaitingCatCount => waitingCats.Count;
     public bool IsDragging => isDragging;
     public bool IsShotInProgress => shotInProgress;
     public bool CanAim => isActiveAndEnabled && projectile != null && !shotInProgress && CanLoadProjectile;
@@ -54,6 +63,7 @@ public class SlingshotController : MonoBehaviour
 
     private LevelSession levelSession;
     private readonly List<Rigidbody2D> launchedProjectiles = new List<Rigidbody2D>();
+    private readonly List<Rigidbody2D> waitingCats = new List<Rigidbody2D>();
     private bool CanLoadProjectile => levelSession == null
         || (!levelSession.IsEnding && levelSession.RemainingShots > 0);
 
@@ -103,32 +113,98 @@ public class SlingshotController : MonoBehaviour
     {
         mainCamera = Camera.main;
         ShotsFired = 0;
-        CircleCollider2D circle = projectilePrefab.GetComponent<CircleCollider2D>();
-        if (circle != null)
-            ProjectileRadius = circle.radius * Mathf.Max(
-                Mathf.Abs(projectilePrefab.transform.lossyScale.x),
-                Mathf.Abs(projectilePrefab.transform.lossyScale.y));
         if (aimLine != null)
             aimLine.enabled = false;
-        SpawnProjectile();
+        CreateCats();
+        LoadFirstCat();
     }
 
-    private void SpawnProjectile()
+    private void CreateCats()
     {
-        if (!isActiveAndEnabled || !CanLoadProjectile)
+        int count = levelSession != null ? levelSession.MaxProjectiles :
+            (catProjectilePrefabs != null && catProjectilePrefabs.Length > 0 ? catProjectilePrefabs.Length : 5);
+        for (int i = 0; i < count; i++)
+        {
+            Rigidbody2D prefab = catProjectilePrefabs != null && catProjectilePrefabs.Length > 0
+                ? catProjectilePrefabs[i % catProjectilePrefabs.Length] : projectilePrefab;
+            Rigidbody2D cat = Instantiate(prefab, QueuePosition(Mathf.Max(0, i - 1)),
+                Quaternion.identity, queueOrigin);
+            cat.bodyType = RigidbodyType2D.Kinematic;
+            cat.simulated = false;
+            cat.gravityScale = projectileGravityScale;
+            cat.linearDamping = Mathf.Max(0f, airResistance);
+            cat.linearVelocity = Vector2.zero;
+            cat.interpolation = RigidbodyInterpolation2D.Interpolate;
+            cat.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            cat.GetComponent<CatProjectile>()?.ShowQueued();
+            waitingCats.Add(cat);
+        }
+    }
+
+    private Vector3 QueuePosition(int index)
+    {
+        Vector3 origin = queueOrigin != null ? queueOrigin.position :
+            launchPoint.position + new Vector3(-3f, -1.5f, 0f);
+        return origin + (Vector3)(queueSpacing * index);
+    }
+
+    private void LoadFirstCat()
+    {
+        if (!CanLoadProjectile || waitingCats.Count == 0)
             return;
-        projectile = Instantiate(projectilePrefab, launchPoint.position, Quaternion.identity);
-        projectile.bodyType = RigidbodyType2D.Kinematic;
-        projectile.simulated = false;
-        projectile.gravityScale = projectileGravityScale;
-        projectile.linearDamping = Mathf.Max(0f, airResistance);
-        projectile.linearVelocity = Vector2.zero;
-        projectile.interpolation = RigidbodyInterpolation2D.Interpolate;
-        projectile.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        projectile = waitingCats[0];
+        waitingCats.RemoveAt(0);
+        SetLoadedPose();
+        projectile.transform.SetPositionAndRotation(launchPoint.position, rotatingPart.rotation);
+        for (int i = 0; i < waitingCats.Count; i++)
+            waitingCats[i].transform.position = QueuePosition(i);
         isDragging = false;
         shotInProgress = false;
         launchVelocity = Vector2.zero;
         ClearTrajectory();
+    }
+
+    private void SetLoadedPose()
+    {
+        projectile.GetComponent<CatProjectile>()?.ShowLoaded();
+        CircleCollider2D circle = projectile.GetComponent<CircleCollider2D>();
+        if (circle != null)
+            ProjectileRadius = circle.radius * Mathf.Max(
+                Mathf.Abs(projectile.transform.lossyScale.x), Mathf.Abs(projectile.transform.lossyScale.y));
+    }
+
+    private IEnumerator LoadNextCat()
+    {
+        if (!CanLoadProjectile || waitingCats.Count == 0)
+            yield break;
+        projectile = waitingCats[0];
+        waitingCats.RemoveAt(0);
+        SetLoadedPose();
+        Vector3 from = projectile.transform.position;
+        Vector3[] queueFrom = new Vector3[waitingCats.Count];
+        for (int i = 0; i < queueFrom.Length; i++)
+            queueFrom[i] = waitingCats[i].transform.position;
+        float elapsed = 0f;
+        while (elapsed < catLoadDuration)
+        {
+            // Time.deltaTime ещё может относиться к кадру до нажатия паузы.
+            if (Time.timeScale <= 0f)
+            {
+                yield return null;
+                continue;
+            }
+            elapsed += Time.deltaTime;
+            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / catLoadDuration));
+            projectile.transform.SetPositionAndRotation(
+                Vector3.Lerp(from, launchPoint.position, t) + Vector3.up * (Mathf.Sin(t * Mathf.PI) * 0.6f),
+                rotatingPart.rotation);
+            for (int i = 0; i < queueFrom.Length; i++)
+                waitingCats[i].transform.position = Vector3.Lerp(queueFrom[i], QueuePosition(i), t);
+            yield return null;
+        }
+        projectile.transform.SetPositionAndRotation(launchPoint.position, rotatingPart.rotation);
+        for (int i = 0; i < waitingCats.Count; i++)
+            waitingCats[i].transform.position = QueuePosition(i);
     }
 
     private void Update()
@@ -299,6 +375,7 @@ public class SlingshotController : MonoBehaviour
             yield return gameplayCamera.PrepareForShot();
 
         Rigidbody2D fired = projectile;
+        fired.transform.SetParent(null, true);
         ProjectileImpactReporter reporter = fired.GetComponent<ProjectileImpactReporter>();
         bool impacted = false;
         reporter.Arm(point =>
@@ -320,6 +397,10 @@ public class SlingshotController : MonoBehaviour
         ShotLaunched?.Invoke(fired);
         Destroy(fired.gameObject, projectileLifetime);
 
+        // Очередь убывает сразу после выстрела; следующий кот занимает катапульту,
+        // пока камера показывает полёт предыдущего. Прицел доступен после её возврата.
+        yield return LoadNextCat();
+
         float flightDeadline = Time.time + Mathf.Min(projectileLifetime, 7f);
         while (fired != null && !impacted && Time.time < flightDeadline)
             yield return null;
@@ -327,7 +408,7 @@ public class SlingshotController : MonoBehaviour
         while (gameplayCamera != null && gameplayCamera.IsBusy)
             yield return null;
         shotInProgress = false;
-        SpawnProjectile();
+        launchVelocity = Vector2.zero;
     }
 
     private void ClearTrajectory()
@@ -351,15 +432,21 @@ public class SlingshotController : MonoBehaviour
     {
         if (shotInProgress || !CanLoadProjectile || !isActiveAndEnabled)
             return;
+        // Возврат камеры к катапульте не меняет кота и не расходует боезапас.
         if (projectile != null)
-            Destroy(projectile.gameObject);
-        SpawnProjectile();
+        {
+            CancelInput();
+            projectile.transform.SetPositionAndRotation(launchPoint.position, rotatingPart.rotation);
+        }
     }
 
     private void OnDestroy()
     {
         if (projectile != null)
             Destroy(projectile.gameObject);
+        for (int i = 0; i < waitingCats.Count; i++)
+            if (waitingCats[i] != null)
+                Destroy(waitingCats[i].gameObject);
         for (int i = 0; i < launchedProjectiles.Count; i++)
             if (launchedProjectiles[i] != null)
                 Destroy(launchedProjectiles[i].gameObject);

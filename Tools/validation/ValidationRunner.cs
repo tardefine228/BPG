@@ -6,11 +6,14 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.InputSystem.UI;
 using Object = UnityEngine.Object;
 using Debug = UnityEngine.Debug;
 
@@ -20,11 +23,21 @@ public sealed class ValidationRunner : MonoBehaviour
     private readonly List<string> results = new List<string>();
     private readonly List<string> errors = new List<string>();
     private readonly List<string> editorErrors = new List<string>();
-    private void Awake() { DontDestroyOnLoad(gameObject); Application.logMessageReceived += Log; }
+    private Mouse validationMouse;
+    private void Awake()
+    {
+        DontDestroyOnLoad(gameObject);
+        Application.logMessageReceived += Log;
+        Application.runInBackground = true;
+        InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+        InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+        validationMouse = InputSystem.AddDevice<Mouse>("BPGChecksMouse");
+    }
     private void Log(string message, string stack, LogType type)
     {
         if (type != LogType.Error && type != LogType.Exception && type != LogType.Assert) return;
-        if (stack.Contains("UnityEditor.Search.SearchDatabase")) editorErrors.Add(message + "\n" + stack);
+        if (stack.Contains("UnityEditor.Search.SearchDatabase") || stack.Contains("Unity.AI.Tracing.ConsoleSink"))
+            editorErrors.Add(message + "\n" + stack);
         else errors.Add(message + "\n" + stack);
     }
     private IEnumerator Start()
@@ -129,13 +142,13 @@ public sealed class ValidationRunner : MonoBehaviour
     {
         var camera = Find<GameplayCameraController>();
         CheckCameraSelection(camera, "overviewButton");
-        Action("FocusLauncher").onClick.Invoke();
+        yield return Click(Action("FocusLauncher"));
         yield return Until(() => !camera.IsBusy, "launcher focus");
         CheckCameraSelection(camera, "launcherButton");
-        Action("FocusTarget").onClick.Invoke();
+        yield return Click(Action("FocusTarget"));
         yield return Until(() => !camera.IsBusy, "target focus");
         CheckCameraSelection(camera, "targetButton");
-        Action("OpenPauseMenu").onClick.Invoke();
+        yield return Click(Action("OpenPauseMenu"));
         yield return new WaitForSecondsRealtime(0.3f);
         Require(Time.timeScale == 0f && ((GameObject)Get(camera, "controlsCanvas")).activeInHierarchy,
             "Camera buttons disappeared on pause");
@@ -151,17 +164,224 @@ public sealed class ValidationRunner : MonoBehaviour
         camera.FocusLauncher();
         yield return null;
         CheckCameraSelection(camera, "targetButton");
-        Action("ResumeGame").onClick.Invoke();
+        yield return Click(Action("ResumeGame"));
         yield return new WaitForSecondsRealtime(0.3f);
-        Action("ShowOverview").onClick.Invoke();
+        yield return Click(Action("ShowOverview"));
         yield return Until(() => !camera.IsBusy, "overview focus");
         CheckCameraSelection(camera, "overviewButton");
         Require(All<Transform>().All(transform => transform.name != "AimHint"), "Removed camera hint returned");
         Pass(SceneManager.GetActiveScene().name + ": camera selection survives pause; buttons remain visible, opaque and blocked; hint absent");
     }
 
+    private static Vector2 ScreenCenter(RectTransform rect)
+    {
+        Canvas.ForceUpdateCanvases();
+        var canvas = rect.GetComponentInParent<Canvas>();
+        return RectTransformUtility.WorldToScreenPoint(
+            canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera,
+            rect.TransformPoint(rect.rect.center));
+    }
+
+    // Только перемещение курсора, без нажатия: UI получает события наведения и ухода.
+    private IEnumerator MovePointer(Vector2 position)
+    {
+        InputSystem.QueueStateEvent(validationMouse, new MouseState { position = position });
+        yield return null;
+        yield return null;
+    }
+
+    private IEnumerator Click(Button button)
+    {
+        Canvas.ForceUpdateCanvases();
+        var system = EventSystem.current;
+        Require(system != null, "No active EventSystem");
+        var module = system.GetComponent<InputSystemUIInputModule>();
+        Require(module != null && module.isActiveAndEnabled && module.point.action.enabled
+            && module.leftClick.action.enabled, "UI input actions disabled in " + SceneManager.GetActiveScene().name);
+        Require(button.IsInteractable(), button.name + ": button is not interactable");
+        var rect = (RectTransform)button.transform;
+        var canvas = button.GetComponentInParent<Canvas>();
+        Vector2 position = RectTransformUtility.WorldToScreenPoint(
+            canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera,
+            rect.TransformPoint(rect.rect.center));
+        var hits = new List<RaycastResult>();
+        system.RaycastAll(new PointerEventData(system) { position = position }, hits);
+        Require(hits.Count > 0 && hits[0].gameObject.GetComponentInParent<Button>() == button,
+            button.name + ": click blocked by " + (hits.Count > 0 ? hits[0].gameObject.name : "no raycast hit"));
+        bool clicked = false;
+        UnityEngine.Events.UnityAction callback = () => clicked = true;
+        button.onClick.AddListener(callback);
+        var mouse = validationMouse;
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = position });
+        yield return null;
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = position }.WithButton(MouseButton.Left));
+        yield return null;
+        InputSystem.QueueStateEvent(mouse, new MouseState { position = position });
+        yield return Until(() => clicked, "mouse click on " + button.name, 3f);
+        button.onClick.RemoveListener(callback);
+    }
+
+    private void CheckCats(int expected)
+    {
+        var slingshot = Find<SlingshotController>();
+        var loaded = (Rigidbody2D)Get(slingshot, "projectile");
+        var waiting = (List<Rigidbody2D>)Get(slingshot, "waitingCats");
+        Require(Find<LevelSession>().RemainingShots == expected && waiting.Count == expected - 1
+            && All<CatProjectile>().Length == expected, "Wrong initial cat count");
+        Require(loaded != null && !loaded.simulated && !loaded.GetComponent<CatProjectile>().IsQueued,
+            "First cat is not loaded");
+        var cats = new[] { loaded }.Concat(waiting).ToArray();
+        for (int i = 0; i < cats.Length; i++)
+        {
+            Require(cats[i].name == "Cat" + (i + 1) + "(Clone)", "Cat prefab order incorrect");
+            var cat = cats[i].GetComponent<CatProjectile>();
+            var queueSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * 0.5f, 1f);
+            var launchSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * 0.5f, 1f);
+            Set(cat, "queueSprite", queueSprite);
+            Set(cat, "launchSprite", launchSprite);
+            if (i == 0) cat.ShowLoaded(); else cat.ShowQueued();
+            Require(cat.GetComponent<SpriteRenderer>().sprite == (i == 0 ? launchSprite : queueSprite),
+                "Cat pose sprite incorrect");
+            Require(!cats[i].simulated && cat.IsQueued == (i > 0), "Waiting cat participates in physics");
+            if (i > 1)
+                Require(cats[i].position.x < cats[i - 1].position.x, "Cat queue does not extend behind launcher");
+        }
+        slingshot.Reload();
+        Require((Rigidbody2D)Get(slingshot, "projectile") == loaded && slingshot.WaitingCatCount == expected - 1,
+            "Reload replaces a cat or changes the queue");
+        Require(Vector3.Distance(loaded.transform.position, slingshot.launchPoint.position) < 0.001f,
+            "Loaded cat is outside the catapult");
+    }
+
+    private IEnumerator CatQueueChecks()
+    {
+        foreach (var level in LevelProgress.Levels)
+        {
+            yield return Scene("MainMenu");
+            if (!Find<MenuManager>().LevelsOpen)
+            {
+                yield return Click(Action("OnPlay"));
+                yield return new WaitForSecondsRealtime(0.3f);
+            }
+            var select = Find<LevelSelectController>();
+            LevelProgress.UnlockAllLevels = true;
+            var card = All<LevelCardView>().First(item => item.LevelId == level.Id);
+            card.Refresh((Sprite)Get(select, "starOnSprite"), (Sprite)Get(select, "starOffSprite"));
+            select.SetPage(card.PageIndex);
+            yield return new WaitForSecondsRealtime(0.4f);
+            yield return Click(card.GetComponent<Button>());
+            yield return Scene(level.SceneName);
+            int ammo = Mathf.Min(level.Id + 1, 5);
+            CheckCats(ammo);
+            yield return CheckCameraButtons();
+            if (level.Id == 1 || level.Id == 5)
+            {
+                yield return Click(Action("FocusLauncher"));
+                yield return Until(() => !Find<GameplayCameraController>().IsBusy, "cat queue close-up");
+                yield return Capture("cats-level-" + level.Id);
+            }
+            var slingshot = Find<SlingshotController>();
+            slingshot.gameplayCamera = null;
+            slingshot.spawnDelay = 0.02f;
+            slingshot.projectileLifetime = 0.8f;
+            Set(slingshot, "catLoadDuration", 0.12f);
+            for (int shot = 1; shot <= ammo; shot++)
+            {
+                var fired = (Rigidbody2D)Get(slingshot, "projectile");
+                var waiting = (List<Rigidbody2D>)Get(slingshot, "waitingCats");
+                var next = waiting.Count > 0 ? waiting[0] : null;
+                var moved = waiting.Skip(1).ToArray();
+                var firedSprite = fired.GetComponent<SpriteRenderer>().sprite;
+                var nextSprite = next != null ? (Sprite)Get(next.GetComponent<CatProjectile>(), "launchSprite") : null;
+                Set(slingshot, "launchVelocity", new Vector2(-5f, 0f));
+                slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+                yield return Until(() => slingshot.ShotsFired == shot && (Rigidbody2D)Get(slingshot, "projectile") == next,
+                    "cat transferred from queue");
+                Require(fired != null && fired.simulated && fired.GetComponent<SpriteRenderer>().sprite == firedSprite,
+                    "Flight replaced the loaded cat or its sprite");
+                Require(slingshot.WaitingCatCount == Mathf.Max(0, ammo - shot - 1)
+                    && Find<LevelSession>().RemainingShots == ammo - shot, "Queue/ammo did not decrease");
+                if (next != null)
+                {
+                    Require(!next.simulated && !next.GetComponent<CatProjectile>().IsQueued
+                        && next.GetComponent<SpriteRenderer>().sprite == nextSprite, "Next cat did not switch to launch sprite");
+                    // Пауза во время пересадки останавливает кота и сохраняет очередь.
+                    if (shot == 1)
+                    {
+                        yield return Click(Action("OpenPauseMenu"));
+                        var position = next.transform.position;
+                        yield return new WaitForSecondsRealtime(0.2f);
+                        Require(Time.timeScale == 0f && Vector3.Distance(position, next.transform.position) < 0.001f,
+                            "Cat moved while paused");
+                        yield return Click(Action("ResumeGame"));
+                    }
+                }
+                yield return Until(() => !slingshot.IsShotInProgress, "cat shot settled");
+                if (next != null)
+                    Require(Vector3.Distance(next.transform.position, slingshot.launchPoint.position) < 0.001f,
+                        "Next cat did not arrive in the catapult");
+                for (int i = 0; i < moved.Length; i++)
+                    Require(Vector3.Distance(moved[i].transform.position,
+                        ((Transform)Get(slingshot, "queueOrigin")).position + (Vector3)((Vector2)Get(slingshot, "queueSpacing") * i)) < 0.001f,
+                        "Waiting cats did not advance");
+            }
+            Require(!slingshot.CanAim && slingshot.WaitingCatCount == 0, "Cat supply was not exhausted");
+            yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf, "cat exhaustion defeat");
+            Find<LevelSession>().RestartLevel();
+            yield return Until(() => !SceneTransition.IsLoading && Find<LevelSession>().RemainingShots == ammo, "cat queue restart");
+            yield return null;
+            CheckCats(ammo);
+            yield return Click(Action("OpenPauseMenu"));
+            yield return new WaitForSecondsRealtime(0.3f);
+            yield return Click(Action("ReturnToMainMenu"));
+            yield return Scene("MainMenu");
+            Pass(level.SceneName + ": real menu/pause/camera clicks, all " + ammo + " cat launches, two poses, queue movement, pause during loading, exhaustion and restart passed");
+        }
+    }
+
+    private IEnumerator PauseReturnChecks()
+    {
+        yield return Scene("MainMenu");
+        Require(!Find<MenuManager>().LevelsOpen, "Boot unexpectedly opened level selection");
+        foreach (var level in LevelProgress.Levels)
+        {
+            SceneTransition.Load(level.SceneName);
+            yield return Scene(level.SceneName);
+            Action("OpenPauseMenu").onClick.Invoke();
+            yield return new WaitForSecondsRealtime(0.3f);
+            Require(Time.timeScale == 0f, level.SceneName + ": pause failed");
+            var exit = Action("ReturnToMainMenu");
+            exit.onClick.Invoke();
+            exit.onClick.Invoke();
+            yield return Scene("MainMenu");
+            var menu = Find<MenuManager>();
+            var levels = (CanvasGroup)Get(menu, "levelSelectGroup");
+            var main = (CanvasGroup)Get(menu, "mainMenuGroup");
+            Require(menu.LevelsOpen && !menu.SettingsOpen && levels.gameObject.activeInHierarchy
+                && levels.alpha == 1f && levels.interactable && levels.blocksRaycasts,
+                level.SceneName + ": level selection missing after pause return");
+            Require(Time.timeScale == 1f && !main.interactable && !main.blocksRaycasts,
+                level.SceneName + ": menu state incorrect after pause return");
+            if (level.Id == 1) yield return Capture("pause-return-levels");
+            Action("ReturnToMainMenu").onClick.Invoke();
+            yield return new WaitForSecondsRealtime(0.3f);
+            Require(!menu.LevelsOpen && main.interactable && main.blocksRaycasts,
+                level.SceneName + ": Back button failed after pause return");
+            Pass(level.SceneName + ": pause exit opens usable level selection immediately; double click and Back work");
+        }
+        SceneTransition.Load("MainMenu");
+        yield return Scene("MainMenu");
+        Require(!Find<MenuManager>().LevelsOpen, "Pause return request leaked into later menu loads");
+        Pass("Normal Boot/menu loads keep the main page; pause navigation request is consumed once");
+    }
+
     private IEnumerator Checks()
     {
+        if (Environment.GetCommandLineArgs().Contains("-bpgPauseReturnOnly"))
+        {
+            yield return PauseReturnChecks();
+            yield break;
+        }
         yield return Scene("MainMenu");
         Require(!SceneTransition.StartupVisible, "Boot remains visible");
         Pass("Boot -> MainMenu completed with loading overlay hidden");
@@ -191,21 +411,23 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.4f);
         Require(ids.SetEquals(All<Button>()), "Menu buttons were replaced");
         Pass("Settings, volumes, pagination and reopening preserve all menu button objects");
+        // Обводка проверяется настоящим вводом: виртуальная мышь наводится на карточку и уходит с неё.
         var firstCard = All<LevelCardView>().First(card => card.LevelId == 1);
         var hoverHighlight = (GameObject)Get(firstCard, "hoverHighlight");
         Require(!hoverHighlight.activeSelf, "Card outline is visible without hover");
-        ExecuteEvents.Execute(firstCard.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerEnterHandler);
-        Require(hoverHighlight.activeSelf, "Card outline did not appear on hover");
+        yield return MovePointer(ScreenCenter((RectTransform)firstCard.transform));
+        yield return Until(() => hoverHighlight.activeSelf, "card outline on hover", 3f);
         yield return Capture("levels-hover");
-        ExecuteEvents.Execute(firstCard.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerExitHandler);
-        Require(!hoverHighlight.activeSelf, "Card outline stayed after the pointer left");
-        Pass("Level card outline follows the pointer: shown on hover, hidden on exit");
+        yield return MovePointer(Vector2.zero);
+        yield return Until(() => !hoverHighlight.activeSelf, "card outline hidden after the pointer left", 3f);
+        Pass("Level card outline follows the virtual mouse: shown on hover, hidden on exit");
         yield return Capture("levels");
-        All<LevelCardView>().First(card => card.LevelId == 1).GetComponent<Button>().onClick.Invoke();
+        yield return Click(All<LevelCardView>().First(card => card.LevelId == 1).GetComponent<Button>());
         yield return Scene("Gameplay");
         yield return new WaitForSecondsRealtime(0.4f);
         yield return Capture("gameplay");
         yield return CheckCameraButtons();
+        CheckCats(2);
         int particleSystems = All<ParticleSystem>().Length;
         int gameObjects = All<Transform>().Length;
         var material = Find<SlingshotController>().projectilePrefab.GetComponent<ProjectileComicEffects>();
@@ -249,31 +471,41 @@ public sealed class ValidationRunner : MonoBehaviour
         Pass("Pause -> settings -> resume works with the same buttons");
 
         var slingshot = Find<SlingshotController>();
-        slingshot.gameplayCamera = null; slingshot.spawnDelay = 0.02f; slingshot.projectileLifetime = 0.1f;
-        for (int shot = 1; shot <= 5; shot++)
+        slingshot.gameplayCamera = null; slingshot.spawnDelay = 0.02f; slingshot.projectileLifetime = 0.8f;
+        Set(slingshot, "catLoadDuration", 0.02f);
+        int ammo = Find<LevelSession>().MaxProjectiles;
+        for (int shot = 1; shot <= ammo; shot++)
         {
             Require(slingshot.CanAim, "Projectile missing for shot " + shot);
+            Rigidbody2D loaded = (Rigidbody2D)Get(slingshot, "projectile");
+            Rigidbody2D next = shot < ammo ? ((List<Rigidbody2D>)Get(slingshot, "waitingCats"))[0] : null;
             Set(slingshot, "launchVelocity", new Vector2(-5f, 0f));
             slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+            yield return null;
+            Require(loaded.simulated && !loaded.GetComponent<CatProjectile>().IsQueued,
+                "Loaded cat did not become the flying projectile");
+            Require((Rigidbody2D)Get(slingshot, "projectile") == next, "Next cat was replaced on loading");
+            Require(slingshot.WaitingCatCount == Mathf.Max(0, ammo - shot - 1), "Queue did not shrink on firing");
             yield return Until(() => !slingshot.IsShotInProgress, "shot " + shot);
             Require(slingshot.ShotsFired == shot, "Incorrect shot count");
         }
-        Require(!slingshot.CanAim && Find<LevelSession>().RemainingShots == 0, "Sixth shot allowed");
+        Require(!slingshot.CanAim && Find<LevelSession>().RemainingShots == 0, "Extra shot allowed");
         slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
         yield return null;
-        Require(slingshot.ShotsFired == 5, "Sixth shot fired");
+        Require(slingshot.ShotsFired == ammo, "Extra shot fired");
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf, "defeat");
         Require(Time.timeScale == 0f, "Defeat did not stop gameplay");
-        Pass("Five real launches exhaust ammunition; sixth is blocked; defeat appears after settling");
+        Pass("Two real cat launches exhaust Level1 ammunition; queue shrinks, cat identity survives loading/flight, extra shot is blocked");
         yield return Capture("defeat");
         Action("RestartLevel").onClick.Invoke();
-        yield return Until(() => !SceneTransition.IsLoading && Find<LevelSession>().RemainingShots == 5, "restart");
+        yield return Until(() => !SceneTransition.IsLoading && Find<LevelSession>().RemainingShots == ammo, "restart");
         yield return null;
         Require(Time.timeScale == 1f && !((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf, "Restart state not reset");
-        Pass("Defeat restart restores five projectiles and normal time");
+        CheckCats(ammo);
+        Pass("Defeat restart restores the full cat queue and normal time");
 
         slingshot = Find<SlingshotController>();
-        Set(slingshot, "<ShotsFired>k__BackingField", 5);
+        Set(slingshot, "<ShotsFired>k__BackingField", ammo);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
         foreach (var mouse in All<MouseTarget>()) Set(mouse, "<IsDefeated>k__BackingField", true);
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf, "victory on final shot");
@@ -283,8 +515,9 @@ public sealed class ValidationRunner : MonoBehaviour
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("Level2");
         yield return CheckCameraButtons();
-        Require(LevelProgress.CurrentLevelId == 2 && Find<LevelSession>().RemainingShots == 5, "Next level failed");
-        Pass("Victory Continue button opens Level2 with five shots");
+        Require(LevelProgress.CurrentLevelId == 2 && Find<LevelSession>().RemainingShots == 3, "Next level failed");
+        CheckCats(3);
+        Pass("Victory Continue button opens Level2 with three cats");
 
         yield return new WaitForSeconds(1f);
         var reinforced = All<LevelTarget>().Where(target => target.IsReinforced)
@@ -319,8 +552,10 @@ public sealed class ValidationRunner : MonoBehaviour
             SceneTransition.Load(level);
             yield return Scene(level);
             yield return CheckCameraButtons();
-            Require(Find<LevelSession>().RemainingShots == 5 && Find<SlingshotController>().CanAim, level + " initialization failed");
-            Pass(level + " loads with intact UI, FX pool and five projectiles");
+            int expectedAmmo = level == "Level3" ? 4 : 5;
+            Require(Find<LevelSession>().RemainingShots == expectedAmmo && Find<SlingshotController>().CanAim, level + " initialization failed");
+            CheckCats(expectedAmmo);
+            Pass(level + " loads with intact UI, FX pool and " + expectedAmmo + " cats");
         }
         yield return new WaitForSeconds(1.1f);
         var mice = All<MouseTarget>();
@@ -344,6 +579,8 @@ public sealed class ValidationRunner : MonoBehaviour
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("MainMenu");
         Pass("Continue after the last implemented level returns to MainMenu");
+        yield return PauseReturnChecks();
+        yield return CatQueueChecks();
         Require(errors.Count == 0, "Runtime produced errors");
     }
 }

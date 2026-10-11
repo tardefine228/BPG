@@ -53,6 +53,16 @@ public static class SceneUiValidation
                         "launcherButton", "overviewButton", "targetButton");
                     References(Find<SlingshotController>().Single(), "dots");
                     ValidateMice(scene.name, Find<GameplayCameraController>().Single());
+                    var slingshot = Find<SlingshotController>().Single();
+                    References(slingshot, "catProjectilePrefabs", "queueOrigin");
+                    var cats = new SerializedObject(slingshot).FindProperty("catProjectilePrefabs");
+                    Require(cats.arraySize == 5, scene.name + ": должно быть пять видов котов");
+                    Require(Enumerable.Range(0, cats.arraySize).Select(index =>
+                        cats.GetArrayElementAtIndex(index).objectReferenceValue).Distinct().Count() == 5,
+                        scene.name + ": префабы котов должны быть разными");
+                    int expectedAmmo = scene.name == "Gameplay" ? 2 : scene.name == "Level2" ? 3 :
+                        scene.name == "Level3" ? 4 : 5;
+                    Require(session.MaxProjectiles == expectedAmmo, scene.name + ": неверное количество котов");
                     var dots = new SerializedObject(Find<SlingshotController>().Single()).FindProperty("dots");
                     Require(dots.arraySize > 0, "Не сохранены точки траектории");
                     Require(Find<ComicParticleBurst>().Length > 0, "Не сохранены эффекты попадания");
@@ -78,6 +88,15 @@ public static class SceneUiValidation
             var projectile = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Projectile.prefab");
             Require(projectile.GetComponent<ProjectileImpactReporter>() != null, "У снаряда нет обработчика попаданий");
             References(projectile.GetComponent<ProjectileComicEffects>(), "comicMaterial", "trailRoot", "outline", "ribbon", "core");
+            for (int i = 1; i <= 5; i++)
+            {
+                var cat = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Cats/Cat" + i + ".prefab");
+                Require(cat != null && cat.GetComponent<CatProjectile>() != null
+                    && cat.GetComponent<Rigidbody2D>() != null && cat.GetComponent<CircleCollider2D>() != null
+                    && cat.GetComponent<ProjectileImpactReporter>() != null, "Cat" + i + ": неполный префаб снаряда");
+                References(cat.GetComponent<CatProjectile>(), "spriteRenderer");
+                References(cat.GetComponent<ProjectileComicEffects>(), "comicMaterial", "trailRoot", "outline", "ribbon", "core");
+            }
             Debug.Log("Все связи интерфейса и эффектов проверены.");
         }
         finally

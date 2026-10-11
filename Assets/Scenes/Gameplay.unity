@@ -1316,6 +1316,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 4100000001}
   - {fileID: 933486504}
   - {fileID: 1428137474}
   m_Father: {fileID: 0}
@@ -1882,7 +1883,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8446061413755758111, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -3489,7 +3490,7 @@ MonoBehaviour:
   mapMin: {x: -85, y: -7.5}
   mapMax: {x: 95, y: 62.5}
   overviewPadding: 4
-  launcherSize: 8
+  launcherSize: 6
   impactSize: 9
   launcherOffset: {x: 2, y: 2}
   transitionDuration: 0.5
@@ -5540,7 +5541,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c8e6e3a1f5adaa4bbae485ac20d06cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SlingshotController
-  projectilePrefab: {fileID: 1364067904824712672, guid: 73083eb9cd5051545813439753d41aad, type: 3}
+  projectilePrefab: {fileID: 1364067904824712672, guid: 89ea732985b3468197588ae2be6a9899, type: 3}
+  catProjectilePrefabs:
+  - {fileID: 1364067904824712672, guid: 89ea732985b3468197588ae2be6a9899, type: 3}
+  - {fileID: 1364067904824712672, guid: e5c1b8175cae40b2a890df381592a5fa, type: 3}
+  - {fileID: 1364067904824712672, guid: 4e9a56ef50f3424da68dda9664019616, type: 3}
+  - {fileID: 1364067904824712672, guid: 59d21cb068584be6a47b02026dcadeea, type: 3}
+  - {fileID: 1364067904824712672, guid: a623df3edbf04b87a5e9ff78004321ed, type: 3}
+  queueOrigin: {fileID: 4100000001}
+  queueSpacing: {x: -1.4, y: 0}
+  catLoadDuration: 0.35
   launchPoint: {fileID: 837157690}
   rotatingPart: {fileID: 933486504}
   aimLine: {fileID: 277280250}
@@ -6178,7 +6188,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2326579244146022351, guid: 17326b833c3de8040af26fa5a080278f, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3706795014355414335, guid: 17326b833c3de8040af26fa5a080278f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -7319,7 +7329,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelSession
   gameplayController: {fileID: 854157704}
   completeDelay: 1.1
-  maxProjectiles: 5
+  maxProjectiles: 2
   defeatSettleDelay: 1
   targetSettleSpeed: 0.15
   targetSettleAngularSpeed: 12
@@ -11428,6 +11438,37 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8a5a8a3f1e0f0b530c33da4838047c10, type: 3}
+--- !u!1 &4100000000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4100000001}
+  m_Layer: 0
+  m_Name: CatQueueOrigin
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4100000001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4100000000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -7, y: -1.68, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 272414283}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &3245982781719548145 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3245982783223888567, guid: 8a5a8a3f1e0f0b530c33da4838047c10, type: 3}

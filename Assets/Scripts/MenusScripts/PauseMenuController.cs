@@ -167,6 +167,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     public void ReturnToMainMenu()
     {
+        if (SceneTransition.IsLoading) return;
         AudioManager.Instance?.PlayUiClick();
         isPaused = false;
         Time.timeScale = 1f;
@@ -176,7 +177,7 @@ public sealed class PauseMenuController : MonoBehaviour
             gameplayController.enabled = true;
         }
 
-        SceneTransition.Load(LevelProgress.MainMenuSceneName);
+        MenuManager.ReturnToLevelSelect();
     }
 
     private void ShowPausePage()
