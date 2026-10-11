@@ -35,6 +35,16 @@ public sealed class PauseMenuController : MonoBehaviour
     private PanelFade pauseFade;
     private PanelFade settingsFade;
     private bool gameplayWasEnabled;
+    private bool resultScreenOpen;
+
+    public void SetResultScreenOpen()
+    {
+        if (isPaused)
+            ResumeGame();
+        resultScreenOpen = true;
+        if (pauseButton != null)
+            pauseButton.gameObject.SetActive(false);
+    }
 
     private void Awake()
     {
@@ -55,7 +65,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     private void Update()
     {
-        if (SceneTransition.IsLoading || !PauseKeyPressed())
+        if (resultScreenOpen || SceneTransition.IsLoading || !PauseKeyPressed())
         {
             return;
         }
@@ -105,7 +115,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     public void OpenPauseMenu()
     {
-        if (isPaused || SceneTransition.IsLoading)
+        if (resultScreenOpen || isPaused || SceneTransition.IsLoading)
         {
             return;
         }

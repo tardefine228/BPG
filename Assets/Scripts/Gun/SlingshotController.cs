@@ -48,8 +48,36 @@ public class SlingshotController : MonoBehaviour
     public event Action<Vector2> ProjectileImpacted;
     public int ShotsFired { get; private set; }
     public bool IsDragging => isDragging;
-    public bool CanAim => projectile != null && !shotInProgress;
+    public bool IsShotInProgress => shotInProgress;
+    public bool CanAim => isActiveAndEnabled && projectile != null && !shotInProgress && CanLoadProjectile;
     public float ProjectileRadius { get; private set; } = 0.5f;
+
+    private LevelSession levelSession;
+    private readonly List<Rigidbody2D> launchedProjectiles = new List<Rigidbody2D>();
+    private bool CanLoadProjectile => levelSession == null
+        || (!levelSession.IsEnding && levelSession.RemainingShots > 0);
+
+    // Keep all previous shells in the check: they can still roll into a target.
+    public bool HasMovingProjectiles
+    {
+        get
+        {
+            for (int i = launchedProjectiles.Count - 1; i >= 0; i--)
+            {
+                Rigidbody2D fired = launchedProjectiles[i];
+                if (fired == null)
+                {
+                    launchedProjectiles.RemoveAt(i);
+                    continue;
+                }
+                if (fired.simulated && !fired.IsSleeping()
+                    && (fired.linearVelocity.sqrMagnitude > 0.0225f
+                        || Mathf.Abs(fired.angularVelocity) > 12f))
+                    return true;
+            }
+            return false;
+        }
+    }
 
     private readonly RaycastHit2D[] predictionHits = new RaycastHit2D[16];
     private readonly List<SpriteRenderer> dots = new List<SpriteRenderer>();
@@ -65,6 +93,7 @@ public class SlingshotController : MonoBehaviour
 
     private void Awake()
     {
+        levelSession = GetComponent<LevelSession>();
         if (grabMeow == null)
             grabMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowShort");
         if (flightMeow == null)
@@ -89,6 +118,8 @@ public class SlingshotController : MonoBehaviour
 
     private void SpawnProjectile()
     {
+        if (!isActiveAndEnabled || !CanLoadProjectile)
+            return;
         projectile = Instantiate(projectilePrefab, launchPoint.position, Quaternion.identity);
         projectile.bodyType = RigidbodyType2D.Kinematic;
         projectile.simulated = false;
@@ -105,7 +136,7 @@ public class SlingshotController : MonoBehaviour
 
     private void Update()
     {
-        if (!CanAim || mainCamera == null || Mouse.current == null || SceneTransition.IsLoading)
+        if (!CanAim || Time.timeScale <= 0f || mainCamera == null || Mouse.current == null || SceneTransition.IsLoading)
             return;
         if (gameplayCamera != null && gameplayCamera.IsBusy)
             return;
@@ -271,6 +302,8 @@ public class SlingshotController : MonoBehaviour
 
     private IEnumerator LaunchRoutine()
     {
+        if (!CanAim)
+            yield break;
         shotInProgress = true;
         ClearTrajectory();
         if (gameplayCamera != null && gameplayCamera.isActiveAndEnabled)
@@ -291,6 +324,9 @@ public class SlingshotController : MonoBehaviour
         fired.simulated = true;
         fired.linearVelocity = launchVelocity;
         ShotsFired++;
+        launchedProjectiles.Add(fired);
+        fired.GetComponent<ProjectileComicEffects>()?.BeginFlight();
+        projectile = null;
         AudioManager.Instance?.PlayShotSound();
         AudioManager.Instance?.PlaySfx(flightMeow, flightMeowVolume);
         gameplayCamera?.FollowShot(fired);
@@ -303,6 +339,7 @@ public class SlingshotController : MonoBehaviour
         yield return new WaitForSeconds(spawnDelay);
         while (gameplayCamera != null && gameplayCamera.IsBusy)
             yield return null;
+        shotInProgress = false;
         SpawnProjectile();
     }
 
@@ -325,7 +362,7 @@ public class SlingshotController : MonoBehaviour
 
     public void Reload()
     {
-        if (shotInProgress)
+        if (shotInProgress || !CanLoadProjectile || !isActiveAndEnabled)
             return;
         if (projectile != null)
             Destroy(projectile.gameObject);
@@ -338,5 +375,8 @@ public class SlingshotController : MonoBehaviour
             Destroy(dotsRoot.gameObject);
         if (projectile != null)
             Destroy(projectile.gameObject);
+        for (int i = 0; i < launchedProjectiles.Count; i++)
+            if (launchedProjectiles[i] != null)
+                Destroy(launchedProjectiles[i].gameObject);
     }
 }
