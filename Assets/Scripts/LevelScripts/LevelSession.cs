@@ -4,10 +4,22 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// Проверяет результат уровня, показывает очки и начисляет награду только за первое прохождение.
+// Победа: все обязательные мыши И обязательные цели. Очки только растут за события.
 [DisallowMultipleComponent]
 public sealed class LevelSession : MonoBehaviour
 {
+    [Header("Очки за попадания")]
+    [Tooltip("Очки за каждый засчитанный сильный удар по коробке LevelTarget.")]
+    [SerializeField, Min(0)] private int boxHitPoints = 150;
+    [Tooltip("Очки за каждый удар, снявший HP у мыши.")]
+    [SerializeField, Min(0)] private int enemyHitPoints = 250;
+    [Tooltip("Дополнительные очки за уничтоженную мышь (в том числе при падении).")]
+    [SerializeField, Min(0)] private int enemyKillPoints = 500;
+    [Tooltip("Очки за полное разрушение цели или её падение за карту.")]
+    [SerializeField, Min(0)] private int targetClearPoints = 300;
+    [Tooltip("Победный бонус за каждого НЕ использованного кота. Во время выстрелов счёт НЕ меняет.")]
+    [SerializeField, Min(0)] private int unusedCatVictoryBonus = 200;
+
     [SerializeField] private SlingshotController gameplayController;
     [SerializeField] private float completeDelay = 1.1f;
 
@@ -49,6 +61,11 @@ public sealed class LevelSession : MonoBehaviour
 
     private LevelTarget[] targets;
     private Rigidbody2D[] targetBodies;
+    private MouseEnemy[] enemies;
+    private LevelObjective[] extraObjectives;
+    private Rigidbody2D[] enemyBodies;
+    private int earnedScore;
+    private int victoryBonus;
     [SerializeField] private Sprite starOnSprite;
     [SerializeField] private Sprite starOffSprite;
     [SerializeField] private TMP_Text scoreValueText;
@@ -86,24 +103,96 @@ public sealed class LevelSession : MonoBehaviour
         targets = FindObjectsByType<LevelTarget>(FindObjectsInactive.Exclude);
         targetBodies = new Rigidbody2D[targets.Length];
         for (int i = 0; i < targets.Length; i++)
+        {
             targetBodies[i] = targets[i].GetComponent<Rigidbody2D>();
+            targets[i].HitRegistered += OnBoxHit;
+            targets[i].Cleared += OnTargetCleared;
+        }
+
+        enemies = FindObjectsByType<MouseEnemy>(FindObjectsInactive.Exclude);
+        enemyBodies = new Rigidbody2D[enemies.Length];
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            enemyBodies[i] = enemies[i].GetComponent<Rigidbody2D>();
+            enemies[i].Damaged += OnEnemyDamaged;
+            enemies[i].Died += OnEnemyDied;
+        }
+        extraObjectives = FindObjectsByType<LevelObjective>(FindObjectsInactive.Exclude);
+        foreach (LevelObjective objective in extraObjectives)
+            objective.Completed += OnExtraObjectiveCompleted;
+
+        RefreshScoreHud();
+    }
+
+    private void OnDestroy()
+    {
+        if (extraObjectives != null)
+            foreach (LevelObjective objective in extraObjectives)
+                if (objective != null)
+                    objective.Completed -= OnExtraObjectiveCompleted;
+
+        if (targets != null)
+            foreach (LevelTarget target in targets)
+                if (target != null)
+                {
+                    target.HitRegistered -= OnBoxHit;
+                    target.Cleared -= OnTargetCleared;
+                }
+
+        if (enemies != null)
+            foreach (MouseEnemy enemy in enemies)
+                if (enemy != null)
+                {
+                    enemy.Damaged -= OnEnemyDamaged;
+                    enemy.Died -= OnEnemyDied;
+                }
+    }
+
+    private void OnExtraObjectiveCompleted(LevelObjective objective)
+    {
+        AwardPoints(objective.CompletionPoints);
+    }
+
+    private void OnBoxHit(LevelTarget target, float speed)
+    {
+        AwardPoints(boxHitPoints);
+    }
+
+    private void OnTargetCleared(LevelTarget target)
+    {
+        AwardPoints(targetClearPoints);
+    }
+
+    private void OnEnemyDamaged(MouseEnemy enemy, float damage)
+    {
+        if (damage > 0f)
+            AwardPoints(enemyHitPoints);
+    }
+
+    private void OnEnemyDied(MouseEnemy enemy)
+    {
+        AwardPoints(enemyKillPoints);
+    }
+
+    private void AwardPoints(int points)
+    {
+        if (points <= 0 || completed || failed)
+            return;
+        earnedScore += points;
         RefreshScoreHud();
     }
 
     private void Update()
     {
         if (!completed && !failed)
-        {
             RefreshScoreHud();
-        }
 
-        if (IsEnding || targets == null || targets.Length == 0)
-        {
+        if (IsEnding || !HasObjectives())
             return;
-        }
 
-        // Сначала проверяется победа, в том числе попадание последним снарядом.
-        if (AllTargetsCleared())
+        // Победа только когда исчезли ВСЕ ОБЯЗАТЕЛЬНЫЕ цели любого типа.
+        // Необязательные объекты при этом продолжают давать очки.
+        if (AllObjectivesCleared())
         {
             completionStarted = true;
             gameplayController?.CancelInput();
@@ -116,15 +205,41 @@ public sealed class LevelSession : MonoBehaviour
         }
     }
 
-    private bool AllTargetsCleared()
+    private bool HasObjectives()
     {
-        if (targets == null || targets.Length == 0)
-            return false;
-        for (int i = 0; i < targets.Length; i++)
-        {
-            if (targets[i] != null && !targets[i].IsCleared)
-                return false;
-        }
+        if (extraObjectives != null)
+            for (int i = 0; i < extraObjectives.Length; i++)
+                if (extraObjectives[i] != null && extraObjectives[i].CountsForVictory)
+                    return true;
+        if (enemies != null)
+            for (int i = 0; i < enemies.Length; i++)
+                if (enemies[i] != null && enemies[i].CountsForVictory)
+                    return true;
+        if (targets != null)
+            for (int i = 0; i < targets.Length; i++)
+                if (targets[i] != null && targets[i].CountsForVictory)
+                    return true;
+        return false;
+    }
+
+    private bool AllObjectivesCleared()
+    {
+        if (extraObjectives != null)
+            for (int i = 0; i < extraObjectives.Length; i++)
+                if (extraObjectives[i] != null && extraObjectives[i].CountsForVictory
+                    && !extraObjectives[i].IsCompleted)
+                    return false;
+
+        if (enemies != null)
+            for (int i = 0; i < enemies.Length; i++)
+                if (enemies[i] != null && enemies[i].CountsForVictory && !enemies[i].IsDead)
+                    return false;
+
+        if (targets != null)
+            for (int i = 0; i < targets.Length; i++)
+                if (targets[i] != null && targets[i].CountsForVictory && !targets[i].IsCleared)
+                    return false;
+
         return true;
     }
 
@@ -135,7 +250,7 @@ public sealed class LevelSession : MonoBehaviour
         {
             // Даёт всем целям обновить состояние после физического шага.
             yield return null;
-            if (IsEnding || AllTargetsCleared())
+            if (IsEnding || AllObjectivesCleared())
                 break;
             bool moving = gameplayController.IsShotInProgress || gameplayController.HasMovingProjectiles
                 || (gameplayController.gameplayCamera != null && gameplayController.gameplayCamera.IsBusy)
@@ -152,24 +267,33 @@ public sealed class LevelSession : MonoBehaviour
 
     private bool TargetsAreMoving()
     {
-        for (int i = 0; i < targets.Length; i++)
-        {
-            LevelTarget target = targets[i];
-            if (target == null || target.IsCleared)
-                continue;
-            Rigidbody2D body = targetBodies[i];
-            if (body == null || !body.simulated || body.bodyType != RigidbodyType2D.Dynamic || body.IsSleeping())
-                continue;
-            if (body.linearVelocity.sqrMagnitude > targetSettleSpeed * targetSettleSpeed
-                || Mathf.Abs(body.angularVelocity) > targetSettleAngularSpeed)
+        // Уже сбитые коробки тоже могут раздавить мышь, но коробки,
+        // упавшие за нижнюю границу карты, не должны бесконечно откладывать поражение.
+        float minRelevantY = gameplayController != null && gameplayController.gameplayCamera != null
+            ? gameplayController.gameplayCamera.mapMin.y - 5f : -15f;
+        for (int i = 0; i < targetBodies.Length; i++)
+            if (targets[i] != null && targets[i].transform.position.y >= minRelevantY
+                && BodyIsMoving(targetBodies[i]))
                 return true;
-        }
+
+        for (int i = 0; i < enemyBodies.Length; i++)
+            if (enemies[i] != null && !enemies[i].IsDead && BodyIsMoving(enemyBodies[i]))
+                return true;
+
         return false;
+    }
+
+    private bool BodyIsMoving(Rigidbody2D body)
+    {
+        return body != null && body.simulated
+            && body.bodyType == RigidbodyType2D.Dynamic && !body.IsSleeping()
+            && (body.linearVelocity.sqrMagnitude > targetSettleSpeed * targetSettleSpeed
+                || Mathf.Abs(body.angularVelocity) > targetSettleAngularSpeed);
     }
 
     private void FailLevel()
     {
-        if (IsEnding || AllTargetsCleared())
+        if (IsEnding || AllObjectivesCleared())
             return;
         failed = true;
         gameplayController.CancelInput();
@@ -211,10 +335,10 @@ public sealed class LevelSession : MonoBehaviour
             shots = 1;
         }
 
-        EvaluateTargets(out int clearedBoxes, out float travelDistance);
         int stars = LevelProgress.StarsForShots(LevelId, shots);
-        int runScore = LevelProgress.ComputeRunScore(clearedBoxes, shots, travelDistance);
-        displayedScore = scoreCounts ? runScore : 0;
+        victoryBonus = Mathf.Max(0, MaxProjectiles - shots) * unusedCatVictoryBonus;
+        int runScore = earnedScore + victoryBonus;
+        displayedScore = runScore;
 
         LevelProgress.SaveStars(LevelId, stars);
         bool awardedScore = false;
@@ -233,7 +357,7 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         GetComponent<PauseMenuController>()?.SetResultScreenOpen();
-        ShowCompletionOverlay(stars, awardedScore ? runScore : 0, awardedScore, shots);
+        ShowCompletionOverlay(stars, runScore, awardedScore, shots);
         PlayVictorySound(stars);
     }
 
@@ -282,43 +406,6 @@ public sealed class LevelSession : MonoBehaviour
             victorySource.PlayOneShot(clip, victoryVolume);
     }
 
-    private void EvaluateTargets(out int clearedBoxes, out float travelDistance)
-    {
-        clearedBoxes = 0;
-        travelDistance = 0f;
-        if (targets == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < targets.Length; i++)
-        {
-            LevelTarget target = targets[i];
-            if (target == null)
-            {
-                continue;
-            }
-
-            travelDistance += target.MaxTravelDistance;
-            if (target.IsCleared)
-            {
-                clearedBoxes++;
-            }
-        }
-    }
-
-    private int CurrentRunScore()
-    {
-        if (!scoreCounts)
-        {
-            return 0;
-        }
-
-        int shots = gameplayController != null ? gameplayController.ShotsFired : 0;
-        EvaluateTargets(out int clearedBoxes, out float travelDistance);
-        return LevelProgress.ComputeRunScore(clearedBoxes, shots, travelDistance);
-    }
-
     private void RefreshScoreHud()
     {
         if (scoreValueText == null)
@@ -326,11 +413,11 @@ public sealed class LevelSession : MonoBehaviour
             return;
         }
 
-        displayedScore = CurrentRunScore();
+        displayedScore = earnedScore + victoryBonus;
         scoreValueText.text = displayedScore.ToString();
         if (scoreHintText != null)
         {
-            scoreHintText.text = scoreCounts ? "ПЕРВОЕ ПРОХОЖДЕНИЕ" : "НЕ НАЧИСЛЯЮТСЯ";
+            scoreHintText.text = scoreCounts ? "ПЕРВОЕ ПРОХОЖДЕНИЕ" : "ПОВТОР — ОЧКИ НЕ СОХРАНЯЮТСЯ";
         }
     }
 
@@ -361,7 +448,8 @@ public sealed class LevelSession : MonoBehaviour
     // Итоговое окно уже находится в сцене; здесь меняются только значения.
     private void ShowCompletionOverlay(int stars, int score, bool awardedScore, int shots)
     {
-        completionScoreText.text = awardedScore ? "ОЧКИ  " + score : "ОЧКИ УЖЕ ПОЛУЧЕНЫ";
+        completionScoreText.text = awardedScore ? "ОЧКИ  " + score
+            : "ОЧКИ  " + score + " (ПОВТОР: БЕЗ НАГРАДЫ)";
         completionScoreText.color = awardedScore ? new Color32(230, 155, 82, 255)
             : new Color32(200, 200, 200, 255);
         int par = LevelProgress.ThreeStarShots(LevelId);

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class SlingshotController : MonoBehaviour
 {
@@ -94,6 +95,7 @@ public class SlingshotController : MonoBehaviour
     private readonly RaycastHit2D[] predictionHits = new RaycastHit2D[16];
     [SerializeField] private List<SpriteRenderer> dots = new List<SpriteRenderer>();
     private Rigidbody2D projectile;
+    private CatAbility activeAbility;
     private Camera mainCamera;
     private bool isDragging;
     private bool shotInProgress;
@@ -211,6 +213,7 @@ public class SlingshotController : MonoBehaviour
 
     private void Update()
     {
+        HandleAbilityInput();
         if (!CanAim || Time.timeScale <= 0f || mainCamera == null || Mouse.current == null || SceneTransition.IsLoading)
             return;
         if (gameplayCamera != null && gameplayCamera.IsBusy)
@@ -241,6 +244,31 @@ public class SlingshotController : MonoBehaviour
             else
                 StartCoroutine(LaunchRoutine());
         }
+    }
+
+    // Повторное нажатие ЛКМ (не по UI) или пробела использует способность
+    // уже выпущенного кота. Первый клик для натяжения не активирует её.
+    private void HandleAbilityInput()
+    {
+        if (activeAbility == null || !activeAbility.CanActivate || Time.timeScale <= 0f
+            || SceneTransition.IsLoading)
+            return;
+
+        bool space = Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame;
+        bool click = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
+        if (!space && !click)
+            return;
+
+        if (!space && click)
+        {
+            Vector2 pointer = Mouse.current.position.ReadValue();
+            if ((gameplayCamera != null && gameplayCamera.IsPointerOverControls(pointer))
+                || (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()))
+                return;
+        }
+
+        if (activeAbility.TryActivate())
+            activeAbility = null;
     }
 
     private void Aim(Vector2 pointer)
@@ -389,6 +417,9 @@ public class SlingshotController : MonoBehaviour
         fired.bodyType = RigidbodyType2D.Dynamic;
         fired.simulated = true;
         fired.linearVelocity = launchVelocity;
+        activeAbility = fired.GetComponent<CatAbility>();
+        if (activeAbility != null)
+            activeAbility.Arm();
         ShotsFired++;
         launchedProjectiles.Add(fired);
         fired.GetComponent<ProjectileComicEffects>()?.BeginFlight();

@@ -144,6 +144,8 @@ public class GameplayCameraController : MonoBehaviour
             return;
         impactRecorded = true;
         buildingImpact = collider != null && (collider.GetComponentInParent<LevelTarget>() != null
+            || collider.GetComponentInParent<MouseEnemy>() != null
+            || collider.GetComponentInParent<LevelObjective>() != null
             || (targetFocus != null && collider.transform.IsChildOf(targetFocus)));
         impactFocus = buildingImpact && targetFocus != null && collider.transform.IsChildOf(targetFocus)
             ? (Vector2)targetFocus.position + Vector2.up * 3f

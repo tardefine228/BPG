@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,6 +11,11 @@ public sealed class LevelTarget : MonoBehaviour
 
     // Сколько секунд после контакта сохраняется дополнительное трение.
     private const float SurfaceContactGrace = 0.12f;
+
+    [Header("Роль на уровне")]
+    [Tooltip("Включи, если эту цель ОБЯЗАТЕЛЬНО нужно уничтожить для победы. Отключи для препятствий и декоративных коробок.")]
+    [SerializeField] private bool countsForVictory = true;
+    public bool CountsForVictory => countsForVictory;
 
     [Header("Сбивание")]
     [Tooltip("Блок считается сбитым, если упал ниже этой отметки.")]
@@ -75,6 +81,11 @@ public sealed class LevelTarget : MonoBehaviour
     private float nextHitTime;
     private float surfaceContactUntil;
     private Coroutine flashRoutine;
+
+    // Срабатывает при каждом засчитанном сильном ударе, включая последний.
+    public event Action<LevelTarget, float> HitRegistered;
+    // Одно событие за фактическое уничтожение цели (включая падение за границу).
+    public event Action<LevelTarget> Cleared;
 
     public bool IsCleared { get; private set; }
     public float MaxTravelDistance { get; private set; }
@@ -158,24 +169,32 @@ public sealed class LevelTarget : MonoBehaviour
             return;
         }
 
-        // Пауза между ударами не позволяет одному касанию сразу снять несколько единиц прочности.
-        if (IsReinforced && Time.time < nextHitTime)
-        {
+        RegisterHit(relativeVelocity.magnitude, relativeVelocity.normalized);
+    }
+
+    // Для взрывов и способностей котов: тот же счётчик прочности,
+    // те же события и защита от повторных попаданий.
+    public void ApplyAbilityHit(float strength, Vector2 direction)
+    {
+        if (strength < impactSpeed)
             return;
-        }
+        RegisterHit(strength, direction);
+    }
+
+    private void RegisterHit(float strength, Vector2 direction)
+    {
+        if (IsCleared || Time.time < nextHitTime)
+            return;
 
         nextHitTime = Time.time + hitCooldown;
         HitsTaken++;
+        HitRegistered?.Invoke(this, strength);
         AbsorbHit();
 
         if (HitsTaken >= HitsToClear)
-        {
-            ClearTarget(relativeVelocity.normalized, true);
-        }
+            ClearTarget(direction, true);
         else
-        {
             PlayHitFeedback();
-        }
     }
 
     // Бронированный блок поглощает часть толчка и вращения.
@@ -272,6 +291,7 @@ public sealed class LevelTarget : MonoBehaviour
         }
 
         onCleared.Invoke();
+        Cleared?.Invoke(this);
     }
 
     // Отбрасывает сбитый блок. Коллайдер и компонент сохраняются для подсчёта целей и физики.
