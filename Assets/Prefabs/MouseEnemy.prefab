@@ -177,3 +177,7 @@ MonoBehaviour:
   hitCooldown: 0.15
   fallY: -6
   deathDelay: 0.4
+  dieOnFallDamage: 1
+  fallDamageHeight: 2
+  instakillOnFall: 1
+  fallDamagePerUnit: 50

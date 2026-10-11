@@ -29,6 +29,18 @@ public sealed class MouseEnemy : MonoBehaviour
     [Tooltip("Задержка перед скрытием мыши; флаг IsDead ставится сразу.")]
     [SerializeField, Min(0f)] private float deathDelay = 0.4f;
 
+    [Header("Смерть от падения с высоты")]
+    [Tooltip("Если включено, мышь получает урон (или погибает), когда приземляется " +
+             "после падения с высоты больше указанного порога.")]
+    [SerializeField] private bool dieOnFallDamage = true;
+    [Tooltip("Минимальная высота падения (в блоках/юнитах), при которой приземление наносит урон.")]
+    [SerializeField, Min(0f)] private float fallDamageHeight = 2f;
+    [Tooltip("Мгновенно убивать мышь при таком падении. Если выключено — наносится урон, " +
+             "зависящий от высоты падения (см. «Множитель урона»).")]
+    [SerializeField] private bool instakillOnFall = true;
+    [Tooltip("Урон за каждый блок сверх порога высоты (используется, если мгновенная смерть выключена).")]
+    [SerializeField, Min(0f)] private float fallDamagePerUnit = 50f;
+
     public float Health { get; private set; }
     public bool IsDead { get; private set; }
 
@@ -38,6 +50,9 @@ public sealed class MouseEnemy : MonoBehaviour
 
     private float nextHitTime;
 
+    // Высота, с которой мышь начала свободное падение (0 — не падает).
+    private float fallStartY;
+
     private void Awake()
     {
         Health = Mathf.Max(1f, maxHealth);
@@ -45,13 +60,119 @@ public sealed class MouseEnemy : MonoBehaviour
 
     private void Update()
     {
-        if (!IsDead && transform.position.y <= fallY)
+        if (IsDead)
+            return;
+
+        // Глубокий провал за пределы уровня — смерть как и раньше.
+        if (transform.position.y <= fallY)
+        {
             Kill();
+            return;
+        }
+
+        TrackFall();
+    }
+
+    private void TrackFall()
+    {
+        if (!dieOnFallDamage)
+            return;
+
+        Rigidbody2D body = GetComponent<Rigidbody2D>();
+        if (body == null)
+            return;
+
+        bool isFalling = !body.isKinematic
+                         && body.gravityScale > 0f
+                         && body.linearVelocity.y < -0.1f
+                         && Mathf.Abs(body.linearVelocity.x) < 0.5f
+                         && !IsGrounded();
+
+        if (isFalling)
+        {
+            // Запоминаем высоту начала падения (обновляем, пока падение продолжается).
+            fallStartY = fallStartY > 0f
+                ? Mathf.Max(fallStartY, transform.position.y)
+                : transform.position.y;
+        }
+        else if (fallStartY > 0f)
+        {
+            // Падение прекратилось (приземлилась или остановилась) — считаем перепад высот.
+            float drop = fallStartY - transform.position.y;
+            fallStartY = 0f;
+
+            if (drop >= fallDamageHeight)
+                ApplyFallDamage(drop);
+        }
+    }
+
+    private void ApplyFallDamage(float dropHeight)
+    {
+        if (instakillOnFall)
+        {
+            Kill();
+            return;
+        }
+
+        float damage = (dropHeight - fallDamageHeight) * fallDamagePerUnit;
+        if (damage <= 0f)
+            damage = fallDamagePerUnit; // падение ровно на порог тоже должно ранить
+
+        TakeDamage(damage);
+    }
+
+    // Проверяем, стоит ли мышь на чём-нибудь (чтобы не считать падением скольжение по земле).
+    private bool IsGrounded()
+    {
+        Collider2D self = GetComponent<Collider2D>();
+        if (self == null)
+            return false;
+
+        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
+        var results = UnityEngine.Pool.ListPool<Collider2D>.Get();
+        bool grounded = Physics2D.OverlapCollider(self, filter, results) != 0
+                        && HasContactBelow(results);
+        UnityEngine.Pool.ListPool<Collider2D>.Release(results);
+        return grounded;
+    }
+
+    private bool HasContactBelow(System.Collections.Generic.IList<Collider2D> overlaps)
+    {
+        float selfY = transform.position.y;
+        for (int i = 0; i < overlaps.Count; i++)
+        {
+            Collider2D other = overlaps[i];
+            if (other == null || other == self || other.isTrigger)
+                continue;
+
+            Bounds b = other.bounds;
+            // Контакт снизу: верх другого коллайдера не выше центра мыши.
+            if (b.max.y <= selfY + 0.1f)
+                return true;
+        }
+
+        return false;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (IsDead || collision == null || Time.time < nextHitTime)
+        if (IsDead || collision == null)
+            return;
+
+        // Столкновение с землёй/объектом во время падения засчитываем как приземление.
+        if (fallStartY > 0f)
+        {
+            float drop = fallStartY - transform.position.y;
+            fallStartY = 0f;
+
+            if (drop >= fallDamageHeight)
+            {
+                ApplyFallDamage(drop);
+                return;
+            }
+        }
+
+        if (Time.time < nextHitTime)
             return;
 
         float speed = collision.relativeVelocity.magnitude;
