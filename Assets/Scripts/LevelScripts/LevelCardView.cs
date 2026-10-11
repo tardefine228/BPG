@@ -3,8 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-// Карточка уже находится в сцене; обновляются только её состояние и подписи.
-// При наведении курсора на карточку показывается обводка уровня (hoverOutline).
+// Hover frame is drawn above card content and does not intercept mouse events.
 public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     [SerializeField] private int levelId;
@@ -17,10 +16,59 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
     [SerializeField] private TMP_Text parHint;
     [SerializeField] private Image[] stars;
     [SerializeField] private Outline hoverOutline;
+
+    [Header("Рамка при наведении")]
+    [SerializeField] private Color hoverFrameColor = new Color(1f, 0.84f, 0.36f, 1f);
+    [SerializeField, Min(1f)] private float hoverFrameWidth = 7f;
+
     public int LevelId => levelId;
     public int PageIndex => pageIndex;
 
+    private GameObject hoverFrame;
     private bool pointerInside;
+
+    private void Awake()
+    {
+        if (hoverOutline != null) hoverOutline.enabled = false;
+        CreateHoverFrame();
+    }
+
+    private void CreateHoverFrame()
+    {
+        hoverFrame = new GameObject("HoverFrame", typeof(RectTransform));
+        hoverFrame.transform.SetParent(transform, false);
+        var root = (RectTransform)hoverFrame.transform;
+        root.anchorMin = Vector2.zero;
+        root.anchorMax = Vector2.one;
+        root.offsetMin = Vector2.zero;
+        root.offsetMax = Vector2.zero;
+        root.SetAsLastSibling();
+
+        CreateSide(root, "Top", new Vector2(0, 1), new Vector2(1, 1),
+            new Vector2(0, -hoverFrameWidth), Vector2.zero);
+        CreateSide(root, "Bottom", Vector2.zero, new Vector2(1, 0),
+            Vector2.zero, new Vector2(0, hoverFrameWidth));
+        CreateSide(root, "Left", Vector2.zero, new Vector2(0, 1),
+            Vector2.zero, new Vector2(hoverFrameWidth, 0));
+        CreateSide(root, "Right", new Vector2(1, 0), Vector2.one,
+            new Vector2(-hoverFrameWidth, 0), Vector2.zero);
+        hoverFrame.SetActive(false);
+    }
+
+    private void CreateSide(RectTransform parent, string name, Vector2 anchorMin,
+        Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+    {
+        var side = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        side.transform.SetParent(parent, false);
+        var rect = (RectTransform)side.transform;
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = offsetMin;
+        rect.offsetMax = offsetMax;
+        var image = side.GetComponent<Image>();
+        image.color = hoverFrameColor;
+        image.raycastTarget = false;
+    }
 
     public void Refresh(Sprite starOn, Sprite starOff)
     {
@@ -35,7 +83,7 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
             + (level.ThreeStarShots == 1 ? " ВЫСТРЕЛА" : " ВЫСТРЕЛОВ") : string.Empty;
         int earned = LevelProgress.GetStars(levelId);
         for (int i = 0; i < stars.Length; i++)
-            stars[i].sprite = i < earned ? starOn : starOff;
+            if (stars[i] != null) stars[i].sprite = i < earned ? starOn : starOff;
         ApplyHoverState();
     }
 
@@ -51,21 +99,15 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
         ApplyHoverState();
     }
 
-    private void OnEnable()
-    {
-        ApplyHoverState();
-    }
-
+    private void OnEnable() => ApplyHoverState();
     private void OnDisable()
     {
         pointerInside = false;
         ApplyHoverState();
     }
 
-    // Обводка включается только при реальном наведении указателя на карточку.
     private void ApplyHoverState()
     {
-        if (hoverOutline != null)
-            hoverOutline.enabled = pointerInside;
+        if (hoverFrame != null) hoverFrame.SetActive(pointerInside && isActiveAndEnabled);
     }
 }

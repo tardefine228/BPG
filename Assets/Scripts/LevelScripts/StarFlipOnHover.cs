@@ -1,91 +1,63 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-// Вешается на звезду карточки уровня: при наведении курсора звезда переворачивается
-// вокруг вертикальной оси, а в середине вращения спрайт меняется на противоположный.
-// Пороги звёзд (LevelProgress) не затрагиваются — это только визуальный эффект.
+// Decorative one-turn flip. Never changes the earned-star sprite.
 [DisallowMultipleComponent]
-public sealed class StarFlipOnHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+[RequireComponent(typeof(Image))]
+public sealed class StarFlipOnHover : MonoBehaviour
 {
-    [SerializeField, Min(0.05f)] private float duration = 0.3f;
-    [SerializeField] private Sprite starOnSprite;
-    [SerializeField] private Sprite starOffSprite;
+    [SerializeField, Min(0.05f)] private float duration = 0.6f;
 
-    private Image starImage;
     private RectTransform rect;
+    private Vector3 originalScale;
     private Coroutine flipRoutine;
-    private Quaternion restRotation = Quaternion.identity;
 
     private void Awake()
     {
-        starImage = GetComponent<Image>();
         rect = (RectTransform)transform;
-        restRotation = rect.localRotation;
+        originalScale = rect.localScale;
     }
 
-    public void OnPointerEnter(PointerEventData eventData)
+    public void PlayFlip(float delay = 0f)
+    {
+        if (rect == null)
+            Awake();
+
+        if (flipRoutine != null)
+            StopCoroutine(flipRoutine);
+        rect.localScale = originalScale;
+        flipRoutine = StartCoroutine(Flip(delay));
+    }
+
+    public void ResetFlip()
     {
         if (flipRoutine != null)
             StopCoroutine(flipRoutine);
-        flipRoutine = StartCoroutine(FlipRoutine());
+        flipRoutine = null;
+        if (rect != null)
+            rect.localScale = originalScale;
     }
 
-    public void OnPointerExit(PointerEventData eventData)
+    private IEnumerator Flip(float delay)
     {
-        // Указатель ушёл до конца анимации — возвращаем исходный поворот.
-        if (flipRoutine == null)
-            rect.localRotation = restRotation;
-    }
+        if (delay > 0f)
+            yield return new WaitForSecondsRealtime(delay);
 
-    private IEnumerator FlipRoutine()
-    {
-        Quaternion start = rect.localRotation;
-        Quaternion halfTurn = restRotation * Quaternion.Euler(0f, 180f, 0f);
-        bool swapped = false;
         float elapsed = 0f;
-
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            rect.localRotation = Quaternion.Slerp(start, halfTurn, t);
-            if (!swapped && t >= 0.5f)
-            {
-                swapped = true;
-                SwapSprite();
-            }
+            // 360 degree flip around vertical axis, visible with Screen Space UI.
+            float horizontalScale = Mathf.Cos(t * Mathf.PI * 2f);
+            rect.localScale = new Vector3(originalScale.x * horizontalScale,
+                originalScale.y, originalScale.z);
             yield return null;
         }
-
-        // Доворот до «изнанки» и возврат к лицевой стороне с той же подменой спрайта.
-        Quaternion backTarget = restRotation;
-        elapsed = 0f;
-        Quaternion from = rect.localRotation;
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            rect.localRotation = Quaternion.Slerp(from, backTarget, t);
-            if (swapped && t >= 0.5f)
-            {
-                swapped = false;
-                SwapSprite();
-            }
-            yield return null;
-        }
-
-        rect.localRotation = restRotation;
-        if (swapped)
-            SwapSprite();
+        rect.localScale = originalScale;
         flipRoutine = null;
     }
 
-    private void SwapSprite()
-    {
-        if (starImage == null || starOnSprite == null || starOffSprite == null)
-            return;
-        starImage.sprite = starImage.sprite == starOnSprite ? starOffSprite : starOnSprite;
-    }
+    private void OnDisable() => ResetFlip();
 }
