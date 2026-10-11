@@ -1,26 +1,68 @@
+using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 /// <summary>
-/// Runtime-built map lobby. Each card shows the level name, a preview image and
-/// earned stars. Later levels stay locked until the previous one is completed.
+/// Runtime-built map lobby. Levels are laid out as pages of cards (three per
+/// page by default) and the pages can be flipped with the arrow buttons, the
+/// dots, a drag / swipe, the mouse wheel or the arrow keys. Each card shows the
+/// level name, a preview image and earned stars. Later levels stay locked until
+/// the previous one is completed.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class LevelSelectController : MonoBehaviour
 {
     private const int CanvasSortingOrder = 10;
+    private const float CardWidth = 440f;
+    private const float CardHeight = 640f;
+    private const float CardSpacing = 520f;
+    private const float ViewportHeight = 700f;
+    private const float ViewportY = -18f;
+    private const float ArrowX = 848f;
+    private const float ArrowY = -18f;
+    private const float ScrollCooldown = 0.15f;
 
     [Tooltip("Открыть все уровни сразу — удобно для тестирования новых карт.")]
     [SerializeField] private bool unlockAllLevels;
 
+    [Tooltip("Сколько карточек уровней помещается на одну страницу " +
+             "(вёрстка рассчитана на 3 карточки в ряд).")]
+    [SerializeField, Min(1)] private int cardsPerPage = 3;
+
+    [Tooltip("Длительность анимации перелистывания страницы, секунды.")]
+    [SerializeField, Min(0.05f)] private float slideDuration = 0.32f;
+
+    [Tooltip("Сдвиг мышью или пальцем, при котором страница перелистывается.")]
+    [SerializeField, Min(0f)] private float dragFlipDistance = 90f;
+
     private Sprite uiSprite;
     private Sprite starOnSprite;
     private Sprite starOffSprite;
+    private Sprite arrowLeftSprite;
+    private Sprite arrowRightSprite;
+    private Sprite dotSprite;
+    private Sprite dotRingSprite;
     private TMP_FontAsset uiFont;
     private GameObject comingSoonOverlay;
+    private LevelSelectPagingSurface pagingSurface;
+    private Canvas canvas;
+    private RectTransform track;
+    private Button previousPageButton;
+    private Button nextPageButton;
+    private readonly List<Image> pageDots = new List<Image>();
+    private float pageWidth = CardSpacing;
+    private int pageCount = 1;
+    private int currentPage;
+    private Coroutine slideRoutine;
+    private float dragDistance;
+    private float lastScrollTime = -10f;
+    private float suppressClickUntil = -10f;
 
     private void Awake()
     {
@@ -32,6 +74,13 @@ public sealed class LevelSelectController : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (pagingSurface != null)
+        {
+            pagingSurface.Dragged -= OnDraggedHorizontally;
+            pagingSurface.DragCompleted -= OnDragCompleted;
+            pagingSurface.Scrolled -= OnScrolled;
+        }
+
         if (uiSprite != null)
         {
             Destroy(uiSprite);
@@ -48,6 +97,36 @@ public sealed class LevelSelectController : MonoBehaviour
             Destroy(starOffSprite.texture);
             Destroy(starOffSprite);
         }
+
+        DestroyIcon(arrowLeftSprite);
+        DestroyIcon(arrowRightSprite);
+        DestroyIcon(dotSprite);
+        DestroyIcon(dotRingSprite);
+    }
+
+    private void Update()
+    {
+        if (pageCount <= 1)
+        {
+            return;
+        }
+
+#if ENABLE_INPUT_SYSTEM
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null)
+        {
+            return;
+        }
+
+        if (keyboard.rightArrowKey.wasPressedThisFrame)
+        {
+            StepPage(1);
+        }
+        else if (keyboard.leftArrowKey.wasPressedThisFrame)
+        {
+            StepPage(-1);
+        }
+#endif
     }
 
     private void BuildLobby()
@@ -66,7 +145,7 @@ public sealed class LevelSelectController : MonoBehaviour
             typeof(GraphicRaycaster));
         canvasObject.layer = uiLayer;
 
-        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        canvas = canvasObject.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = CanvasSortingOrder;
 
@@ -82,6 +161,10 @@ public sealed class LevelSelectController : MonoBehaviour
         uiFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
         starOnSprite = StarSpriteFactory.Create(true);
         starOffSprite = StarSpriteFactory.Create(false);
+        arrowRightSprite = MenuSpriteFactory.CreateArrow(true);
+        arrowLeftSprite = MenuSpriteFactory.CreateArrow(false);
+        dotSprite = MenuSpriteFactory.CreateCircle();
+        dotRingSprite = MenuSpriteFactory.CreateRing();
 
         RectTransform root = CreateRect(
             "Root",
@@ -95,25 +178,88 @@ public sealed class LevelSelectController : MonoBehaviour
         Image background = root.gameObject.AddComponent<Image>();
         ConfigureImage(background, new Color32(0, 0, 0, 255));
 
-        CreateLabel(root, "Title", "ВЫБОР УРОВНЯ", new Vector2(0f, 430f),
+        pagingSurface = root.gameObject.AddComponent<LevelSelectPagingSurface>();
+        pagingSurface.Dragged += OnDraggedHorizontally;
+        pagingSurface.DragCompleted += OnDragCompleted;
+        pagingSurface.Scrolled += OnScrolled;
+
+        CreateLabel(root, "Title", "ВЫБОР УРОВНЯ", new Vector2(0f, 436f),
             new Vector2(1100f, 90f), 58f, Color.white);
 
         LevelDefinition[] levels = LevelProgress.Levels;
-        float spacing = 500f;
-        float startX = -spacing * (levels.Length - 1) * 0.5f;
+        CreateLabel(root, "StarsSummary", "СОБРАНО ЗВЁЗД: " + CountCollectedStars(levels)
+            + " / " + (levels.Length * LevelProgress.MaxStars),
+            new Vector2(0f, 360f), new Vector2(900f, 44f), 26f,
+            new Color32(150, 150, 150, 255));
+
+        RectTransform viewport = CreateRect(
+            "Viewport",
+            root,
+            new Vector2(0f, 0.5f),
+            new Vector2(1f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, ViewportHeight),
+            new Vector2(0f, ViewportY));
+        viewport.gameObject.AddComponent<RectMask2D>();
+
+        track = CreateRect(
+            "Pages",
+            viewport,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0f, ViewportHeight),
+            Vector2.zero);
+
+        pageCount = Mathf.Max(1, Mathf.CeilToInt(levels.Length / (float)cardsPerPage));
+        pageWidth = CardSpacing * cardsPerPage;
+
         for (int i = 0; i < levels.Length; i++)
         {
-            CreateLevelCard(root, levels[i], new Vector2(startX + spacing * i, -20f));
+            CreateLevelCard(track, levels[i], i);
+        }
+
+        CreateArrowButton(root, -ArrowX, false);
+        CreateArrowButton(root, ArrowX, true);
+        BuildPageDots(root);
+
+        if (pageCount > 1)
+        {
+            CreateLabel(root, "PagingHint",
+                "ЛИСТАЙТЕ СТРАНИЦЫ: СТРЕЛКИ, КОЛЕСО ИЛИ СВАЙП",
+                new Vector2(0f, -468f), new Vector2(1200f, 36f), 20f,
+                new Color32(96, 96, 96, 255));
         }
 
         comingSoonOverlay = BuildComingSoonOverlay(root);
         comingSoonOverlay.SetActive(false);
+
+        int focusIndex = Mathf.Clamp(IndexOfLevel(LevelProgress.CurrentLevelId), 0,
+            Mathf.Max(0, levels.Length - 1));
+        SetPageImmediate(focusIndex / cardsPerPage);
     }
 
-    private void CreateLevelCard(Transform parent, LevelDefinition level, Vector2 position)
+    private void CreateLevelCard(Transform parent, LevelDefinition level, int index)
     {
         bool unlocked = LevelProgress.IsUnlocked(level.Id);
+        bool isCurrent = level.Id == LevelProgress.CurrentLevelId;
         int stars = LevelProgress.GetStars(level.Id);
+        Vector2 position = new Vector2(CardX(index), 0f);
+
+        if (isCurrent)
+        {
+            RectTransform highlight = CreateRect(
+                "CurrentLevel_" + level.Id,
+                parent,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(CardWidth + 18f, CardHeight + 18f),
+                position);
+            Image highlightImage = highlight.gameObject.AddComponent<Image>();
+            ConfigureImage(highlightImage, new Color32(230, 155, 82, 255));
+            highlightImage.raycastTarget = false;
+        }
 
         RectTransform card = CreateRect(
             "LevelCard_" + level.Id,
@@ -121,7 +267,7 @@ public sealed class LevelSelectController : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(440f, 640f),
+            new Vector2(CardWidth, CardHeight),
             position);
 
         Image cardImage = card.gameObject.AddComponent<Image>();
@@ -213,6 +359,292 @@ public sealed class LevelSelectController : MonoBehaviour
             new Color32(90, 90, 90, 255));
     }
 
+    // ------------------------------------------------------------- pages ----
+    private float CardX(int index)
+    {
+        int page = index / cardsPerPage;
+        int firstOnPage = page * cardsPerPage;
+        int countOnPage = Mathf.Min(cardsPerPage, LevelProgress.Levels.Length - firstOnPage);
+        float slot = index - firstOnPage - (countOnPage - 1) * 0.5f;
+        return page * pageWidth + slot * CardSpacing;
+    }
+
+    private void CreateArrowButton(Transform parent, float x, bool pointsRight)
+    {
+        RectTransform rect = CreateRect(
+            pointsRight ? "NextPageButton" : "PreviousPageButton",
+            parent,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(120f, 220f),
+            new Vector2(x, ArrowY));
+        rect.gameObject.SetActive(pageCount > 1);
+
+        Image background = rect.gameObject.AddComponent<Image>();
+        ConfigureImage(background, new Color32(38, 38, 42, 255));
+
+        Button button = rect.gameObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.transition = Selectable.Transition.ColorTint;
+        button.colors = MenuColorBlock.Create();
+        Navigation navigation = button.navigation;
+        navigation.mode = Navigation.Mode.None;
+        button.navigation = navigation;
+        int step = pointsRight ? 1 : -1;
+        button.onClick.AddListener(() => StepPage(step));
+
+        RectTransform icon = CreateRect(
+            "Icon",
+            rect,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(96f, 96f),
+            Vector2.zero);
+        Image iconImage = icon.gameObject.AddComponent<Image>();
+        ConfigureImage(iconImage, Color.white);
+        iconImage.sprite = pointsRight ? arrowRightSprite : arrowLeftSprite;
+        iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
+
+        if (pointsRight)
+        {
+            nextPageButton = button;
+        }
+        else
+        {
+            previousPageButton = button;
+        }
+    }
+
+    private void BuildPageDots(Transform parent)
+    {
+        if (pageCount <= 1)
+        {
+            return;
+        }
+
+        RectTransform row = CreateRect(
+            "PageDots",
+            parent,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(pageCount * 58f, 44f),
+            new Vector2(0f, -420f));
+
+        for (int i = 0; i < pageCount; i++)
+        {
+            RectTransform dot = CreateRect(
+                "Dot" + i,
+                row,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(34f, 34f),
+                new Vector2((i - (pageCount - 1) * 0.5f) * 58f, 0f));
+
+            Image image = dot.gameObject.AddComponent<Image>();
+            ConfigureImage(image, Color.white);
+            image.sprite = dotRingSprite;
+            image.preserveAspect = true;
+
+            Button button = dot.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.transition = Selectable.Transition.ColorTint;
+            button.colors = MenuColorBlock.Create();
+            Navigation navigation = button.navigation;
+            navigation.mode = Navigation.Mode.None;
+            button.navigation = navigation;
+            int page = i;
+            button.onClick.AddListener(() => SetPage(page));
+
+            pageDots.Add(image);
+        }
+    }
+
+    private void StepPage(int delta)
+    {
+        SetPage(currentPage + delta);
+    }
+
+    private void SetPage(int page)
+    {
+        int clamped = Mathf.Clamp(page, 0, Mathf.Max(0, pageCount - 1));
+        currentPage = clamped;
+        RefreshNavigation();
+
+        float target = -currentPage * pageWidth;
+        if (track == null)
+        {
+            return;
+        }
+
+        if (slideRoutine != null)
+        {
+            StopCoroutine(slideRoutine);
+            slideRoutine = null;
+        }
+
+        if (Mathf.Abs(track.anchoredPosition.x - target) < 0.5f)
+        {
+            track.anchoredPosition = new Vector2(target, track.anchoredPosition.y);
+            return;
+        }
+
+        slideRoutine = StartCoroutine(SlideRoutine(target));
+    }
+
+    private void SetPageImmediate(int page)
+    {
+        currentPage = Mathf.Clamp(page, 0, Mathf.Max(0, pageCount - 1));
+        if (track != null)
+        {
+            track.anchoredPosition = new Vector2(-currentPage * pageWidth, track.anchoredPosition.y);
+        }
+
+        RefreshNavigation();
+    }
+
+    private IEnumerator SlideRoutine(float targetX)
+    {
+        float startX = track.anchoredPosition.x;
+        float y = track.anchoredPosition.y;
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.05f, slideDuration);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = t * t * (3f - 2f * t);
+            track.anchoredPosition = new Vector2(Mathf.Lerp(startX, targetX, eased), y);
+            yield return null;
+        }
+
+        track.anchoredPosition = new Vector2(targetX, y);
+        slideRoutine = null;
+    }
+
+    private void RefreshNavigation()
+    {
+        if (previousPageButton != null)
+        {
+            previousPageButton.interactable = currentPage > 0;
+        }
+
+        if (nextPageButton != null)
+        {
+            nextPageButton.interactable = currentPage < pageCount - 1;
+        }
+
+        for (int i = 0; i < pageDots.Count; i++)
+        {
+            Image dot = pageDots[i];
+            if (dot == null)
+            {
+                continue;
+            }
+
+            bool active = i == currentPage;
+            dot.sprite = active ? dotSprite : dotRingSprite;
+            dot.color = active ? new Color32(230, 155, 82, 255) : new Color32(110, 110, 110, 255);
+        }
+    }
+
+    private void OnDraggedHorizontally(float deltaX)
+    {
+        if (pageCount <= 1 || track == null || Mathf.Approximately(deltaX, 0f))
+        {
+            return;
+        }
+
+        if (slideRoutine != null)
+        {
+            StopCoroutine(slideRoutine);
+            slideRoutine = null;
+        }
+
+        dragDistance += deltaX;
+        float scale = canvas != null ? Mathf.Max(0.01f, canvas.scaleFactor) : 1f;
+        float min = -(pageCount - 1) * pageWidth;
+        float x = Mathf.Clamp(track.anchoredPosition.x + deltaX / scale, min, 0f);
+        track.anchoredPosition = new Vector2(x, track.anchoredPosition.y);
+    }
+
+    private void OnDragCompleted()
+    {
+        if (pageCount <= 1 || track == null)
+        {
+            dragDistance = 0f;
+            return;
+        }
+
+        float moved = dragDistance;
+        dragDistance = 0f;
+
+        if (Mathf.Abs(moved) >= 12f)
+        {
+            // A drag that ends above a card must not load the level.
+            suppressClickUntil = Time.unscaledTime + 0.25f;
+        }
+
+        int page = currentPage;
+        if (Mathf.Abs(moved) >= dragFlipDistance)
+        {
+            page = currentPage + (moved > 0f ? -1 : 1);
+        }
+        else
+        {
+            page = Mathf.RoundToInt(-track.anchoredPosition.x / pageWidth);
+        }
+
+        SetPage(page);
+    }
+
+    private void OnScrolled(float delta)
+    {
+        if (pageCount <= 1 || Mathf.Abs(delta) < 0.01f)
+        {
+            return;
+        }
+
+        if (Time.unscaledTime - lastScrollTime < ScrollCooldown)
+        {
+            return;
+        }
+
+        lastScrollTime = Time.unscaledTime;
+        StepPage(delta > 0f ? -1 : 1);
+    }
+
+    private static int IndexOfLevel(int levelId)
+    {
+        LevelDefinition[] levels = LevelProgress.Levels;
+        for (int i = 0; i < levels.Length; i++)
+        {
+            if (levels[i].Id == levelId)
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int CountCollectedStars(LevelDefinition[] levels)
+    {
+        int total = 0;
+        for (int i = 0; i < levels.Length; i++)
+        {
+            total += LevelProgress.GetStars(levels[i].Id);
+        }
+
+        return total;
+    }
+
+    // ------------------------------------------------------------ cards ----
     private void CreateStarRow(Transform parent, int filledStars, Vector2 position)
     {
         RectTransform row = CreateRect(
@@ -246,6 +678,11 @@ public sealed class LevelSelectController : MonoBehaviour
 
     private void OnLevelClicked(int levelId)
     {
+        if (Time.unscaledTime < suppressClickUntil)
+        {
+            return;
+        }
+
         LevelDefinition level = LevelProgress.GetLevel(levelId);
         if (!LevelProgress.IsUnlocked(level.Id))
         {
@@ -300,13 +737,14 @@ public sealed class LevelSelectController : MonoBehaviour
         }
     }
 
+    // ------------------------------------------------------------- ui ------
     private Button CreateButton(
         Transform parent,
         string objectName,
         string label,
         Vector2 size,
         Vector2 position,
-        UnityAction onClick,
+        UnityEngine.Events.UnityAction onClick,
         float fontSize)
     {
         RectTransform rect = CreateRect(
@@ -404,6 +842,17 @@ public sealed class LevelSelectController : MonoBehaviour
         image.type = Image.Type.Simple;
         image.color = color;
         image.raycastTarget = true;
+    }
+
+    private static void DestroyIcon(Sprite sprite)
+    {
+        if (sprite == null)
+        {
+            return;
+        }
+
+        Destroy(sprite.texture);
+        Destroy(sprite);
     }
 
     private static string ShotsWord(int shots)

@@ -165,6 +165,9 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::LevelSelectController
   unlockAllLevels: 0
+  cardsPerPage: 3
+  slideDuration: 0.32
+  dragFlipDistance: 90
 --- !u!114 &1000000004
 MonoBehaviour:
   m_ObjectHideFlags: 0

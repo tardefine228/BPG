@@ -12,6 +12,8 @@ public static class LevelProgress
     public const string GameplaySceneName = "Gameplay";
     public const string SecondLevelSceneName = "Level2";
     public const string ThirdLevelSceneName = "Level3";
+    public const string FourthLevelSceneName = "Level4";
+    public const string FifthLevelSceneName = "Level5";
 
     private const string StarsKeyPrefix = "bpg_level_stars_";
     private const string CompletedKeyPrefix = "bpg_level_completed_";
@@ -44,7 +46,23 @@ public static class LevelProgress
             "LevelPreviews/level_3",
             true,
             12,
-            16)
+            16),
+        new LevelDefinition(
+            4,
+            "УРОВЕНЬ 4",
+            FourthLevelSceneName,
+            "LevelPreviews/level_4",
+            true,
+            13,
+            17),
+        new LevelDefinition(
+            5,
+            "УРОВЕНЬ 5",
+            FifthLevelSceneName,
+            "LevelPreviews/level_5",
+            true,
+            15,
+            19)
     };
 
     public static int CurrentLevelId { get; private set; } = 1;
