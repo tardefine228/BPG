@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -30,6 +31,38 @@ public class SlingshotController : MonoBehaviour
     public float spawnDelay = 2.5f;
     public float projectileLifetime = 12f;
 
+    [Header("След траектории (точки)")]
+    [Tooltip("Рисовать путь снаряда точками вместо тонкой линии.")]
+    [SerializeField] private bool useDottedTrajectory = true;
+
+    [Tooltip("Какую часть пути показывать: 0.5 — половину пути до мишени.")]
+    [SerializeField, Range(0.1f, 1f)] private float trajectoryVisibleFraction = 0.5f;
+
+    [Tooltip("Диаметр точки следа в пикселях экрана.")]
+    [SerializeField, Min(2f)] private float trajectoryDotPixels = 16f;
+
+    [Tooltip("Расстояние между точками следа в пикселях экрана.")]
+    [SerializeField, Min(4f)] private float trajectoryDotGapPixels = 46f;
+
+    [Tooltip("Цвет точки следа; к концу пути точки гаснут.")]
+    [SerializeField] private Color trajectoryDotColor = Color.white;
+
+    [Tooltip("Цвет обводки точки — чтобы след было видно на светлом фоне.")]
+    [SerializeField] private Color trajectoryDotOutline = new Color32(48, 48, 48, 255);
+
+    [Tooltip("Размер точки в конце следа относительно начала (1 — не уменьшать).")]
+    [SerializeField, Range(0.3f, 1f)] private float trajectoryEndScale = 0.75f;
+
+    [Header("Звук рогатки")]
+    [Tooltip("Звук натяжения, играет пока игрок целится (можно задать свой файл).")]
+    [SerializeField] private AudioClip aimSound;
+
+    [Tooltip("Звук выстрела (можно задать свой файл).")]
+    [SerializeField] private AudioClip shotSound;
+
+    [SerializeField, Range(0f, 1f)] private float aimVolume = 0.55f;
+    [SerializeField, Range(0f, 1f)] private float shotVolume = 0.9f;
+
     public event Action<Rigidbody2D> ShotLaunched;
     public event Action<Vector2> ProjectileImpacted;
     public int ShotsFired { get; private set; }
@@ -37,13 +70,58 @@ public class SlingshotController : MonoBehaviour
     public bool CanAim => projectile != null && !shotInProgress;
     public float ProjectileRadius { get; private set; } = 0.5f;
 
+    private const int MaxTrailDots = 48;
+    private const int TrailSortingOrder = 15;
+    private const string AimSoundResourcePath = "Audio/Slingshot/SlingshotStretch";
+    private const string ShotSoundResourcePath = "Audio/Slingshot/SlingshotShot";
+
     private readonly RaycastHit2D[] predictionHits = new RaycastHit2D[16];
+    private readonly List<Vector2> previewPoints = new List<Vector2>();
+    private TrajectoryDotTrail trajectoryTrail;
+    private AudioSource stretchSource;
+    private AudioSource oneShotSource;
     private Rigidbody2D projectile;
     private Camera mainCamera;
     private bool isDragging;
     private bool shotInProgress;
     private Vector2 launchVelocity;
     private Vector2 dragStartScreen;
+
+    private void Awake()
+    {
+        if (aimSound == null)
+        {
+            aimSound = Resources.Load<AudioClip>(AimSoundResourcePath);
+        }
+
+        if (shotSound == null)
+        {
+            shotSound = Resources.Load<AudioClip>(ShotSoundResourcePath);
+        }
+
+        stretchSource = gameObject.AddComponent<AudioSource>();
+        stretchSource.playOnAwake = false;
+        stretchSource.loop = true;
+        stretchSource.spatialBlend = 0f;
+        stretchSource.dopplerLevel = 0f;
+        stretchSource.volume = 0f;
+
+        oneShotSource = gameObject.AddComponent<AudioSource>();
+        oneShotSource.playOnAwake = false;
+        oneShotSource.loop = false;
+        oneShotSource.spatialBlend = 0f;
+        oneShotSource.dopplerLevel = 0f;
+
+        if (useDottedTrajectory)
+        {
+            trajectoryTrail = new TrajectoryDotTrail(transform, MaxTrailDots,
+                TrailSortingOrder, trajectoryDotColor, trajectoryDotOutline);
+            if (aimLine != null)
+            {
+                aimLine.enabled = false;
+            }
+        }
+    }
 
     private void Start()
     {
@@ -75,6 +153,11 @@ public class SlingshotController : MonoBehaviour
 
     private void Update()
     {
+        if (!isDragging)
+        {
+            StopStretchSound();
+        }
+
         if (!CanAim || mainCamera == null || Mouse.current == null)
             return;
         if (gameplayCamera != null && gameplayCamera.IsBusy)
@@ -91,6 +174,7 @@ public class SlingshotController : MonoBehaviour
             {
                 isDragging = true;
                 dragStartScreen = pointer;
+                StartStretchSound();
             }
         }
 
@@ -99,10 +183,16 @@ public class SlingshotController : MonoBehaviour
         if (isDragging && Mouse.current.leftButton.wasReleasedThisFrame)
         {
             isDragging = false;
+            StopStretchSound();
             if (launchVelocity.sqrMagnitude < 1f)
+            {
                 ClearTrajectory();
+            }
             else
+            {
+                PlayShotSound();
                 StartCoroutine(LaunchRoutine());
+            }
         }
     }
 
@@ -115,6 +205,7 @@ public class SlingshotController : MonoBehaviour
         if (pull.sqrMagnitude < 0.001f)
         {
             launchVelocity = Vector2.zero;
+            UpdateStretchSound(0f);
             ClearTrajectory();
             return;
         }
@@ -131,6 +222,8 @@ public class SlingshotController : MonoBehaviour
                 / Mathf.Max(1, mainCamera.pixelHeight);
         PredictTrajectory(projectile.position, launchVelocity, projectile.gravityScale,
             true, out _, out _, out _);
+        UpdateStretchSound(pull.magnitude / Mathf.Max(0.01f, maxPullDistance));
+        ShowTrajectoryPreview();
     }
 
     public bool TryPredictImpact(Vector2 position, Vector2 velocity, float gravityScale,
@@ -150,8 +243,12 @@ public class SlingshotController : MonoBehaviour
         Vector2 previous = start;
         int points = Mathf.Max(2, trajectoryPoints);
         float step = Mathf.Max(0.01f, timeStep);
-        if (draw && aimLine != null)
-            aimLine.positionCount = points;
+        if (draw)
+        {
+            previewPoints.Clear();
+            if (aimLine != null && !useDottedTrajectory)
+                aimLine.positionCount = 0;
+        }
         impactPoint = start;
         flightTime = 0f;
         hitCollider = null;
@@ -182,16 +279,11 @@ public class SlingshotController : MonoBehaviour
                 }
                 if (hitCollider != null)
                 {
-                    if (draw && aimLine != null)
-                    {
-                        aimLine.SetPosition(i, point);
-                        aimLine.positionCount = i + 1;
-                    }
+                    AddPreviewPoint(point, draw);
                     return true;
                 }
             }
-            if (draw && aimLine != null)
-                aimLine.SetPosition(i, point);
+            AddPreviewPoint(point, draw);
             previous = point;
             impactPoint = point;
             flightTime = t;
@@ -234,10 +326,16 @@ public class SlingshotController : MonoBehaviour
     {
         if (aimLine != null)
             aimLine.positionCount = 0;
+        previewPoints.Clear();
+        if (trajectoryTrail != null)
+        {
+            trajectoryTrail.Hide();
+        }
     }
 
     public void CancelInput()
     {
+        StopStretchSound();
         isDragging = false;
         // Pausing during the return to overview must preserve the committed shot.
         if (!shotInProgress)
@@ -258,5 +356,105 @@ public class SlingshotController : MonoBehaviour
     {
         if (projectile != null)
             Destroy(projectile.gameObject);
+
+        if (trajectoryTrail != null)
+        {
+            trajectoryTrail.Dispose();
+            trajectoryTrail = null;
+        }
+    }
+
+    // -------------------------------------------------------- trail & sound ----
+    /// <summary>Stores the predicted point and updates the fallback line renderer.</summary>
+    private void AddPreviewPoint(Vector2 point, bool draw)
+    {
+        if (!draw)
+        {
+            return;
+        }
+
+        previewPoints.Add(point);
+        if (aimLine != null && !useDottedTrajectory)
+        {
+            aimLine.positionCount = previewPoints.Count;
+            aimLine.SetPosition(previewPoints.Count - 1, point);
+        }
+    }
+
+    /// <summary>
+    /// Shows the first part of the predicted path as dots, sized in screen
+    /// pixels so the trail looks the same at both camera distances.
+    /// </summary>
+    private void ShowTrajectoryPreview()
+    {
+        if (trajectoryTrail == null || mainCamera == null || previewPoints.Count < 2)
+        {
+            return;
+        }
+
+        float unitsPerPixel = 2f * mainCamera.orthographicSize
+            / Mathf.Max(1, mainCamera.pixelHeight);
+        trajectoryTrail.Show(previewPoints, trajectoryVisibleFraction,
+            trajectoryDotPixels * unitsPerPixel,
+            trajectoryDotGapPixels * unitsPerPixel,
+            trajectoryEndScale);
+    }
+
+    private float EffectsVolumePercent => AudioManager.Instance != null
+        ? AudioManager.Instance.EffectsVolume
+        : 1f;
+
+    private void StartStretchSound()
+    {
+        if (stretchSource == null || aimSound == null)
+        {
+            return;
+        }
+
+        stretchSource.clip = aimSound;
+        stretchSource.pitch = 0.9f;
+        stretchSource.volume = 0f;
+        stretchSource.Play();
+    }
+
+    /// <summary>Pitch and volume grow with the pull, so the tension is audible.</summary>
+    private void UpdateStretchSound(float pullFraction)
+    {
+        if (stretchSource == null || !stretchSource.isPlaying)
+        {
+            return;
+        }
+
+        float tension = Mathf.Clamp01(pullFraction);
+        stretchSource.volume = aimVolume * Mathf.Lerp(0.3f, 1f, tension) * EffectsVolumePercent;
+        stretchSource.pitch = Mathf.Lerp(0.85f, 1.25f, tension);
+    }
+
+    private void StopStretchSound()
+    {
+        if (stretchSource != null && stretchSource.isPlaying)
+        {
+            stretchSource.Stop();
+        }
+    }
+
+    private void PlayShotSound()
+    {
+        if (shotSound == null)
+        {
+            return;
+        }
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySfx(shotSound, shotVolume);
+            return;
+        }
+
+        if (oneShotSource != null)
+        {
+            oneShotSource.volume = shotVolume * EffectsVolumePercent;
+            oneShotSource.PlayOneShot(shotSound);
+        }
     }
 }
