@@ -110,6 +110,55 @@ public sealed class ValidationRunner : MonoBehaviour
         target.Release(); Destroy(target); Destroy(pixels);
         yield return null;
     }
+
+    private void CheckCameraSelection(GameplayCameraController camera, string selectedField)
+    {
+        foreach (string field in new[] { "launcherButton", "overviewButton", "targetButton" })
+        {
+            var button = (Button)Get(camera, field);
+            Color original = (Color)Get(camera, field + "Color");
+            Color expected = original * (field == selectedField ? (Color)Get(camera, "selectedViewTint") : Color.white);
+            Require(button.targetGraphic.color == expected, field + ": incorrect camera selection highlight");
+            Require(button.targetGraphic.canvasRenderer.GetColor().a > 0.99f,
+                field + ": disabled button became translucent");
+        }
+    }
+
+    private IEnumerator CheckCameraButtons()
+    {
+        var camera = Find<GameplayCameraController>();
+        CheckCameraSelection(camera, "overviewButton");
+        Action("FocusLauncher").onClick.Invoke();
+        yield return Until(() => !camera.IsBusy, "launcher focus");
+        CheckCameraSelection(camera, "launcherButton");
+        Action("FocusTarget").onClick.Invoke();
+        yield return Until(() => !camera.IsBusy, "target focus");
+        CheckCameraSelection(camera, "targetButton");
+        Action("OpenPauseMenu").onClick.Invoke();
+        yield return new WaitForSecondsRealtime(0.3f);
+        Require(Time.timeScale == 0f && ((GameObject)Get(camera, "controlsCanvas")).activeInHierarchy,
+            "Camera buttons disappeared on pause");
+        var pause = Find<PauseMenuController>();
+        var overlay = (PanelFade)Get(pause, "overlayFade");
+        Require(overlay.gameObject.activeInHierarchy && overlay.GetComponent<CanvasGroup>().alpha == 1f
+            && ((GameObject)Get(pause, "pausePage")).activeInHierarchy, "Pause panel is invisible");
+        foreach (string field in new[] { "launcherButton", "overviewButton", "targetButton" })
+            Require(!((Button)Get(camera, field)).IsInteractable(), field + ": usable while paused");
+        CheckCameraSelection(camera, "targetButton");
+        yield return Capture("camera-selection-paused");
+        // Даже вызов обработчика напрямую не должен менять камеру на паузе.
+        camera.FocusLauncher();
+        yield return null;
+        CheckCameraSelection(camera, "targetButton");
+        Action("ResumeGame").onClick.Invoke();
+        yield return new WaitForSecondsRealtime(0.3f);
+        Action("ShowOverview").onClick.Invoke();
+        yield return Until(() => !camera.IsBusy, "overview focus");
+        CheckCameraSelection(camera, "overviewButton");
+        Require(All<Transform>().All(transform => transform.name != "AimHint"), "Removed camera hint returned");
+        Pass(SceneManager.GetActiveScene().name + ": camera selection survives pause; buttons remain visible, opaque and blocked; hint absent");
+    }
+
     private IEnumerator Checks()
     {
         yield return Scene("MainMenu");
@@ -146,6 +195,7 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return Scene("Gameplay");
         yield return new WaitForSecondsRealtime(0.4f);
         yield return Capture("gameplay");
+        yield return CheckCameraButtons();
         int particleSystems = All<ParticleSystem>().Length;
         int gameObjects = All<Transform>().Length;
         var material = Find<SlingshotController>().projectilePrefab.GetComponent<ProjectileComicEffects>();
@@ -221,6 +271,7 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return Capture("victory");
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("Level2");
+        yield return CheckCameraButtons();
         Require(LevelProgress.CurrentLevelId == 2 && Find<LevelSession>().RemainingShots == 5, "Next level failed");
         Pass("Victory Continue button opens Level2 with five shots");
 
@@ -255,6 +306,7 @@ public sealed class ValidationRunner : MonoBehaviour
         {
             SceneTransition.Load(level);
             yield return Scene(level);
+            yield return CheckCameraButtons();
             Require(Find<LevelSession>().RemainingShots == 5 && Find<SlingshotController>().CanAim, level + " initialization failed");
             Pass(level + " loads with intact UI, FX pool and five projectiles");
         }

@@ -37,6 +37,9 @@ public class GameplayCameraController : MonoBehaviour
     [Header("Управление камерой")]
     public UnityEvent onLauncherFocused = new UnityEvent();
     public bool showControls = true;
+    [Tooltip("Оттенок кнопки текущего режима камеры, сохраняющийся при паузе.")]
+    [SerializeField, InspectorName("Оттенок выбранной кнопки")]
+    private Color selectedViewTint = new Color32(255, 226, 180, 255);
     public bool IsBusy => shotSequence || viewTransition != null;
 
     private enum ViewMode { Overview, Launcher, Target }
@@ -56,6 +59,9 @@ public class GameplayCameraController : MonoBehaviour
     [SerializeField] private Button launcherButton;
     [SerializeField] private Button overviewButton;
     [SerializeField] private Button targetButton;
+    private Color launcherButtonColor;
+    private Color overviewButtonColor;
+    private Color targetButtonColor;
 
     private bool CanNavigate => !shotSequence && !SceneTransition.IsLoading && slingshot != null
         && slingshot.isActiveAndEnabled && !slingshot.IsDragging && Time.timeScale > 0f;
@@ -77,6 +83,9 @@ public class GameplayCameraController : MonoBehaviour
         FitBackdrop();
         SetView(OverviewPosition, OverviewSize);
         lastAspect = view.aspect;
+        launcherButtonColor = launcherButton.targetGraphic.color;
+        overviewButtonColor = overviewButton.targetGraphic.color;
+        targetButtonColor = targetButton.targetGraphic.color;
     }
 
     private void LateUpdate()
@@ -101,11 +110,14 @@ public class GameplayCameraController : MonoBehaviour
         }
         if (controlsCanvas == null)
             return;
-        controlsCanvas.SetActive(showControls && slingshot != null
-            && slingshot.isActiveAndEnabled && Time.timeScale > 0f);
+        controlsCanvas.SetActive(showControls && slingshot != null);
         launcherButton.interactable = CanNavigate && mode != ViewMode.Launcher;
         overviewButton.interactable = CanNavigate && mode != ViewMode.Overview;
         targetButton.interactable = CanNavigate && mode != ViewMode.Target && targetFocus != null;
+        // Выбор режима отмечается цветом отдельно от блокировки кнопок на паузе.
+        launcherButton.targetGraphic.color = launcherButtonColor * (mode == ViewMode.Launcher ? selectedViewTint : Color.white);
+        overviewButton.targetGraphic.color = overviewButtonColor * (mode == ViewMode.Overview ? selectedViewTint : Color.white);
+        targetButton.targetGraphic.color = targetButtonColor * (mode == ViewMode.Target ? selectedViewTint : Color.white);
     }
 
     public IEnumerator PrepareForShot()

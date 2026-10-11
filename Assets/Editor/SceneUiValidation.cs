@@ -48,6 +48,7 @@ public static class SceneUiValidation
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
+                    ValidatePauseHierarchy(Find<PauseMenuController>().Single());
                     References(Find<GameplayCameraController>().Single(), "controlsCanvas", "controlsRect",
                         "launcherButton", "overviewButton", "targetButton");
                     References(Find<SlingshotController>().Single(), "dots");
@@ -85,6 +86,24 @@ public static class SceneUiValidation
     }
 
     private static T[] Find<T>() where T : Object => Object.FindObjectsByType<T>(FindObjectsInactive.Include);
+
+    private static void ValidatePauseHierarchy(PauseMenuController pause)
+    {
+        var serialized = new SerializedObject(pause);
+        var button = (Button)serialized.FindProperty("pauseButton").objectReferenceValue;
+        var overlay = (PanelFade)serialized.FindProperty("overlayFade").objectReferenceValue;
+        var canvas = button.GetComponentInParent<Canvas>(true);
+        Require(canvas != null && canvas.isActiveAndEnabled,
+            "Пауза: кнопка должна находиться внутри включённого Canvas");
+        Require(overlay.GetComponentInParent<Canvas>(true) == canvas,
+            "Пауза: Overlay должен находиться внутри того же Canvas, что и кнопка");
+        foreach (string field in new[] { "pausePage", "settingsPage" })
+        {
+            var page = (GameObject)serialized.FindProperty(field).objectReferenceValue;
+            Require(page.transform.IsChildOf(overlay.transform),
+                "Пауза: " + field + " должен находиться внутри Overlay");
+        }
+    }
 
     private static void References(Object owner, params string[] fields)
     {

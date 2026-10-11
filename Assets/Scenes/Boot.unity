@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1001 &722552618
+--- !u!1001 &187019488
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -127,13 +127,21 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1408505575207670652, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 1560875945749164319, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 552.40405
       objectReference: {fileID: 0}
     - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 797.10956
       objectReference: {fileID: 0}
     - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
       propertyPath: m_LocalPosition.z
@@ -363,4 +371,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 1162827445}
   - {fileID: 1900000011}
-  - {fileID: 722552618}
+  - {fileID: 187019488}
