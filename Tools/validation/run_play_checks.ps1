@@ -1,4 +1,4 @@
-param([string]$UnityPath)
+param([string]$UnityPath, [switch]$PauseReturnOnly, [switch]$MinimalEditor)
 $ErrorActionPreference = 'Stop'
 $taskRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 if (!$UnityPath) {
@@ -9,7 +9,7 @@ if (!$UnityPath) {
 if (!(Test-Path -LiteralPath $UnityPath)) { throw 'Укажите путь к Unity.exe через -UnityPath.' }
 
 # Уникальная копия проекта сохраняет исходные сцены, редактор и игровой прогресс пользователя.
-$taskProject = Join-Path $taskRoot ('Temp/PlayChecks-' + [guid]::NewGuid().ToString('N'))
+$taskProject = Join-Path ([IO.Path]::GetTempPath()) ('BPGChecks/PlayChecks-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $taskProject | Out-Null
 foreach ($taskFolder in @('Assets', 'Packages', 'ProjectSettings')) {
     Copy-Item -LiteralPath (Join-Path $taskRoot $taskFolder) -Destination (Join-Path $taskProject $taskFolder) -Recurse
@@ -23,6 +23,11 @@ $taskSettings = [regex]::Replace($taskSettings, '(?m)^  productName:.*$', '  pro
 # Уже загруженные пакеты берутся из локального кэша, чтобы не скачивать их повторно.
 $taskManifestPath = Join-Path $taskProject 'Packages/manifest.json'
 $taskManifest = Get-Content -LiteralPath $taskManifestPath -Raw | ConvertFrom-Json
+if ($MinimalEditor) {
+    # Редакторский AI не нужен игровым проверкам и может исчерпать память при перезагрузке домена.
+    $taskManifest.dependencies.PSObject.Properties.Remove('com.unity.ai.assistant')
+    $taskManifest.dependencies.PSObject.Properties.Remove('com.unity.ai.inference')
+}
 $taskCache = Join-Path $taskRoot 'Library/PackageCache'
 if (Test-Path -LiteralPath $taskCache) {
     foreach ($taskDependency in $taskManifest.dependencies.PSObject.Properties) {
@@ -37,11 +42,14 @@ New-Item -ItemType Directory -Path (Join-Path $taskProject 'Assets/Editor') -For
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'PlayChecksBootstrap.cs') -Destination (Join-Path $taskProject 'Assets/Editor/PlayChecksBootstrap.cs')
 $taskLog = Join-Path $taskProject 'unity.log'
 Write-Output ('Проверки запускаются в отдельном проекте: ' + $taskProject)
-$taskProcess = Start-Process -FilePath $UnityPath -ArgumentList @(
+$taskUnityArguments = @(
     '-batchmode', '-projectPath', ('"' + $taskProject + '"'),
     '-executeMethod', 'PlayChecksBootstrap.Run', '-screen-width', '1920', '-screen-height', '1080',
     '-logFile', ('"' + $taskLog + '"')
-) -WindowStyle Hidden -Wait -PassThru
+)
+if ($MinimalEditor) { $taskUnityArguments += @('-force-d3d11', '--burst-disable-compilation') }
+if ($PauseReturnOnly) { $taskUnityArguments += '-bpgPauseReturnOnly' }
+$taskProcess = Start-Process -FilePath $UnityPath -ArgumentList $taskUnityArguments -WindowStyle Hidden -Wait -PassThru
 $taskMarker = Join-Path $taskProject 'play-checks.done'
 if ($taskProcess.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskMarker) -or
     (Get-Content -LiteralPath $taskMarker -Raw) -ne 'PASS') {

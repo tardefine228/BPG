@@ -127,6 +127,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1408505575207670652, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
+      propertyPath: m_AdditionalShaderChannelsFlag
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 1560875945749164319, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8320760833152782162, guid: 71009767d113cc347a4dd31e21ee0f98, type: 3}
       propertyPath: m_LocalPosition.x
       value: 552.1174
