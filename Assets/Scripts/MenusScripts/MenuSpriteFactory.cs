@@ -43,38 +43,29 @@ public static class MenuSpriteFactory
         return ToSprite(texture, texture.name);
     }
 
-    /// <summary>Filled circle used for the active page dot.</summary>
-    public static Sprite CreateCircle(int size = 64)
+    /// <summary>
+    /// Page dot: a filled circle or a ring. The colour is baked into the
+    /// texture on purpose - the dot is drawn with a plain Image, so it cannot
+    /// depend on the tint surviving the button's colour transitions.
+    /// </summary>
+    public static Sprite CreateDot(bool filled, Color32 color, int size = 64, float thickness = 0.16f)
     {
         size = Mathf.Max(16, size);
-        Texture2D texture = NewTexture(size, "DotFilled");
+        Texture2D texture = NewTexture(size, filled ? "DotFilled" : "DotRing");
         Color32[] pixels = new Color32[size * size];
-        Color32 fill = new Color32(255, 255, 255, 255);
-        Color32 clear = new Color32(255, 255, 255, 0);
-        FillCircle(pixels, size, size * 0.5f, fill, clear);
-        texture.SetPixels32(pixels);
-        texture.Apply();
-        return ToSprite(texture, texture.name);
-    }
+        Color32 clear = new Color32(0, 0, 0, 0);
+        FillCircle(pixels, size, size * 0.5f, color, clear);
 
-    /// <summary>Circle outline used for the inactive page dots.</summary>
-    public static Sprite CreateRing(int size = 64, float thickness = 0.16f)
-    {
-        size = Mathf.Max(16, size);
-        Texture2D texture = NewTexture(size, "DotRing");
-        Color32[] pixels = new Color32[size * size];
-        Color32 fill = new Color32(255, 255, 255, 255);
-        Color32 clear = new Color32(255, 255, 255, 0);
-        FillCircle(pixels, size, size * 0.5f, fill, clear);
-
-        Color32[] inner = new Color32[size * size];
-        FillCircle(inner, size, size * (0.5f - Mathf.Clamp(thickness, 0.05f, 0.45f)), fill, clear);
-
-        for (int i = 0; i < pixels.Length; i++)
+        if (!filled)
         {
-            if (inner[i].a > 0)
+            Color32[] inner = new Color32[size * size];
+            FillCircle(inner, size, size * (0.5f - Mathf.Clamp(thickness, 0.05f, 0.45f)), color, clear);
+            for (int i = 0; i < pixels.Length; i++)
             {
-                pixels[i] = clear;
+                if (inner[i].a > 0)
+                {
+                    pixels[i] = clear;
+                }
             }
         }
 
