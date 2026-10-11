@@ -882,6 +882,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000002}
   - component: {fileID: 168113806}
   - component: {fileID: 168113808}
   - component: {fileID: 168113807}
@@ -925,7 +926,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -2002,6 +2003,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000003}
   - component: {fileID: 257475974}
   - component: {fileID: 257475976}
   - component: {fileID: 257475975}
@@ -2045,7 +2047,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -2600,6 +2602,7 @@ GameObject:
   - component: {fileID: 325309252}
   - component: {fileID: 325309251}
   - component: {fileID: 325309250}
+  - component: {fileID: 2100000005}
   - component: {fileID: 325309254}
   m_Layer: 5
   m_Name: LevelCard_2
@@ -2757,6 +2760,7 @@ MonoBehaviour:
   lockOverlay: {fileID: 1780374274}
   soonOverlay: {fileID: 1250999616}
   parHint: {fileID: 2020369931}
+  hoverOutline: {fileID: 2100000005}
   stars:
   - {fileID: 2022354283}
   - {fileID: 743916025}
@@ -3326,6 +3330,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000010}
   - component: {fileID: 389592839}
   - component: {fileID: 389592841}
   - component: {fileID: 389592840}
@@ -3369,7 +3374,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3477,6 +3482,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000019}
   - component: {fileID: 415502295}
   - component: {fileID: 415502297}
   - component: {fileID: 415502296}
@@ -3520,7 +3526,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3769,6 +3775,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000008}
   - component: {fileID: 487868181}
   - component: {fileID: 487868183}
   - component: {fileID: 487868182}
@@ -3812,7 +3819,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -3844,6 +3851,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000004}
   - component: {fileID: 513650112}
   - component: {fileID: 513650114}
   - component: {fileID: 513650113}
@@ -3887,7 +3895,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -4349,6 +4357,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000007}
   - component: {fileID: 743916024}
   - component: {fileID: 743916026}
   - component: {fileID: 743916025}
@@ -4392,7 +4401,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -4831,6 +4840,7 @@ GameObject:
   - component: {fileID: 887631395}
   - component: {fileID: 887631394}
   - component: {fileID: 887631393}
+  - component: {fileID: 2100000001}
   - component: {fileID: 887631397}
   m_Layer: 5
   m_Name: LevelCard_1
@@ -4988,6 +4998,7 @@ MonoBehaviour:
   lockOverlay: {fileID: 1392383010}
   soonOverlay: {fileID: 1873234787}
   parHint: {fileID: 334075219}
+  hoverOutline: {fileID: 2100000001}
   stars:
   - {fileID: 168113807}
   - {fileID: 257475975}
@@ -5000,6 +5011,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000014}
   - component: {fileID: 903644426}
   - component: {fileID: 903644428}
   - component: {fileID: 903644427}
@@ -5043,7 +5055,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -6535,6 +6547,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000018}
   - component: {fileID: 1113519339}
   - component: {fileID: 1113519341}
   - component: {fileID: 1113519340}
@@ -6578,7 +6591,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -7842,6 +7855,7 @@ GameObject:
   - component: {fileID: 1330632618}
   - component: {fileID: 1330632617}
   - component: {fileID: 1330632616}
+  - component: {fileID: 2100000009}
   - component: {fileID: 1330632620}
   m_Layer: 5
   m_Name: LevelCard_3
@@ -7999,6 +8013,7 @@ MonoBehaviour:
   lockOverlay: {fileID: 390269165}
   soonOverlay: {fileID: 296035721}
   parHint: {fileID: 1233579236}
+  hoverOutline: {fileID: 2100000009}
   stars:
   - {fileID: 389592840}
   - {fileID: 1791594445}
@@ -8016,6 +8031,7 @@ GameObject:
   - component: {fileID: 1366888329}
   - component: {fileID: 1366888328}
   - component: {fileID: 1366888327}
+  - component: {fileID: 2100000013}
   - component: {fileID: 1366888331}
   m_Layer: 5
   m_Name: LevelCard_4
@@ -8173,6 +8189,7 @@ MonoBehaviour:
   lockOverlay: {fileID: 755926814}
   soonOverlay: {fileID: 1872543379}
   parHint: {fileID: 1534661663}
+  hoverOutline: {fileID: 2100000013}
   stars:
   - {fileID: 903644427}
   - {fileID: 1507511243}
@@ -8656,6 +8673,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000015}
   - component: {fileID: 1507511242}
   - component: {fileID: 1507511244}
   - component: {fileID: 1507511243}
@@ -8699,7 +8717,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -10149,6 +10167,7 @@ GameObject:
   - component: {fileID: 1755935461}
   - component: {fileID: 1755935460}
   - component: {fileID: 1755935459}
+  - component: {fileID: 2100000017}
   - component: {fileID: 1755935463}
   m_Layer: 5
   m_Name: LevelCard_5
@@ -10306,6 +10325,7 @@ MonoBehaviour:
   lockOverlay: {fileID: 1209852106}
   soonOverlay: {fileID: 1602611111}
   parHint: {fileID: 209141472}
+  hoverOutline: {fileID: 2100000017}
   stars:
   - {fileID: 1113519340}
   - {fileID: 415502296}
@@ -10703,6 +10723,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000020}
   - component: {fileID: 1787780685}
   - component: {fileID: 1787780687}
   - component: {fileID: 1787780686}
@@ -10746,7 +10767,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -10778,6 +10799,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000011}
   - component: {fileID: 1791594444}
   - component: {fileID: 1791594446}
   - component: {fileID: 1791594445}
@@ -10821,7 +10843,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -11895,6 +11917,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000012}
   - component: {fileID: 1934992132}
   - component: {fileID: 1934992134}
   - component: {fileID: 1934992133}
@@ -11938,7 +11961,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -12296,6 +12319,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000006}
   - component: {fileID: 2022354282}
   - component: {fileID: 2022354284}
   - component: {fileID: 2022354283}
@@ -12339,7 +12363,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -12508,6 +12532,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 2100000016}
   - component: {fileID: 2051506203}
   - component: {fileID: 2051506205}
   - component: {fileID: 2051506204}
@@ -12551,7 +12576,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -13042,3 +13067,303 @@ SceneRoots:
   - {fileID: 268435901}
   - {fileID: 990004953}
   - {fileID: 206772952}
+--- !u!114 &2100000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 887631391}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
+  m_EffectColor: {r: 1, g: 0.84313726, b: 0.36078432, a: 1}
+  m_EffectDistance: {x: 8, y: -8}
+  m_UseGraphicAlpha: 1
+--- !u!114 &2100000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 168113805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 257475973}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 513650111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 325309248}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
+  m_EffectColor: {r: 1, g: 0.84313726, b: 0.36078432, a: 1}
+  m_EffectDistance: {x: 8, y: -8}
+  m_UseGraphicAlpha: 1
+--- !u!114 &2100000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2022354281}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 743916023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 487868180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1330632614}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
+  m_EffectColor: {r: 1, g: 0.84313726, b: 0.36078432, a: 1}
+  m_EffectDistance: {x: 8, y: -8}
+  m_UseGraphicAlpha: 1
+--- !u!114 &2100000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 389592838}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1791594443}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1934992131}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1366888325}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
+  m_EffectColor: {r: 1, g: 0.84313726, b: 0.36078432, a: 1}
+  m_EffectDistance: {x: 8, y: -8}
+  m_UseGraphicAlpha: 1
+--- !u!114 &2100000014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 903644425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1507511241}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2051506202}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1755935457}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
+  m_EffectColor: {r: 1, g: 0.84313726, b: 0.36078432, a: 1}
+  m_EffectDistance: {x: 8, y: -8}
+  m_UseGraphicAlpha: 1
+--- !u!114 &2100000018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113519338}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000019
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 415502294}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+--- !u!114 &2100000020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1787780684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b2f9c3d1e5a4f60a1d2c3e4f5061728, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StarFlipOnHover
+  duration: 0.3
+  starOnSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
+  starOffSprite: {fileID: 7862777063423562034, guid: 340518d9bbde6fd468d765d1bf6a2f58, type: 3}
