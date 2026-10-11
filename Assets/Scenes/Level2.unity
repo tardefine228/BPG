@@ -1051,6 +1051,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7607989878650431466, guid: 21e052bad33331f469e85775b9d256f9, type: 3}
+      propertyPath: fallDamageHeight
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7607989878650431466, guid: 21e052bad33331f469e85775b9d256f9, type: 3}
+      propertyPath: fallDamagePerUnit
+      value: 1000
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2437,6 +2445,14 @@ PrefabInstance:
     - target: {fileID: 4931932943180812785, guid: 21e052bad33331f469e85775b9d256f9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7607989878650431466, guid: 21e052bad33331f469e85775b9d256f9, type: 3}
+      propertyPath: fallDamageHeight
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7607989878650431466, guid: 21e052bad33331f469e85775b9d256f9, type: 3}
+      propertyPath: fallDamagePerUnit
+      value: 54.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

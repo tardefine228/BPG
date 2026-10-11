@@ -142,7 +142,7 @@ public sealed class MouseEnemy : MonoBehaviour
         for (int i = 0; i < overlaps.Count; i++)
         {
             Collider2D other = overlaps[i];
-            if (other == null || other == self || other.isTrigger)
+            if (other == null || other.isTrigger)
                 continue;
 
             Bounds b = other.bounds;
