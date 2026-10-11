@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-/// <summary>Shared menu fade, including when gameplay is paused.</summary>
+// Плавное появление и скрытие панелей работает во время паузы.
 [RequireComponent(typeof(CanvasGroup))]
 public sealed class PanelFade : MonoBehaviour
 {
@@ -19,7 +19,7 @@ public sealed class PanelFade : MonoBehaviour
         routine = null;
         IsVisible = visible;
         group.interactable = visible;
-        // A closing panel continues to absorb clicks until it disappears.
+        // Закрывающаяся панель блокирует клики до полного исчезновения.
         group.blocksRaycasts = true;
         if (visible)
             gameObject.SetActive(true);

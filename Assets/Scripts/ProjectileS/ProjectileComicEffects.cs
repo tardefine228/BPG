@@ -33,11 +33,10 @@ public sealed class ProjectileComicEffects : MonoBehaviour
 
     private readonly Dictionary<Collider2D, float> lastImpacts = new Dictionary<Collider2D, float>();
     private Rigidbody2D body;
-    private TrailRenderer outline;
-    private TrailRenderer ribbon;
-    private TrailRenderer core;
-    private GameObject trailRoot;
-    private Material trailMaterial;
+    [SerializeField] private TrailRenderer outline;
+    [SerializeField] private TrailRenderer ribbon;
+    [SerializeField] private TrailRenderer core;
+    [SerializeField] private GameObject trailRoot;
     private bool launched;
     private bool trailStopped;
     private float trailFadeRemaining;
@@ -54,24 +53,15 @@ public sealed class ProjectileComicEffects : MonoBehaviour
             return;
         }
 
-        trailMaterial = new Material(comicMaterial) { name = "ComicTracer" };
-        trailMaterial.mainTexture = Texture2D.whiteTexture;
-        trailMaterial.color = Color.white;
-        // Independent world-space root: projectile rotation and scale do not stretch the trace.
-        trailRoot = new GameObject("ComicTracer");
-        trailRoot.transform.position = transform.position;
-        outline = CreateTrail("Ink", trailWidth + outlineWidth * 2f, inkColor, effectsSortingOrder);
-        ribbon = CreateTrail("Ribbon", trailWidth, trailColor, effectsSortingOrder + 1);
-        core = CreateTrail("Core", trailWidth * 0.28f, Color.white, effectsSortingOrder + 2);
+        ConfigureTrail(outline, trailWidth + outlineWidth * 2f, inkColor, effectsSortingOrder);
+        ConfigureTrail(ribbon, trailWidth, trailColor, effectsSortingOrder + 1);
+        ConfigureTrail(core, trailWidth * 0.28f, Color.white, effectsSortingOrder + 2);
     }
 
-    private TrailRenderer CreateTrail(string label, float width, Color color, int order)
+    private void ConfigureTrail(TrailRenderer trail, float width, Color color, int order)
     {
-        GameObject obj = new GameObject(label);
-        obj.transform.SetParent(trailRoot.transform, false);
-        TrailRenderer trail = obj.AddComponent<TrailRenderer>();
         trail.emitting = false;
-        trail.sharedMaterial = trailMaterial;
+        trail.sharedMaterial = comicMaterial;
         trail.time = trailLifetime;
         trail.minVertexDistance = 0.08f;
         trail.widthMultiplier = width;
@@ -86,10 +76,9 @@ public sealed class ProjectileComicEffects : MonoBehaviour
             new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
             new[] { new GradientAlphaKey(color.a, 0f), new GradientAlphaKey(0f, 1f) });
         trail.colorGradient = gradient;
-        return trail;
     }
 
-    // Called only when SlingshotController actually launches the shell.
+    // Включает след только при фактическом запуске снаряда.
     public void BeginFlight()
     {
         launched = true;
@@ -110,7 +99,7 @@ public sealed class ProjectileComicEffects : MonoBehaviour
             return;
         if (trailStopped)
         {
-            // Remove the frozen trace even while the projectile remains lying on the ground.
+            // Убирает остаток следа, даже если снаряд продолжает лежать на земле.
             trailFadeRemaining -= Time.deltaTime;
             if (trailFadeRemaining <= 0f)
             {
@@ -166,9 +155,4 @@ public sealed class ProjectileComicEffects : MonoBehaviour
             outline.emitting = ribbon.emitting = core.emitting = false;
     }
 
-    private void OnDestroy()
-    {
-        if (trailRoot != null) Destroy(trailRoot);
-        if (trailMaterial != null) Destroy(trailMaterial);
-    }
 }

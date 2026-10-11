@@ -1,39 +1,28 @@
-using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
 
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
 
-/// <summary>
-/// Builds and controls the in-game pause menu. The UI is created at runtime so
-/// the gameplay scene can keep its existing presentation and layout.
-/// </summary>
+// Управляет готовыми панелями паузы и настроек, сохранёнными в сцене.
 [DisallowMultipleComponent]
 public sealed class PauseMenuController : MonoBehaviour
 {
     [SerializeField] private SlingshotController gameplayController;
 
-    private const float DefaultVolume = 0.5f;
-    private const int PauseCanvasSortingOrder = 100;
-
-    private GameObject overlayObject;
-    private GameObject pausePage;
-    private GameObject settingsPage;
-    private Button pauseButton;
-    private Slider musicVolumeSlider;
-    private Slider effectsVolumeSlider;
+    [SerializeField] private GameObject pausePage;
+    [SerializeField] private GameObject settingsPage;
+    [SerializeField] private Button pauseButton;
+    [SerializeField] private Slider musicVolumeSlider;
+    [SerializeField] private Slider effectsVolumeSlider;
     private AudioManager audioManager;
-    private Sprite uiSprite;
-    private TMP_FontAsset uiFont;
     private bool isPaused;
     private bool audioCallbacksBound;
     private float timeScaleBeforePause = 1f;
-    private PanelFade overlayFade;
-    private PanelFade pauseFade;
-    private PanelFade settingsFade;
+    [SerializeField] private PanelFade overlayFade;
+    [SerializeField] private PanelFade pauseFade;
+    [SerializeField] private PanelFade settingsFade;
     private bool gameplayWasEnabled;
     private bool resultScreenOpen;
 
@@ -53,9 +42,11 @@ public sealed class PauseMenuController : MonoBehaviour
             gameplayController = GetComponent<SlingshotController>();
         }
 
-        // Avoid carrying a paused time scale into this scene if it was reloaded.
+        // Перезагрузка уровня восстанавливает нормальную скорость игрового времени.
         Time.timeScale = 1f;
-        BuildPauseInterface();
+        settingsFade.SetVisible(false, true);
+        pauseFade.SetVisible(false, true);
+        overlayFade.SetVisible(false, true);
     }
 
     private void Start()
@@ -107,10 +98,6 @@ public sealed class PauseMenuController : MonoBehaviour
             Time.timeScale = timeScaleBeforePause > 0f ? timeScaleBeforePause : 1f;
         }
 
-        if (uiSprite != null)
-        {
-            Destroy(uiSprite);
-        }
     }
 
     public void OpenPauseMenu()
@@ -236,286 +223,6 @@ public sealed class PauseMenuController : MonoBehaviour
         }
 
         audioCallbacksBound = true;
-    }
-
-    private void BuildPauseInterface()
-    {
-        int uiLayer = LayerMask.NameToLayer("UI");
-        if (uiLayer < 0)
-        {
-            uiLayer = 5;
-        }
-
-        GameObject canvasObject = new GameObject(
-            "GameplayPauseCanvas",
-            typeof(RectTransform),
-            typeof(Canvas),
-            typeof(CanvasScaler),
-            typeof(GraphicRaycaster));
-        canvasObject.layer = uiLayer;
-
-        Canvas pauseCanvas = canvasObject.GetComponent<Canvas>();
-        pauseCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        pauseCanvas.sortingOrder = PauseCanvasSortingOrder;
-
-        CanvasScaler canvasScaler = canvasObject.GetComponent<CanvasScaler>();
-        canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        canvasScaler.referenceResolution = new Vector2(1920f, 1080f);
-        canvasScaler.matchWidthOrHeight = 0.5f;
-
-        // Create a plain white UI sprite from Unity's built-in white texture;
-        // relying on UI/Skin/UISprite.psd fails in newer Unity editor versions.
-        uiSprite = Sprite.Create(
-            Texture2D.whiteTexture,
-            new Rect(0f, 0f, 1f, 1f),
-            new Vector2(0.5f, 0.5f));
-        uiFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-
-        pauseButton = CreateButton(
-            canvasObject.transform,
-            "PauseButton",
-            "ПАУЗА",
-            new Vector2(150f, 76f),
-            new Vector2(-38f, -38f),
-            OpenPauseMenu,
-            fontSize: 30f,
-            topRight: true);
-        RectTransform overlayRect = CreateRectTransform(
-            "PauseOverlay",
-            canvasObject.transform,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            Vector2.zero);
-        Image overlayImage = overlayRect.gameObject.AddComponent<Image>();
-        ConfigureImage(overlayImage, new Color32(0, 0, 0, 205));
-        overlayImage.raycastTarget = true;
-        overlayObject = overlayRect.gameObject;
-        overlayFade = overlayObject.AddComponent<PanelFade>();
-
-        RectTransform pausePageRect = CreateRectTransform(
-            "PausePage",
-            overlayObject.transform,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            Vector2.zero);
-        pausePage = pausePageRect.gameObject;
-        pauseFade = pausePage.AddComponent<PanelFade>();
-        BuildPausePage(pausePageRect);
-
-        RectTransform settingsPageRect = CreateRectTransform(
-            "SettingsPage",
-            overlayObject.transform,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            Vector2.zero);
-        settingsPage = settingsPageRect.gameObject;
-        settingsFade = settingsPage.AddComponent<PanelFade>();
-        BuildSettingsPage(settingsPageRect);
-        settingsFade.SetVisible(false, true);
-        pauseFade.SetVisible(false, true);
-        overlayFade.SetVisible(false, true);
-    }
-
-    private void BuildPausePage(RectTransform parent)
-    {
-        CreateLabel(parent, "PauseTitle", "ПАУЗА", new Vector2(0f, 260f),
-            new Vector2(800f, 90f), 58f, Color.white);
-
-        CreateButton(parent, "ResumeButton", "ОСТАТЬСЯ",
-            new Vector2(640f, 88f), new Vector2(0f, 105f), ResumeGame, 42f);
-        CreateButton(parent, "SettingsButton", "НАСТРОЙКИ",
-            new Vector2(640f, 88f), new Vector2(0f, -5f), OpenSettings, 42f);
-        CreateButton(parent, "MainMenuButton", "В МЕНЮ",
-            new Vector2(640f, 88f), new Vector2(0f, -115f), ReturnToMainMenu, 42f);
-    }
-
-    private void BuildSettingsPage(RectTransform parent)
-    {
-        CreateLabel(parent, "SettingsTitle", "НАСТРОЙКИ", new Vector2(0f, 275f),
-            new Vector2(900f, 90f), 54f, Color.white);
-
-        CreateLabel(parent, "MusicVolumeLabel", "ГРОМКОСТЬ МУЗЫКИ",
-            new Vector2(-335f, 125f), new Vector2(640f, 72f), 38f, Color.white);
-        musicVolumeSlider = CreateVolumeSlider(
-            parent,
-            "MusicVolumeSlider",
-            new Vector2(345f, 125f),
-            new Vector2(610f, 58f),
-            DefaultVolume);
-
-        CreateLabel(parent, "EffectsVolumeLabel", "ГРОМКОСТЬ ЭФФЕКТОВ",
-            new Vector2(-335f, 20f), new Vector2(640f, 72f), 38f, Color.white);
-        effectsVolumeSlider = CreateVolumeSlider(
-            parent,
-            "EffectsVolumeSlider",
-            new Vector2(345f, 20f),
-            new Vector2(610f, 58f),
-            DefaultVolume);
-
-        CreateButton(parent, "BackToPauseButton", "НАЗАД",
-            new Vector2(480f, 82f), new Vector2(0f, -230f), ReturnToPausePage, 40f);
-    }
-
-    private Button CreateButton(
-        Transform parent,
-        string objectName,
-        string label,
-        Vector2 size,
-        Vector2 position,
-        UnityAction onClick,
-        float fontSize,
-        bool topRight = false)
-    {
-        Vector2 anchor = topRight ? Vector2.one : new Vector2(0.5f, 0.5f);
-        return MenuButtonStyle.Default.CreateButton(parent, objectName, label, anchor,
-            size, position, onClick, fontSize);
-    }
-
-    private TMP_Text CreateLabel(
-        Transform parent,
-        string objectName,
-        string value,
-        Vector2 position,
-        Vector2 size,
-        float fontSize,
-        Color color)
-    {
-        RectTransform rect = CreateRectTransform(
-            objectName,
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            size,
-            position);
-
-        return CreateText(rect, value, fontSize, color);
-    }
-
-    private TMP_Text CreateText(RectTransform parent, string value, float fontSize, Color color)
-    {
-        TextMeshProUGUI text = parent.gameObject.AddComponent<TextMeshProUGUI>();
-        text.text = value;
-        text.font = uiFont;
-        text.fontSize = fontSize;
-        text.fontSizeMin = Mathf.Max(18f, fontSize - 12f);
-        text.fontSizeMax = fontSize;
-        text.enableAutoSizing = true;
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = TextAlignmentOptions.Center;
-        text.color = color;
-        text.raycastTarget = false;
-        text.margin = new Vector4(6f, 2f, 6f, 2f);
-        return text;
-    }
-
-    private Slider CreateVolumeSlider(
-        Transform parent,
-        string objectName,
-        Vector2 position,
-        Vector2 size,
-        float initialValue)
-    {
-        RectTransform sliderRect = CreateRectTransform(
-            objectName,
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            size,
-            position);
-
-        RectTransform trackRect = CreateRectTransform(
-            "Track",
-            sliderRect,
-            new Vector2(0f, 0.38f),
-            new Vector2(1f, 0.62f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            Vector2.zero);
-        Image trackImage = trackRect.gameObject.AddComponent<Image>();
-        ConfigureImage(trackImage, new Color32(220, 220, 220, 255));
-
-        RectTransform fillRect = CreateRectTransform(
-            "Fill",
-            trackRect,
-            new Vector2(0f, 0f),
-            new Vector2(0f, 1f),
-            new Vector2(0f, 0.5f),
-            Vector2.zero,
-            Vector2.zero);
-        Image fillImage = fillRect.gameObject.AddComponent<Image>();
-        ConfigureImage(fillImage, new Color32(230, 155, 82, 255));
-        fillImage.raycastTarget = false;
-
-        RectTransform handleArea = CreateRectTransform(
-            "HandleSlideArea",
-            sliderRect,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(-24f, 0f),
-            Vector2.zero);
-        RectTransform handleRect = CreateRectTransform(
-            "Handle",
-            handleArea,
-            new Vector2(0f, 0f),
-            new Vector2(0f, 1f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(28f, 0f),
-            Vector2.zero);
-        Image handleImage = handleRect.gameObject.AddComponent<Image>();
-        ConfigureImage(handleImage, Color.white);
-
-        Slider slider = sliderRect.gameObject.AddComponent<Slider>();
-        slider.navigation = new Navigation { mode = Navigation.Mode.None };
-        slider.transition = Selectable.Transition.ColorTint;
-        slider.colors = MenuButtonStyle.Default.Colors;
-        slider.targetGraphic = handleImage;
-        slider.fillRect = fillRect;
-        slider.handleRect = handleRect;
-        slider.direction = Slider.Direction.LeftToRight;
-        slider.minValue = 0f;
-        slider.maxValue = 1f;
-        slider.wholeNumbers = false;
-        slider.SetValueWithoutNotify(Mathf.Clamp01(initialValue));
-        return slider;
-    }
-
-    private RectTransform CreateRectTransform(
-        string objectName,
-        Transform parent,
-        Vector2 anchorMin,
-        Vector2 anchorMax,
-        Vector2 pivot,
-        Vector2 size,
-        Vector2 anchoredPosition)
-    {
-        GameObject uiObject = new GameObject(objectName, typeof(RectTransform));
-        uiObject.layer = parent.gameObject.layer;
-
-        RectTransform rect = uiObject.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = anchorMin;
-        rect.anchorMax = anchorMax;
-        rect.pivot = pivot;
-        rect.sizeDelta = size;
-        rect.anchoredPosition = anchoredPosition;
-        return rect;
-    }
-
-    private void ConfigureImage(Image image, Color color)
-    {
-        image.sprite = uiSprite;
-        image.type = Image.Type.Simple;
-        image.color = color;
-        image.raycastTarget = true;
     }
 
     private static bool PauseKeyPressed()

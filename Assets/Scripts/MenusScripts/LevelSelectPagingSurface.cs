@@ -2,28 +2,23 @@ using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-/// <summary>
-/// Forwards pointer drags and mouse wheel input from the lobby UI to
-/// <see cref="LevelSelectController"/>. The component sits on the lobby root,
-/// so drags and scrolls that start on any child (background, level card,
-/// arrow) bubble up to it and flip the level pages.
-/// </summary>
+// Передаёт свайпы и колесо мыши контроллеру страниц, включая жесты над дочерними карточками.
 [DisallowMultipleComponent]
 public sealed class LevelSelectPagingSurface : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler, IScrollHandler
 {
-    /// <summary>Horizontal pointer delta in screen pixels.</summary>
+    // Смещение указателя по горизонтали в пикселях экрана.
     public event Action<float> Dragged;
 
-    /// <summary>Raised when the pointer is released after a drag.</summary>
+    // Событие завершения перетаскивания.
     public event Action DragCompleted;
 
-    /// <summary>Mouse wheel delta, positive when scrolling up.</summary>
+    // Смещение колеса мыши; положительное значение означает прокрутку вверх.
     public event Action<float> Scrolled;
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        // Nothing to prepare: the controller reads the live track position.
+        // Контроллер читает текущее положение страниц без предварительной подготовки.
     }
 
     public void OnDrag(PointerEventData eventData)

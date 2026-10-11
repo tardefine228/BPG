@@ -1,5 +1,4 @@
 using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -7,7 +6,7 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Camera))]
 public class GameplayCameraController : MonoBehaviour
 {
-    [Header("Scene")]
+    [Header("Объекты сцены")]
     public SlingshotController slingshot;
     public Transform launcherFocus;
     public Transform targetFocus;
@@ -17,13 +16,13 @@ public class GameplayCameraController : MonoBehaviour
     public Vector2 mapMax = new Vector2(95f, 62.5f);
     public float overviewPadding = 4f;
 
-    [Header("Manual zoom")]
+    [Header("Ручное приближение")]
     public float launcherSize = 8f;
     public float impactSize = 12f;
     public Vector2 launcherOffset = new Vector2(2f, 2f);
     public float transitionDuration = 0.5f;
 
-    [Header("Shot camera")]
+    [Header("Камера выстрела")]
     public float shotLauncherSize = 20f;
     public float preShotHold = 1f;
     public float followSize = 20f;
@@ -35,7 +34,7 @@ public class GameplayCameraController : MonoBehaviour
     [Tooltip("Плавное перемещение к месту попадания без дополнительного увеличения.")]
     [Min(0.1f)] public float impactTransitionDuration = 0.75f;
 
-    [Header("Future upgrade menu")]
+    [Header("Управление камерой")]
     public UnityEvent onLauncherFocused = new UnityEvent();
     public bool showControls = true;
     public bool IsBusy => shotSequence || viewTransition != null;
@@ -52,11 +51,11 @@ public class GameplayCameraController : MonoBehaviour
     private Coroutine cinematic;
     private float lastAspect;
     private float groundSurface;
-    private GameObject controlsCanvas;
-    private RectTransform controlsRect;
-    private Button launcherButton;
-    private Button overviewButton;
-    private Button targetButton;
+    [SerializeField] private GameObject controlsCanvas;
+    [SerializeField] private RectTransform controlsRect;
+    [SerializeField] private Button launcherButton;
+    [SerializeField] private Button overviewButton;
+    [SerializeField] private Button targetButton;
 
     private bool CanNavigate => !shotSequence && !SceneTransition.IsLoading && slingshot != null
         && slingshot.isActiveAndEnabled && !slingshot.IsDragging && Time.timeScale > 0f;
@@ -78,7 +77,6 @@ public class GameplayCameraController : MonoBehaviour
         FitBackdrop();
         SetView(OverviewPosition, OverviewSize);
         lastAspect = view.aspect;
-        BuildControls();
     }
 
     private void LateUpdate()
@@ -195,7 +193,7 @@ public class GameplayCameraController : MonoBehaviour
         }
         else if (mode == ViewMode.Target && targetFocus != null)
         {
-            // Keep the building area framed even after its debris scatters.
+            // Удерживает центр постройки в кадре даже после разлёта обломков.
             position = (Vector2)targetFocus.position + Vector2.up * 3f;
             size = impactSize;
         }
@@ -232,7 +230,7 @@ public class GameplayCameraController : MonoBehaviour
 
     private void ExpandBackdrop(Vector2 position, float size)
     {
-        // Follow shots beyond the map without exposing gaps below or beside the terrain.
+        // Продлевает землю и фон, чтобы при полёте за границы карты не появились пустоты.
         float left = position.x - size * view.aspect - 8f;
         float right = position.x + size * view.aspect + 8f;
         float bottom = position.y - size - 8f;
@@ -264,7 +262,7 @@ public class GameplayCameraController : MonoBehaviour
 
     private void FitBackdrop()
     {
-        // Keep the play area small, with extra ground beyond the visible screen edges.
+        // Добавляет запас земли за видимыми краями экрана.
         float halfWidth = OverviewSize * view.aspect;
         float left = Mathf.Min(mapMin.x, OverviewPosition.x - halfWidth);
         float right = Mathf.Max(mapMax.x, OverviewPosition.x + halfWidth);
@@ -298,51 +296,6 @@ public class GameplayCameraController : MonoBehaviour
         }
     }
 
-    private void BuildControls()
-    {
-        controlsCanvas = new GameObject("GameplayCameraCanvas", typeof(RectTransform),
-            typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        controlsCanvas.layer = 5;
-        Canvas canvas = controlsCanvas.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 10;
-        CanvasScaler scaler = controlsCanvas.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
-
-        GameObject group = new GameObject("CameraControls", typeof(RectTransform));
-        group.layer = 5;
-        controlsRect = group.GetComponent<RectTransform>();
-        controlsRect.SetParent(controlsCanvas.transform, false);
-        controlsRect.anchorMin = controlsRect.anchorMax = controlsRect.pivot = new Vector2(0f, 1f);
-        controlsRect.anchoredPosition = new Vector2(38f, -38f);
-        controlsRect.sizeDelta = new Vector2(774f, 120f);
-        MenuButtonStyle style = MenuButtonStyle.Default;
-        Vector2 anchor = new Vector2(0f, 1f);
-        Vector2 size = new Vector2(250f, 76f);
-        launcherButton = style.CreateButton(controlsRect, "LauncherViewButton", "КАТАПУЛЬТА",
-            anchor, size, Vector2.zero, FocusLauncher, 30f);
-        overviewButton = style.CreateButton(controlsRect, "OverviewButton", "ВСЯ КАРТА",
-            anchor, size, new Vector2(262f, 0f), ShowOverview, 30f);
-        targetButton = style.CreateButton(controlsRect, "TargetViewButton", "ЦЕЛЬ",
-            anchor, size, new Vector2(524f, 0f), FocusTarget, 30f);
-
-        GameObject hint = new GameObject("AimHint", typeof(RectTransform));
-        hint.transform.SetParent(controlsRect, false);
-        RectTransform hintRect = hint.GetComponent<RectTransform>();
-        hintRect.anchorMin = hintRect.anchorMax = hintRect.pivot = anchor;
-        hintRect.anchoredPosition = new Vector2(0f, -84f);
-        hintRect.sizeDelta = new Vector2(774f, 36f);
-        TextMeshProUGUI text = hint.AddComponent<TextMeshProUGUI>();
-        text.font = style.font;
-        text.fontSize = 24f;
-        text.color = style.textColor;
-        text.alignment = TextAlignmentOptions.Left;
-        text.text = "Выстрел: потяните снаряд и отпустите";
-        text.raycastTarget = false;
-    }
-
     public bool IsPointerOverControls(Vector2 screenPosition) => controlsCanvas != null
         && controlsCanvas.activeInHierarchy
         && RectTransformUtility.RectangleContainsScreenPoint(controlsRect, screenPosition);
@@ -356,11 +309,5 @@ public class GameplayCameraController : MonoBehaviour
         cinematic = null;
         if (controlsCanvas != null)
             controlsCanvas.SetActive(false);
-    }
-
-    private void OnDestroy()
-    {
-        if (controlsCanvas != null)
-            Destroy(controlsCanvas);
     }
 }

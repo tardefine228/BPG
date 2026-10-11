@@ -3,25 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-/// <summary>
-/// Marks a destructible object that must be knocked down to clear a level.
-/// One component covers both block types used by the game:
-/// <list type="bullet">
-/// <item>ordinary blocks, knocked down by the first strong hit
-/// (<c>hitsToClear</c> = 1, this is how level 1 is built);</item>
-/// <item>reinforced blocks, which survive several hits, keep moving on every
-/// impact and are only knocked down after the configured number of hits.</item>
-/// </list>
-/// The durability is a plain Inspector field, so every block can be tuned
-/// without touching the code. Reinforced blocks can also be made much harder to
-/// shove around: they absorb most of the hit and brake harder while sliding, so
-/// the player sees them budge only slightly instead of flying off.
-/// </summary>
+// Цель уровня: обычный блок сбивается одним сильным ударом, бронированный выдерживает несколько. Прочность и сопротивление настраиваются в Inspector.
 public sealed class LevelTarget : MonoBehaviour
 {
     private const float IgnoreCollisionsFor = 0.8f;
 
-    /// <summary>How long a contact keeps the extra sliding friction active.</summary>
+    // Сколько секунд после контакта сохраняется дополнительное трение.
     private const float SurfaceContactGrace = 0.12f;
 
     [Header("Сбивание")]
@@ -92,22 +79,22 @@ public sealed class LevelTarget : MonoBehaviour
     public bool IsCleared { get; private set; }
     public float MaxTravelDistance { get; private set; }
 
-    /// <summary>How many hits the block already took.</summary>
+    // Число уже полученных ударов.
     public int HitsTaken { get; private set; }
 
-    /// <summary>Total number of hits the block can take (1 for ordinary blocks).</summary>
+    // Прочность блока; для обычного блока равна одному удару.
     public int HitsToClear => Mathf.Max(1, hitsToClear);
 
-    /// <summary>Hits left before the block is knocked down.</summary>
+    // Оставшееся число ударов до сбивания.
     public int HitsRemaining => Mathf.Max(0, HitsToClear - HitsTaken);
 
-    /// <summary>How strongly the block absorbs a hit (0 — ordinary block).</summary>
+    // Доля погашенного толчка; обычный блок не поглощает удар.
     public float PushResistance => Mathf.Clamp(pushResistance, 0f, 0.95f);
 
-    /// <summary>Extra sliding friction multiplier (1 — ordinary block).</summary>
+    // Множитель дополнительного трения при скольжении.
     public float SlidingFriction => Mathf.Max(1f, slidingFriction);
 
-    /// <summary>True for multi-hit (reinforced) blocks.</summary>
+    // Признак бронированного блока.
     public bool IsReinforced => HitsToClear > 1;
 
     private void Awake()
@@ -171,8 +158,7 @@ public sealed class LevelTarget : MonoBehaviour
             return;
         }
 
-        // Reinforced blocks ignore follow-up contacts that arrive too soon, so a
-        // single shell cannot drain several durability points in one bounce.
+        // Пауза между ударами не позволяет одному касанию сразу снять несколько единиц прочности.
         if (IsReinforced && Time.time < nextHitTime)
         {
             return;
@@ -192,10 +178,7 @@ public sealed class LevelTarget : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// A reinforced block swallows most of the momentum it just received, so it
-    /// barely shifts where an ordinary block would be thrown.
-    /// </summary>
+    // Бронированный блок поглощает часть толчка и вращения.
     private void AbsorbHit()
     {
         if (pushResistance <= 0f || body == null || body.bodyType != RigidbodyType2D.Dynamic)
@@ -208,10 +191,7 @@ public sealed class LevelTarget : MonoBehaviour
         body.angularVelocity *= keep;
     }
 
-    /// <summary>
-    /// Extra friction while the block rests on a surface: heavy blocks brake
-    /// much faster than ordinary ones, so a hit barely slides them.
-    /// </summary>
+    // Дополнительное торможение тяжёлого блока на поверхности.
     private void FixedUpdate()
     {
         float extraFriction = SlidingFriction - 1f;
@@ -231,14 +211,14 @@ public sealed class LevelTarget : MonoBehaviour
             return;
         }
 
-        // Extra dry friction, as if the ground had a bigger friction coefficient.
+        // Торможение имитирует дополнительное сухое трение.
         float deceleration = extraFriction * Mathf.Abs(Physics2D.gravity.y)
             * Time.fixedDeltaTime;
         body.linearVelocity = new Vector2(
             Mathf.MoveTowards(velocity.x, 0f, deceleration), velocity.y);
     }
 
-    /// <summary>Any continuous contact keeps the sliding friction switched on.</summary>
+    // Контакт с поверхностью продлевает действие дополнительного трения.
     private void OnCollisionStay2D(Collision2D collision)
     {
         if (IsCleared || collision == null)
@@ -294,11 +274,7 @@ public sealed class LevelTarget : MonoBehaviour
         onCleared.Invoke();
     }
 
-    /// <summary>
-    /// Knocks the spent block away from the shot. The collider stays enabled on
-    /// purpose: the block must keep existing for the level session, which counts
-    /// destroyed targets by component, not by object lifetime.
-    /// </summary>
+    // Отбрасывает сбитый блок. Коллайдер и компонент сохраняются для подсчёта целей и физики.
     private void BreakApart(Vector2 hitDirection)
     {
         if (body == null || body.bodyType != RigidbodyType2D.Dynamic)

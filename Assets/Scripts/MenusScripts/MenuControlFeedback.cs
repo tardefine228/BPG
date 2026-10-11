@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-// Added automatically to menu controls, including inactive settings pages.
+// Отклик готовых кнопок, переключателей и ползунков: звуки наведения и нажатия.
 [DisallowMultipleComponent]
 public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, IPointerDownHandler
 {
@@ -15,9 +15,19 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
         control = GetComponent<Selectable>();
         button = control as Button;
         toggle = control as Toggle;
-        if (button != null && MenuButtonStyle.Default != null)
-            MenuButtonStyle.Default.Apply(button);
     }
+
+#if UNITY_EDITOR
+    // Стиль применяется вручную, чтобы игра не затирала оформление из Inspector.
+    [ContextMenu("Применить MenuButtonStyle к этой кнопке")]
+    private void ApplyStyleInEditor()
+    {
+        Button target = GetComponent<Button>();
+        if (target == null || MenuButtonStyle.Default == null) return;
+        UnityEditor.Undo.RegisterFullObjectHierarchyUndo(gameObject, "Применить стиль кнопки");
+        MenuButtonStyle.Default.Apply(target);
+    }
+#endif
 
     private void OnEnable()
     {
@@ -37,7 +47,7 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
 
     private void PlayClick()
     {
-        // The action may disable the button or load a scene before this listener runs.
+        // Действие кнопки может скрыть её или начать переход до вызова звука.
         AudioManager.Instance?.PlayUiClick();
     }
 
