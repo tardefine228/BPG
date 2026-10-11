@@ -60,14 +60,17 @@ public sealed class PauseMenuController : MonoBehaviour
 
         if (!isPaused)
         {
+            AudioManager.Instance?.PlayUiOpen();
             OpenPauseMenu();
         }
         else if (settingsPage != null && settingsPage.activeSelf)
         {
+            AudioManager.Instance?.PlayUiClose();
             ShowPausePage();
         }
         else
         {
+            AudioManager.Instance?.PlayUiClose();
             ResumeGame();
         }
     }
@@ -164,6 +167,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     public void ReturnToMainMenu()
     {
+        AudioManager.Instance?.PlayUiClick();
         isPaused = false;
         Time.timeScale = 1f;
 
@@ -353,38 +357,8 @@ public sealed class PauseMenuController : MonoBehaviour
         bool topRight = false)
     {
         Vector2 anchor = topRight ? Vector2.one : new Vector2(0.5f, 0.5f);
-        Vector2 pivot = topRight ? Vector2.one : new Vector2(0.5f, 0.5f);
-        RectTransform rect = CreateRectTransform(
-            objectName,
-            parent,
-            anchor,
-            anchor,
-            pivot,
-            size,
-            position);
-
-        Image background = rect.gameObject.AddComponent<Image>();
-        ConfigureImage(background, Color.white);
-
-        Button button = rect.gameObject.AddComponent<Button>();
-        button.targetGraphic = background;
-        button.transition = Selectable.Transition.ColorTint;
-        button.colors = CreateButtonColors();
-        Navigation navigation = button.navigation;
-        navigation.mode = Navigation.Mode.None;
-        button.navigation = navigation;
-        button.onClick.AddListener(onClick);
-
-        RectTransform labelRect = CreateRectTransform(
-            "Label",
-            rect,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(-18f, -10f),
-            Vector2.zero);
-        CreateText(labelRect, label, fontSize, new Color32(45, 45, 45, 255));
-        return button;
+        return MenuButtonStyle.Default.CreateButton(parent, objectName, label, anchor,
+            size, position, onClick, fontSize);
     }
 
     private TMP_Text CreateLabel(
@@ -486,7 +460,7 @@ public sealed class PauseMenuController : MonoBehaviour
         Slider slider = sliderRect.gameObject.AddComponent<Slider>();
         slider.navigation = new Navigation { mode = Navigation.Mode.None };
         slider.transition = Selectable.Transition.ColorTint;
-        slider.colors = CreateButtonColors();
+        slider.colors = MenuButtonStyle.Default.Colors;
         slider.targetGraphic = handleImage;
         slider.fillRect = fillRect;
         slider.handleRect = handleRect;
@@ -526,19 +500,6 @@ public sealed class PauseMenuController : MonoBehaviour
         image.type = Image.Type.Simple;
         image.color = color;
         image.raycastTarget = true;
-    }
-
-    private static ColorBlock CreateButtonColors()
-    {
-        ColorBlock colors = ColorBlock.defaultColorBlock;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color32(245, 245, 245, 255);
-        colors.pressedColor = new Color32(200, 200, 200, 255);
-        colors.selectedColor = new Color32(245, 245, 245, 255);
-        colors.disabledColor = new Color32(200, 200, 200, 128);
-        colors.colorMultiplier = 1f;
-        colors.fadeDuration = 0.1f;
-        return colors;
     }
 
     private static bool PauseKeyPressed()

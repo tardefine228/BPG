@@ -75,6 +75,7 @@ public class MenuManager : MonoBehaviour
 
         if (escapePressed && settingsOpen)
         {
+            AudioManager.Instance?.PlayUiClose();
             CloseSettings();
         }
     }

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 /// <summary>
 /// Persistent manager for the background-music playlist and game sound effects.
@@ -23,6 +24,12 @@ public sealed class AudioManager : MonoBehaviour
     [SerializeField] private bool loopPlaylist = true;
     [SerializeField] private bool playMusicOnStart = true;
 
+    [Header("Звуки интерфейса (громкость эффектов)")]
+    [SerializeField] private AudioClip uiClickSound;
+    [SerializeField] private AudioClip uiHoverSound;
+    [SerializeField] private AudioClip uiOpenSound;
+    [SerializeField] private AudioClip uiCloseSound;
+
     [Header("Громкость")]
     [SerializeField, Range(0f, 1f)] private float defaultMusicVolume = 0.5f;
     [SerializeField, Range(0f, 1f)] private float defaultEffectsVolume = 0.5f;
@@ -34,6 +41,7 @@ public sealed class AudioManager : MonoBehaviour
     [Header("Источники звука")]
     [SerializeField] private AudioSource musicSource;
     [SerializeField] private AudioSource effectsSource;
+    [SerializeField] private AudioSource uiSource;
 
     private readonly Dictionary<AudioSource, float> effectsSourceBaseVolumes =
         new Dictionary<AudioSource, float>();
@@ -44,6 +52,7 @@ public sealed class AudioManager : MonoBehaviour
     private bool playlistIsActive;
     private bool isDuplicate;
     private Coroutine preferenceSaveRoutine;
+    private int lastUiClickFrame = -1;
 
     public float MusicVolume => musicVolume;
     public float EffectsVolume => effectsVolume;
@@ -62,6 +71,8 @@ public sealed class AudioManager : MonoBehaviour
 
         musicSource = GetOrCreateSource(musicSource, "MusicSource");
         effectsSource = GetOrCreateSource(effectsSource, "EffectsSource");
+        uiSource = GetOrCreateSource(uiSource, "InterfaceSource");
+        uiSource.ignoreListenerPause = true;
 
         string musicKey = string.IsNullOrWhiteSpace(musicVolumePrefsKey)
             ? DefaultMusicVolumeKey
@@ -80,7 +91,10 @@ public sealed class AudioManager : MonoBehaviour
 
     private void Start()
     {
-        if (!isDuplicate && playMusicOnStart)
+        if (isDuplicate)
+            return;
+        BindInterfaceControls();
+        if (playMusicOnStart)
         {
             PlayPlaylist();
         }
@@ -230,6 +244,31 @@ public sealed class AudioManager : MonoBehaviour
         effectsSource.PlayOneShot(clip, Mathf.Max(0f, volumeScale));
     }
 
+    /// <summary>UI one-shots share EffectsVolume and remain audible in pause menus.</summary>
+    public void PlayUiSound(AudioClip clip, float volumeScale = 1f)
+    {
+        if (clip != null && uiSource != null)
+            uiSource.PlayOneShot(clip, Mathf.Max(0f, volumeScale));
+    }
+
+    public void PlayUiClick()
+    {
+        if (lastUiClickFrame == Time.frameCount)
+            return;
+        lastUiClickFrame = Time.frameCount;
+        PlayUiSound(uiClickSound);
+    }
+    public void PlayUiHover() => PlayUiSound(uiHoverSound);
+    public void PlayUiOpen() => PlayUiSound(uiOpenSound != null ? uiOpenSound : uiClickSound);
+    public void PlayUiClose() => PlayUiSound(uiCloseSound != null ? uiCloseSound : uiClickSound);
+
+    private void BindInterfaceControls()
+    {
+        foreach (Selectable control in FindObjectsByType<Selectable>(FindObjectsInactive.Include))
+            if (control.GetComponent<MenuControlFeedback>() == null)
+                control.gameObject.AddComponent<MenuControlFeedback>();
+    }
+
     private AudioSource GetOrCreateSource(AudioSource source, string sourceName)
     {
         if (source == null)
@@ -253,13 +292,12 @@ public sealed class AudioManager : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         ApplyEffectsVolumeToAllSources();
+        BindInterfaceControls();
     }
 
     private void ApplyEffectsVolumeToAllSources()
     {
-        AudioSource[] audioSources = FindObjectsByType<AudioSource>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None);
+        AudioSource[] audioSources = FindObjectsByType<AudioSource>(FindObjectsInactive.Include);
 
         for (int i = 0; i < audioSources.Length; i++)
         {

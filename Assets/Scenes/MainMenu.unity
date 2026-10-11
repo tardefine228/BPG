@@ -3332,6 +3332,8 @@ MonoBehaviour:
   musicTracks:
   - {fileID: 8300000, guid: f781c646ae2d44a9bb6da0b3f9a23037, type: 3}
   - {fileID: 8300000, guid: f755c4ad35d64c50bb364a0d7e20ec31, type: 3}
+  - {fileID: 8300000, guid: 683e52063c6c4e64a73dda464d357328, type: 3}
+  - {fileID: 8300000, guid: 56a56db9bb24485eb8f173351a3fd216, type: 3}
   loopPlaylist: 1
   playMusicOnStart: 1
   defaultMusicVolume: 0.5
@@ -3342,6 +3344,11 @@ MonoBehaviour:
   preferenceSaveDelay: 0.5
   musicSource: {fileID: 0}
   effectsSource: {fileID: 0}
+  uiClickSound: {fileID: 8300000, guid: c40f86fbbacf4e6285bfe1c19279503d, type: 3}
+  uiHoverSound: {fileID: 0}
+  uiOpenSound: {fileID: 0}
+  uiCloseSound: {fileID: 0}
+  uiSource: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

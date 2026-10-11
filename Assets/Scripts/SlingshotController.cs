@@ -15,8 +15,8 @@ public class SlingshotController : MonoBehaviour
 
     [Header("Settings")]
     public float maxPullDistance = 2.5f;
-    public float launchPower = 40f;
-    public float projectileGravityScale = 4f;
+    public float launchPower = 20f;
+    public float projectileGravityScale = 2f;
     public int trajectoryPoints = 180;
     public float timeStep = 0.04f;
     public float trajectoryWidthPixels = 3f;
@@ -27,7 +27,7 @@ public class SlingshotController : MonoBehaviour
     [Range(0.05f, 0.5f)] public float fullPullScreenFraction = 0.2f;
 
     [Header("Reload Settings")]
-    public float spawnDelay = 1.5f;
+    public float spawnDelay = 2.5f;
     public float projectileLifetime = 12f;
 
     public event Action<Rigidbody2D> ShotLaunched;
@@ -210,7 +210,12 @@ public class SlingshotController : MonoBehaviour
         ProjectileImpactReporter reporter = fired.GetComponent<ProjectileImpactReporter>();
         if (reporter == null)
             reporter = fired.gameObject.AddComponent<ProjectileImpactReporter>();
-        reporter.Arm(point => ProjectileImpacted?.Invoke(point));
+        bool impacted = false;
+        reporter.Arm(point =>
+        {
+            impacted = true;
+            ProjectileImpacted?.Invoke(point);
+        });
         fired.bodyType = RigidbodyType2D.Dynamic;
         fired.simulated = true;
         fired.linearVelocity = launchVelocity;
@@ -218,9 +223,10 @@ public class SlingshotController : MonoBehaviour
         ShotsFired++;
         Destroy(fired.gameObject, projectileLifetime);
 
-        yield return new WaitForSeconds(spawnDelay);
-        while (gameplayCamera != null && gameplayCamera.IsBusy)
+        float flightDeadline = Time.time + Mathf.Min(projectileLifetime, 7f);
+        while (fired != null && !impacted && Time.time < flightDeadline)
             yield return null;
+        yield return new WaitForSeconds(spawnDelay);
         SpawnProjectile();
     }
 
@@ -233,7 +239,7 @@ public class SlingshotController : MonoBehaviour
     public void CancelInput()
     {
         isDragging = false;
-        // Pausing during the prelaunch zoom must preserve the committed shot.
+        // Pausing during the return to overview must preserve the committed shot.
         if (!shotInProgress)
             launchVelocity = Vector2.zero;
         ClearTrajectory();

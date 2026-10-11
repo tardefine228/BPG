@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 922329019325786677}
   - component: {fileID: 1364067904824712672}
   - component: {fileID: 3322088846922271424}
+  - component: {fileID: 180000000001}
   m_Layer: 0
   m_Name: Projectile
   m_TagString: Untagged
@@ -109,15 +110,15 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDamping: 0
   m_AngularDamping: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
+  m_GravityScale: 2
+  m_Material: {fileID: 6200000, guid: 75c78bde8e904538bd5ec4dc7e5a3137, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 0
@@ -131,7 +132,7 @@ CircleCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 75c78bde8e904538bd5ec4dc7e5a3137, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -157,3 +158,17 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 0.5
+--- !u!114 &180000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: def73d5cf2d74aed88839fc6029f1bd9, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ProjectileSurfaceFriction
+  groundDeceleration: 60
+  rollingDeceleration: 720
