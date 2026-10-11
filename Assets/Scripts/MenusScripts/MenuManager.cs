@@ -1,8 +1,4 @@
-using System;
-using System.Collections;
 using UnityEngine;
-using UnityEngine.UI;
-
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
@@ -10,73 +6,96 @@ using UnityEngine.InputSystem;
 public class MenuManager : MonoBehaviour
 {
     [SerializeField] private CanvasGroup mainMenuGroup;
-    [SerializeField] private GameObject settingsPanel;
     [SerializeField] private CanvasGroup settingsGroup;
+    [SerializeField] private CanvasGroup levelSelectGroup;
+    [SerializeField] private float fadeDuration = 0.18f;
 
-    [SerializeField] private float fadeDuration = 0.15f;
-
-    private bool settingsOpen;
-    private Coroutine fadeRoutine;
+    private PanelFade settingsFade;
+    private PanelFade levelsFade;
+    private LevelSelectController levelSelect;
+    public bool SettingsOpen => settingsFade != null && settingsFade.IsVisible;
+    public bool LevelsOpen => levelsFade != null && levelsFade.IsVisible;
 
     private void Start()
     {
-        settingsPanel.SetActive(false);
-        settingsGroup.alpha = 0f;
-
-        #if UNITY_ANDROID
-                Application.wantsMobileBackButton = true;
-        #endif
+        Time.timeScale = 1f;
+        InitializePanels();
+#if UNITY_ANDROID
+        Application.wantsMobileBackButton = true;
+#endif
     }
 
+    private bool InitializePanels()
+    {
+        if (settingsFade != null && levelsFade != null)
+            return true;
+        if (mainMenuGroup == null || settingsGroup == null || levelSelectGroup == null)
+        {
+            Debug.LogError("Назначьте три панели меню в Inspector.", this);
+            return false;
+        }
+        settingsFade = settingsGroup.GetComponent<PanelFade>();
+        levelsFade = levelSelectGroup.GetComponent<PanelFade>();
+        levelSelect = levelSelectGroup.GetComponent<LevelSelectController>();
+        levelSelect.Initialize(this);
+        settingsFade.duration = levelsFade.duration = fadeDuration;
+        settingsFade.SetVisible(false, true);
+        levelsFade.SetVisible(false, true);
+        return true;
+    }
     public void OpenSettings()
     {
-        if (settingsOpen)
-        {
+        if (SceneTransition.IsLoading || !InitializePanels() || SettingsOpen || LevelsOpen)
             return;
-        }
-
-        settingsOpen = true;
-
         SetMainMenuEnabled(false);
-
-        settingsPanel.SetActive(true);
-        settingsGroup.blocksRaycasts = true;
-        settingsGroup.interactable = true;
-
-        RestartFade(1f, null);
+        settingsFade.SetVisible(true);
     }
 
     public void CloseSettings()
     {
-        if (!settingsOpen)
-        {
+        if (!SettingsOpen)
             return;
-        }
+        settingsFade.SetVisible(false);
+        SetMainMenuEnabled(true);
+    }
 
-        settingsOpen = false;
+    public void OpenLevels()
+    {
+        if (SceneTransition.IsLoading || !InitializePanels() || LevelsOpen || SettingsOpen)
+            return;
+        SetMainMenuEnabled(false);
+        levelsFade.SetVisible(true);
+    }
 
-        settingsGroup.interactable = false;
-
-        RestartFade(0f, () =>
-        {
-            settingsPanel.SetActive(false);
-            SetMainMenuEnabled(true);
-        });
+    public void CloseLevels()
+    {
+        if (!LevelsOpen)
+            return;
+        levelsFade.SetVisible(false);
+        SetMainMenuEnabled(true);
     }
 
     private void Update()
     {
-        #if ENABLE_INPUT_SYSTEM
-                bool escapePressed = Keyboard.current != null
-                    && Keyboard.current.escapeKey.wasPressedThisFrame;
-        #else
-                bool escapePressed = Input.GetKeyDown(KeyCode.Escape);
-        #endif
-
-        if (escapePressed && settingsOpen)
+        if (SceneTransition.IsLoading)
+            return;
+#if ENABLE_INPUT_SYSTEM
+        bool escapePressed = Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+#else
+        bool escapePressed = Input.GetKeyDown(KeyCode.Escape);
+#endif
+        if (!escapePressed)
+            return;
+        if (SettingsOpen)
         {
             AudioManager.Instance?.PlayUiClose();
             CloseSettings();
+        }
+        else if (LevelsOpen)
+        {
+            AudioManager.Instance?.PlayUiClose();
+            if (!levelSelect.DismissComingSoon())
+                CloseLevels();
         }
     }
 
@@ -84,36 +103,5 @@ public class MenuManager : MonoBehaviour
     {
         mainMenuGroup.interactable = enabled;
         mainMenuGroup.blocksRaycasts = enabled;
-    }
-
-    private void RestartFade(float targetAlpha, Action onComplete)
-    {
-        StopFade();
-        fadeRoutine = StartCoroutine(FadeRoutine(targetAlpha, onComplete));
-    }
-
-    private void StopFade()
-    {
-        if (fadeRoutine != null)
-        {
-            StopCoroutine(fadeRoutine);
-            fadeRoutine = null;
-        }
-    }
-
-    private IEnumerator FadeRoutine(float targetAlpha, Action onComplete)
-    {
-        float startAlpha = settingsGroup.alpha;
-        float time = 0f;
-
-        while (time < fadeDuration)
-        {
-            time += Time.unscaledDeltaTime;
-            settingsGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, time / fadeDuration);
-            yield return null;
-        }
-
-        settingsGroup.alpha = targetAlpha;
-        onComplete?.Invoke();
     }
 }

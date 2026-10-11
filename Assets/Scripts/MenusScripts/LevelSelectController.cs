@@ -1,242 +1,331 @@
+using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
-/// <summary>
-/// Runtime-built map lobby. Each card shows the level name, a preview image and
-/// earned stars. Later levels stay locked until the previous one is completed.
-/// </summary>
+// Управляет готовыми карточками и перелистыванием; интерфейс редактируется в сцене.
 [DisallowMultipleComponent]
 public sealed class LevelSelectController : MonoBehaviour
 {
-    private const int CanvasSortingOrder = 10;
+    private const float ScrollCooldown = 0.15f;
+    [SerializeField] private bool unlockAllLevels;
+    [SerializeField, Min(0.05f)] private float slideDuration = 0.32f;
+    [SerializeField, Min(0f)] private float dragFlipDistance = 90f;
+    [SerializeField] private MenuManager menuManager;
+    [SerializeField] private TMP_Text starsSummary;
+    [SerializeField] private LevelCardView[] cards;
+    [SerializeField] private Sprite starOnSprite;
+    [SerializeField] private Sprite starOffSprite;
+    [SerializeField] private Sprite dotCurrentSprite;
+    [SerializeField] private Sprite dotOtherSprite;
+    [SerializeField] private GameObject comingSoonOverlay;
+    [SerializeField] private LevelSelectPagingSurface pagingSurface;
+    [SerializeField] private RectTransform track;
+    [SerializeField] private Button previousPageButton;
+    [SerializeField] private Button nextPageButton;
+    [SerializeField] private TMP_Text pageLabel;
+    [SerializeField] private List<Image> pageDots = new List<Image>();
 
-    private Sprite uiSprite;
-    private Sprite starOnSprite;
-    private Sprite starOffSprite;
-    private TMP_FontAsset uiFont;
-    private GameObject comingSoonOverlay;
+    private Canvas canvas;
+    private float pageWidth;
+    private int pageCount;
+    private int currentPage;
+    private Coroutine slideRoutine;
+    private float dragDistance;
+    private float lastScrollTime = -10f;
+    private float suppressClickUntil = -10f;
 
     private void Awake()
     {
-        Time.timeScale = 1f;
+        canvas = GetComponentInParent<Canvas>();
+        pageWidth = ((RectTransform)track.parent).rect.width;
+        pageCount = Mathf.Max(1, pageDots.Count);
+        pagingSurface.Dragged += OnDraggedHorizontally;
+        pagingSurface.DragCompleted += OnDragCompleted;
+        pagingSurface.Scrolled += OnScrolled;
+    }
+
+    public void Initialize(MenuManager owner)
+    {
+        menuManager = owner;
+        LevelProgress.UnlockAllLevels = unlockAllLevels;
         LevelProgress.RestoreSelectedLevel();
-        BuildLobby();
+        // Панель может быть неактивна при запуске главного меню.
+        if (pageWidth == 0f)
+        {
+            pageWidth = ((RectTransform)track.parent).rect.width;
+            pageCount = Mathf.Max(1, pageDots.Count);
+        }
+        RefreshCards();
+    }
+
+    private void OnEnable()
+    {
+        LevelProgress.UnlockAllLevels = unlockAllLevels;
+        LevelProgress.RestoreSelectedLevel();
+        RefreshCards();
+        HideComingSoon();
     }
 
     private void OnDestroy()
     {
-        if (uiSprite != null)
+        if (pagingSurface == null) return;
+        pagingSurface.Dragged -= OnDraggedHorizontally;
+        pagingSurface.DragCompleted -= OnDragCompleted;
+        pagingSurface.Scrolled -= OnScrolled;
+    }
+
+    private void RefreshCards()
+    {
+        int selectedPage = 0;
+        foreach (LevelCardView card in cards)
         {
-            Destroy(uiSprite);
+            card.Refresh(starOnSprite, starOffSprite);
+            if (card.LevelId == LevelProgress.CurrentLevelId)
+                selectedPage = card.PageIndex;
+        }
+        starsSummary.text = "СОБРАНО ЗВЁЗД: " + CountCollectedStars(LevelProgress.Levels)
+            + " / " + LevelProgress.Levels.Length * LevelProgress.MaxStars;
+        SetPageImmediate(selectedPage);
+        dragDistance = 0f;
+        suppressClickUntil = -10f;
+        lastScrollTime = -10f;
+    }
+    private void OnDisable()
+    {
+        if (slideRoutine != null)
+            StopCoroutine(slideRoutine);
+        slideRoutine = null;
+        dragDistance = 0f;
+    }
+
+    private void Update()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (SceneTransition.IsLoading || (comingSoonOverlay != null && comingSoonOverlay.activeSelf))
+            return;
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null)
+        {
+            return;
         }
 
-        if (starOnSprite != null)
+        if (pageCount <= 1)
         {
-            Destroy(starOnSprite.texture);
-            Destroy(starOnSprite);
+            return;
         }
 
-        if (starOffSprite != null)
+        if (keyboard.rightArrowKey.wasPressedThisFrame)
         {
-            Destroy(starOffSprite.texture);
-            Destroy(starOffSprite);
+            StepPage(1);
+        }
+        else if (keyboard.leftArrowKey.wasPressedThisFrame)
+        {
+            StepPage(-1);
+        }
+#endif
+    }
+
+    public void ReturnToMainMenu()
+    {
+        AudioManager.Instance?.PlayUiClose();
+        menuManager.CloseLevels();
+    }
+
+    private string PageLabelText() => "СТРАНИЦА " + (currentPage + 1) + " / " + pageCount;
+
+    public void StepPage(int delta)
+    {
+        SetPage(currentPage + delta);
+    }
+
+    public void SetPage(int page)
+    {
+        int clamped = Mathf.Clamp(page, 0, Mathf.Max(0, pageCount - 1));
+        currentPage = clamped;
+        RefreshNavigation();
+
+        float target = -currentPage * pageWidth;
+        if (track == null)
+        {
+            return;
+        }
+
+        if (slideRoutine != null)
+        {
+            StopCoroutine(slideRoutine);
+            slideRoutine = null;
+        }
+
+        if (Mathf.Abs(track.anchoredPosition.x - target) < 0.5f)
+        {
+            track.anchoredPosition = new Vector2(target, track.anchoredPosition.y);
+            return;
+        }
+
+        slideRoutine = StartCoroutine(SlideRoutine(target));
+    }
+
+    private void SetPageImmediate(int page)
+    {
+        currentPage = Mathf.Clamp(page, 0, Mathf.Max(0, pageCount - 1));
+        if (track != null)
+        {
+            track.anchoredPosition = new Vector2(-currentPage * pageWidth, track.anchoredPosition.y);
+        }
+
+        RefreshNavigation();
+    }
+
+    private IEnumerator SlideRoutine(float targetX)
+    {
+        float startX = track.anchoredPosition.x;
+        float y = track.anchoredPosition.y;
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.05f, slideDuration);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = t * t * (3f - 2f * t);
+            track.anchoredPosition = new Vector2(Mathf.Lerp(startX, targetX, eased), y);
+            yield return null;
+        }
+
+        track.anchoredPosition = new Vector2(targetX, y);
+        slideRoutine = null;
+    }
+
+    private void RefreshNavigation()
+    {
+        // На краях списка скрывается стрелка, которая ведёт за пределы страниц.
+        if (previousPageButton != null)
+        {
+            bool canGoBack = pageCount > 1 && currentPage > 0;
+            previousPageButton.interactable = canGoBack;
+            previousPageButton.gameObject.SetActive(canGoBack);
+        }
+
+        if (nextPageButton != null)
+        {
+            bool canGoForward = pageCount > 1 && currentPage < pageCount - 1;
+            nextPageButton.interactable = canGoForward;
+            nextPageButton.gameObject.SetActive(canGoForward);
+        }
+
+        for (int i = 0; i < pageDots.Count; i++)
+        {
+            ApplyDotState(pageDots[i], i == currentPage);
+        }
+
+        if (pageLabel != null)
+        {
+            pageLabel.text = PageLabelText();
         }
     }
 
-    private void BuildLobby()
+    private void ApplyDotState(Image dot, bool isCurrent)
     {
-        int uiLayer = LayerMask.NameToLayer("UI");
-        if (uiLayer < 0)
+        if (dot == null)
         {
-            uiLayer = 5;
+            return;
         }
 
-        GameObject canvasObject = new GameObject(
-            "LevelSelectCanvas",
-            typeof(RectTransform),
-            typeof(Canvas),
-            typeof(CanvasScaler),
-            typeof(GraphicRaycaster));
-        canvasObject.layer = uiLayer;
+        // Цвет запечён в спрайт, поэтому здесь только подмена картинки —
+        // точке не нужен ни тинт, ни перекраска кнопкой.
+        dot.sprite = isCurrent ? dotCurrentSprite : dotOtherSprite;
+        dot.color = Color.white;
+    }
 
-        Canvas canvas = canvasObject.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = CanvasSortingOrder;
+    private void OnDraggedHorizontally(float deltaX)
+    {
+        if (pageCount <= 1 || track == null || Mathf.Approximately(deltaX, 0f))
+        {
+            return;
+        }
 
-        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        if (slideRoutine != null)
+        {
+            StopCoroutine(slideRoutine);
+            slideRoutine = null;
+        }
 
-        uiSprite = Sprite.Create(
-            Texture2D.whiteTexture,
-            new Rect(0f, 0f, 1f, 1f),
-            new Vector2(0.5f, 0.5f));
-        uiFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-        starOnSprite = StarSpriteFactory.Create(true);
-        starOffSprite = StarSpriteFactory.Create(false);
+        dragDistance += deltaX;
+        float scale = canvas != null ? Mathf.Max(0.01f, canvas.scaleFactor) : 1f;
+        float min = -(pageCount - 1) * pageWidth;
+        float x = Mathf.Clamp(track.anchoredPosition.x + deltaX / scale, min, 0f);
+        track.anchoredPosition = new Vector2(x, track.anchoredPosition.y);
+    }
 
-        RectTransform root = CreateRect(
-            "Root",
-            canvasObject.transform,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            Vector2.zero);
+    private void OnDragCompleted()
+    {
+        if (pageCount <= 1 || track == null)
+        {
+            dragDistance = 0f;
+            return;
+        }
 
-        Image background = root.gameObject.AddComponent<Image>();
-        ConfigureImage(background, new Color32(0, 0, 0, 255));
+        float moved = dragDistance;
+        dragDistance = 0f;
 
-        CreateLabel(root, "Title", "ВЫБОР УРОВНЯ", new Vector2(0f, 430f),
-            new Vector2(1100f, 90f), 58f, Color.white);
+        if (Mathf.Abs(moved) >= 12f)
+        {
+            // Завершение свайпа над карточкой не должно запускать уровень.
+            suppressClickUntil = Time.unscaledTime + 0.25f;
+        }
 
-        LevelDefinition[] levels = LevelProgress.Levels;
-        float spacing = 500f;
-        float startX = -spacing * (levels.Length - 1) * 0.5f;
+        int page = currentPage;
+        if (Mathf.Abs(moved) >= dragFlipDistance)
+        {
+            page = currentPage + (moved > 0f ? -1 : 1);
+        }
+        else
+        {
+            page = Mathf.RoundToInt(-track.anchoredPosition.x / pageWidth);
+        }
+
+        SetPage(page);
+    }
+
+    private void OnScrolled(float delta)
+    {
+        if (pageCount <= 1 || Mathf.Abs(delta) < 0.01f)
+        {
+            return;
+        }
+
+        if (Time.unscaledTime - lastScrollTime < ScrollCooldown)
+        {
+            return;
+        }
+
+        lastScrollTime = Time.unscaledTime;
+        StepPage(delta > 0f ? -1 : 1);
+    }
+
+    private static int CountCollectedStars(LevelDefinition[] levels)
+    {
+        int total = 0;
         for (int i = 0; i < levels.Length; i++)
         {
-            CreateLevelCard(root, levels[i], new Vector2(startX + spacing * i, -20f));
+            total += LevelProgress.GetStars(levels[i].Id);
         }
 
-        comingSoonOverlay = BuildComingSoonOverlay(root);
-        comingSoonOverlay.SetActive(false);
+        return total;
     }
 
-    private void CreateLevelCard(Transform parent, LevelDefinition level, Vector2 position)
+    public void OnLevelClicked(int levelId)
     {
-        bool unlocked = LevelProgress.IsUnlocked(level.Id);
-        int stars = LevelProgress.GetStars(level.Id);
-
-        RectTransform card = CreateRect(
-            "LevelCard_" + level.Id,
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(440f, 640f),
-            position);
-
-        Image cardImage = card.gameObject.AddComponent<Image>();
-        ConfigureImage(cardImage, unlocked ? Color.white : new Color32(188, 188, 188, 255));
-
-        Button button = card.gameObject.AddComponent<Button>();
-        button.targetGraphic = cardImage;
-        button.transition = Selectable.Transition.ColorTint;
-        button.colors = MenuColorBlock.Create();
-        Navigation navigation = button.navigation;
-        navigation.mode = Navigation.Mode.None;
-        button.navigation = navigation;
-        button.interactable = unlocked;
-        int levelId = level.Id;
-        button.onClick.AddListener(() => OnLevelClicked(levelId));
-
-        CreateLabel(card, "Name", level.DisplayName, new Vector2(0f, 278f),
-            new Vector2(400f, 64f), 36f, new Color32(45, 45, 45, 255));
-
-        RectTransform previewFrame = CreateRect(
-            "PreviewFrame",
-            card,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(392f, 360f),
-            new Vector2(0f, 42f));
-        Image frameImage = previewFrame.gameObject.AddComponent<Image>();
-        ConfigureImage(frameImage, new Color32(32, 32, 32, 255));
-        frameImage.raycastTarget = false;
-
-        RectTransform previewRect = CreateRect(
-            "Preview",
-            previewFrame,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(-12f, -12f),
-            Vector2.zero);
-        Image previewImage = previewRect.gameObject.AddComponent<Image>();
-        previewImage.sprite = LoadPreview(level.PreviewResourcePath);
-        previewImage.preserveAspect = true;
-        previewImage.raycastTarget = false;
-        previewImage.color = unlocked ? Color.white : new Color32(140, 140, 140, 255);
-        if (previewImage.sprite == null)
+        if (SceneTransition.IsLoading || Time.unscaledTime < suppressClickUntil)
         {
-            previewImage.sprite = uiSprite;
-            previewImage.color = new Color32(60, 70, 90, 255);
+            return;
         }
 
-        if (!unlocked)
-        {
-            RectTransform lockOverlay = CreateRect(
-                "LockOverlay",
-                previewFrame,
-                Vector2.zero,
-                Vector2.one,
-                new Vector2(0.5f, 0.5f),
-                Vector2.zero,
-                Vector2.zero);
-            Image lockImage = lockOverlay.gameObject.AddComponent<Image>();
-            ConfigureImage(lockImage, new Color32(0, 0, 0, 150));
-            lockImage.raycastTarget = false;
-            CreateLabel(lockOverlay, "LockLabel", "ЗАКРЫТО", Vector2.zero,
-                new Vector2(360f, 80f), 34f, Color.white);
-        }
-        else if (!level.CanLoad)
-        {
-            RectTransform soonOverlay = CreateRect(
-                "SoonOverlay",
-                previewFrame,
-                Vector2.zero,
-                Vector2.one,
-                new Vector2(0.5f, 0.5f),
-                Vector2.zero,
-                Vector2.zero);
-            Image soonImage = soonOverlay.gameObject.AddComponent<Image>();
-            ConfigureImage(soonImage, new Color32(0, 0, 0, 110));
-            soonImage.raycastTarget = false;
-            CreateLabel(soonOverlay, "SoonLabel", "СКОРО", Vector2.zero,
-                new Vector2(360f, 80f), 34f, Color.white);
-        }
-
-        CreateStarRow(card, stars, new Vector2(0f, -262f));
-    }
-
-    private void CreateStarRow(Transform parent, int filledStars, Vector2 position)
-    {
-        RectTransform row = CreateRect(
-            "Stars",
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(360f, 80f),
-            position);
-
-        float spacing = 108f;
-        float startX = -spacing;
-        for (int i = 0; i < LevelProgress.MaxStars; i++)
-        {
-            RectTransform starRect = CreateRect(
-                "Star" + (i + 1),
-                row,
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(72f, 72f),
-                new Vector2(startX + spacing * i, 0f));
-            Image image = starRect.gameObject.AddComponent<Image>();
-            image.sprite = i < filledStars ? starOnSprite : starOffSprite;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-            image.color = Color.white;
-        }
-    }
-
-    private void OnLevelClicked(int levelId)
-    {
         LevelDefinition level = LevelProgress.GetLevel(levelId);
         if (!LevelProgress.IsUnlocked(level.Id))
         {
@@ -249,30 +338,9 @@ public sealed class LevelSelectController : MonoBehaviour
             return;
         }
 
+        AudioManager.Instance?.PlayUiClick();
         LevelProgress.SelectLevel(level.Id);
-        SceneManager.LoadScene(level.SceneName);
-    }
-
-    private GameObject BuildComingSoonOverlay(Transform parent)
-    {
-        RectTransform overlay = CreateRect(
-            "ComingSoonOverlay",
-            parent,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            Vector2.zero,
-            Vector2.zero);
-        Image overlayImage = overlay.gameObject.AddComponent<Image>();
-        ConfigureImage(overlayImage, new Color32(0, 0, 0, 205));
-
-        CreateLabel(overlay, "SoonTitle", "СКОРО", new Vector2(0f, 80f),
-            new Vector2(900f, 90f), 54f, Color.white);
-        CreateLabel(overlay, "SoonBody", "ЭТОТ УРОВЕНЬ ЕЩЁ В РАЗРАБОТКЕ",
-            new Vector2(0f, -10f), new Vector2(1200f, 70f), 32f, Color.white);
-        CreateButton(overlay, "SoonBackButton", "ПОНЯТНО",
-            new Vector2(480f, 82f), new Vector2(0f, -160f), HideComingSoon, 40f);
-        return overlay.gameObject;
+        SceneTransition.Load(level.SceneName);
     }
 
     private void ShowComingSoon()
@@ -283,7 +351,7 @@ public sealed class LevelSelectController : MonoBehaviour
         }
     }
 
-    private void HideComingSoon()
+    public void HideComingSoon()
     {
         if (comingSoonOverlay != null)
         {
@@ -291,134 +359,10 @@ public sealed class LevelSelectController : MonoBehaviour
         }
     }
 
-    private Button CreateButton(
-        Transform parent,
-        string objectName,
-        string label,
-        Vector2 size,
-        Vector2 position,
-        UnityAction onClick,
-        float fontSize)
+    public bool DismissComingSoon()
     {
-        RectTransform rect = CreateRect(
-            objectName,
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            size,
-            position);
-
-        Image background = rect.gameObject.AddComponent<Image>();
-        ConfigureImage(background, Color.white);
-
-        Button button = rect.gameObject.AddComponent<Button>();
-        button.targetGraphic = background;
-        button.transition = Selectable.Transition.ColorTint;
-        button.colors = MenuColorBlock.Create();
-        button.onClick.AddListener(onClick);
-
-        RectTransform labelRect = CreateRect(
-            "Label",
-            rect,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(-18f, -10f),
-            Vector2.zero);
-        CreateText(labelRect, label, fontSize, new Color32(45, 45, 45, 255));
-        return button;
-    }
-
-    private void CreateLabel(
-        Transform parent,
-        string objectName,
-        string value,
-        Vector2 position,
-        Vector2 size,
-        float fontSize,
-        Color color)
-    {
-        RectTransform rect = CreateRect(
-            objectName,
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            size,
-            position);
-        CreateText(rect, value, fontSize, color);
-    }
-
-    private TMP_Text CreateText(RectTransform parent, string value, float fontSize, Color color)
-    {
-        TextMeshProUGUI text = parent.gameObject.AddComponent<TextMeshProUGUI>();
-        text.text = value;
-        text.font = uiFont;
-        text.fontSize = fontSize;
-        text.fontSizeMin = Mathf.Max(18f, fontSize - 12f);
-        text.fontSizeMax = fontSize;
-        text.enableAutoSizing = true;
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = TextAlignmentOptions.Center;
-        text.color = color;
-        text.raycastTarget = false;
-        text.margin = new Vector4(6f, 2f, 6f, 2f);
-        return text;
-    }
-
-    private RectTransform CreateRect(
-        string objectName,
-        Transform parent,
-        Vector2 anchorMin,
-        Vector2 anchorMax,
-        Vector2 pivot,
-        Vector2 size,
-        Vector2 anchoredPosition)
-    {
-        GameObject uiObject = new GameObject(objectName, typeof(RectTransform));
-        uiObject.layer = parent.gameObject.layer;
-
-        RectTransform rect = uiObject.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = anchorMin;
-        rect.anchorMax = anchorMax;
-        rect.pivot = pivot;
-        rect.sizeDelta = size;
-        rect.anchoredPosition = anchoredPosition;
-        return rect;
-    }
-
-    private void ConfigureImage(Image image, Color color)
-    {
-        image.sprite = uiSprite;
-        image.type = Image.Type.Simple;
-        image.color = color;
-        image.raycastTarget = true;
-    }
-
-    private static Sprite LoadPreview(string resourcePath)
-    {
-        if (string.IsNullOrEmpty(resourcePath))
-        {
-            return null;
-        }
-
-        Sprite sprite = Resources.Load<Sprite>(resourcePath);
-        if (sprite != null)
-        {
-            return sprite;
-        }
-
-        Texture2D texture = Resources.Load<Texture2D>(resourcePath);
-        if (texture == null)
-        {
-            return null;
-        }
-
-        return Sprite.Create(
-            texture,
-            new Rect(0f, 0f, texture.width, texture.height),
-            new Vector2(0.5f, 0.5f));
+        bool open = comingSoonOverlay != null && comingSoonOverlay.activeSelf;
+        HideComingSoon();
+        return open;
     }
 }

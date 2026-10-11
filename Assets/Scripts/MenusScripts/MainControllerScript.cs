@@ -1,64 +1,40 @@
 using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class MainControllerScript : MonoBehaviour
+// Действия главного меню назначены в On Click у готовых кнопок сцены.
+public sealed class MainControllerScript : MonoBehaviour
 {
-
-    [SerializeField] private Button playButton;
-    [SerializeField] private Button settingsButton;
     [SerializeField] private Button quitButton;
+    [SerializeField] private MenuManager menuManager;
 
     private void Awake()
     {
-        AddListener(playButton, OnPlay);
-        AddListener(settingsButton, OnSettings);
-        AddListener(quitButton, OnQuit);
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // Браузер запрещает странице закрывать собственную вкладку.
+        quitButton.gameObject.SetActive(false);
+#endif
     }
 
-    private void OnDestroy()
+    public void OnPlay()
     {
-        RemoveListener(playButton, OnPlay);
-        RemoveListener(settingsButton, OnSettings);
-        RemoveListener(quitButton, OnQuit);
-    }
-
-    private static void AddListener(Button button, UnityAction action)
-    {
-        if (button != null)
-        {
-            button.onClick.AddListener(action);
-        }
-    }
-
-    private static void RemoveListener(Button button, UnityAction action)
-    {
-        if (button != null)
-        {
-            button.onClick.RemoveListener(action);
-        }
-    }
-
-    private void OnPlay()
-    {
-        // Play before scene loading destroys this button and its feedback listener.
         AudioManager.Instance?.PlayUiClick();
-        if (playButton != null)
-        {
-            playButton.interactable = false;
-        }
-
-        SceneManager.LoadScene(LevelProgress.LobbySceneName);
+        menuManager.OpenLevels();
     }
 
-    private void OnSettings()
+    public void OnSettings()
     {
-
+        AudioManager.Instance?.PlayUiClick();
+        menuManager.OpenSettings();
     }
 
-    private void OnQuit()
+    public void OnQuit()
     {
+        AudioManager.Instance?.PlayUiClick();
+        quitButton.interactable = false;
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
         Application.Quit();
+#endif
     }
 }
