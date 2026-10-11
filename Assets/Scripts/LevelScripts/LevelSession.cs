@@ -2,7 +2,6 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -13,7 +12,6 @@ using UnityEngine.UI;
 public sealed class LevelSession : MonoBehaviour
 {
     [SerializeField] private SlingshotController gameplayController;
-    [SerializeField] private string lobbySceneName = LevelProgress.LobbySceneName;
     [SerializeField] private float completeDelay = 1.1f;
 
     private const int HudSortingOrder = 80;
@@ -45,7 +43,7 @@ public sealed class LevelSession : MonoBehaviour
 
     private void Start()
     {
-        targets = FindObjectsByType<LevelTarget>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        targets = FindObjectsByType<LevelTarget>(FindObjectsInactive.Exclude);
         RefreshScoreHud();
     }
 
@@ -76,6 +74,10 @@ public sealed class LevelSession : MonoBehaviour
     private IEnumerator CompleteAfterDelay()
     {
         yield return new WaitForSeconds(Mathf.Max(0.15f, completeDelay));
+        // Let the impact and camera return finish before covering the destruction.
+        while (gameplayController != null && gameplayController.gameplayCamera != null
+            && gameplayController.gameplayCamera.IsBusy)
+            yield return null;
         CompleteLevel();
     }
 
@@ -172,10 +174,9 @@ public sealed class LevelSession : MonoBehaviour
 
     private void ReturnToLobby()
     {
+        AudioManager.Instance?.PlayUiClick();
         Time.timeScale = 1f;
-        SceneManager.LoadScene(string.IsNullOrEmpty(lobbySceneName)
-            ? LevelProgress.LobbySceneName
-            : lobbySceneName);
+        SceneTransition.Load(LevelProgress.MainMenuSceneName);
     }
 
     private void OnDestroy()
@@ -364,35 +365,8 @@ public sealed class LevelSession : MonoBehaviour
         UnityAction onClick,
         float fontSize)
     {
-        RectTransform rect = CreateRect(
-            objectName,
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            size,
-            position);
-
-        Image background = rect.gameObject.AddComponent<Image>();
-        background.sprite = uiSprite;
-        background.color = Color.white;
-
-        Button button = rect.gameObject.AddComponent<Button>();
-        button.targetGraphic = background;
-        button.transition = Selectable.Transition.ColorTint;
-        button.colors = MenuColorBlock.Create();
-        button.onClick.AddListener(onClick);
-
-        RectTransform labelRect = CreateRect(
-            "Label",
-            rect,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(-18f, -10f),
-            Vector2.zero);
-        CreateText(labelRect, label, fontSize, new Color32(45, 45, 45, 255));
-        return button;
+        return MenuButtonStyle.Default.CreateButton(parent, objectName, label,
+            new Vector2(0.5f, 0.5f), size, position, onClick, fontSize);
     }
 
     private TMP_Text CreateLabel(

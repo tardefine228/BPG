@@ -1,7 +1,6 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 #if ENABLE_INPUT_SYSTEM
@@ -15,7 +14,6 @@ using UnityEngine.InputSystem;
 [DisallowMultipleComponent]
 public sealed class PauseMenuController : MonoBehaviour
 {
-    [SerializeField] private string mainMenuSceneName = "MainMenu";
     [SerializeField] private SlingshotController gameplayController;
 
     private const float DefaultVolume = 0.5f;
@@ -33,6 +31,10 @@ public sealed class PauseMenuController : MonoBehaviour
     private bool isPaused;
     private bool audioCallbacksBound;
     private float timeScaleBeforePause = 1f;
+    private PanelFade overlayFade;
+    private PanelFade pauseFade;
+    private PanelFade settingsFade;
+    private bool gameplayWasEnabled;
 
     private void Awake()
     {
@@ -53,7 +55,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     private void Update()
     {
-        if (!PauseKeyPressed())
+        if (SceneTransition.IsLoading || !PauseKeyPressed())
         {
             return;
         }
@@ -63,7 +65,7 @@ public sealed class PauseMenuController : MonoBehaviour
             AudioManager.Instance?.PlayUiOpen();
             OpenPauseMenu();
         }
-        else if (settingsPage != null && settingsPage.activeSelf)
+        else if (settingsFade.IsVisible)
         {
             AudioManager.Instance?.PlayUiClose();
             ShowPausePage();
@@ -103,7 +105,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
     public void OpenPauseMenu()
     {
-        if (isPaused)
+        if (isPaused || SceneTransition.IsLoading)
         {
             return;
         }
@@ -113,6 +115,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
         if (gameplayController != null)
         {
+            gameplayWasEnabled = gameplayController.enabled;
             gameplayController.CancelInput();
             gameplayController.enabled = false;
         }
@@ -122,7 +125,7 @@ public sealed class PauseMenuController : MonoBehaviour
         {
             pauseButton.interactable = false;
         }
-        overlayObject.SetActive(true);
+        overlayFade.SetVisible(true);
         ShowPausePage();
     }
 
@@ -134,7 +137,7 @@ public sealed class PauseMenuController : MonoBehaviour
         }
 
         isPaused = false;
-        overlayObject.SetActive(false);
+        overlayFade.SetVisible(false);
         if (pauseButton != null)
         {
             pauseButton.interactable = true;
@@ -144,7 +147,7 @@ public sealed class PauseMenuController : MonoBehaviour
 
         if (gameplayController != null)
         {
-            gameplayController.enabled = true;
+            gameplayController.enabled = gameplayWasEnabled;
         }
     }
 
@@ -156,8 +159,8 @@ public sealed class PauseMenuController : MonoBehaviour
         }
 
         BindAudioSettings();
-        pausePage.SetActive(false);
-        settingsPage.SetActive(true);
+        pauseFade.SetVisible(false);
+        settingsFade.SetVisible(true);
     }
 
     public void ReturnToPausePage()
@@ -176,19 +179,19 @@ public sealed class PauseMenuController : MonoBehaviour
             gameplayController.enabled = true;
         }
 
-        SceneManager.LoadScene(mainMenuSceneName);
+        SceneTransition.Load(LevelProgress.MainMenuSceneName);
     }
 
     private void ShowPausePage()
     {
         if (pausePage != null)
         {
-            pausePage.SetActive(true);
+            pauseFade.SetVisible(true);
         }
 
         if (settingsPage != null)
         {
-            settingsPage.SetActive(false);
+            settingsFade.SetVisible(false);
         }
     }
 
@@ -279,6 +282,7 @@ public sealed class PauseMenuController : MonoBehaviour
         ConfigureImage(overlayImage, new Color32(0, 0, 0, 205));
         overlayImage.raycastTarget = true;
         overlayObject = overlayRect.gameObject;
+        overlayFade = overlayObject.AddComponent<PanelFade>();
 
         RectTransform pausePageRect = CreateRectTransform(
             "PausePage",
@@ -289,6 +293,7 @@ public sealed class PauseMenuController : MonoBehaviour
             Vector2.zero,
             Vector2.zero);
         pausePage = pausePageRect.gameObject;
+        pauseFade = pausePage.AddComponent<PanelFade>();
         BuildPausePage(pausePageRect);
 
         RectTransform settingsPageRect = CreateRectTransform(
@@ -300,10 +305,11 @@ public sealed class PauseMenuController : MonoBehaviour
             Vector2.zero,
             Vector2.zero);
         settingsPage = settingsPageRect.gameObject;
+        settingsFade = settingsPage.AddComponent<PanelFade>();
         BuildSettingsPage(settingsPageRect);
-        settingsPage.SetActive(false);
-
-        overlayObject.SetActive(false);
+        settingsFade.SetVisible(false, true);
+        pauseFade.SetVisible(false, true);
+        overlayFade.SetVisible(false, true);
     }
 
     private void BuildPausePage(RectTransform parent)

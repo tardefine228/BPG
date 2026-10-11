@@ -1,17 +1,21 @@
 using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Runtime-built map lobby. Each card shows the level name, a preview image and
-/// earned stars. Later levels stay locked until the previous one is completed.
+/// Level-selection panel inside MainMenu. Progress is refreshed every time it opens.
 /// </summary>
 [DisallowMultipleComponent]
+[RequireComponent(typeof(RectTransform), typeof(CanvasGroup))]
 public sealed class LevelSelectController : MonoBehaviour
 {
-    private const int CanvasSortingOrder = 10;
+    [SerializeField] private MenuManager menuManager;
+    private RectTransform cardsRoot;
+    private bool built;
+    private readonly Dictionary<string, Sprite> previews = new Dictionary<string, Sprite>();
+    private readonly List<Sprite> generatedPreviews = new List<Sprite>();
 
     private Sprite uiSprite;
     private Sprite starOnSprite;
@@ -21,13 +25,28 @@ public sealed class LevelSelectController : MonoBehaviour
 
     private void Awake()
     {
-        Time.timeScale = 1f;
         LevelProgress.RestoreSelectedLevel();
         BuildLobby();
     }
 
+    public void Initialize(MenuManager owner)
+    {
+        menuManager = owner;
+        BuildLobby();
+        RefreshCards();
+    }
+
+    private void OnEnable()
+    {
+        RefreshCards();
+        if (comingSoonOverlay != null)
+            comingSoonOverlay.SetActive(false);
+    }
+
     private void OnDestroy()
     {
+        foreach (Sprite preview in generatedPreviews)
+            Destroy(preview);
         if (uiSprite != null)
         {
             Destroy(uiSprite);
@@ -48,28 +67,11 @@ public sealed class LevelSelectController : MonoBehaviour
 
     private void BuildLobby()
     {
-        int uiLayer = LayerMask.NameToLayer("UI");
-        if (uiLayer < 0)
-        {
-            uiLayer = 5;
-        }
-
-        GameObject canvasObject = new GameObject(
-            "LevelSelectCanvas",
-            typeof(RectTransform),
-            typeof(Canvas),
-            typeof(CanvasScaler),
-            typeof(GraphicRaycaster));
-        canvasObject.layer = uiLayer;
-
-        Canvas canvas = canvasObject.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = CanvasSortingOrder;
-
-        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
+        if (built)
+            return;
+        built = true;
+        if (menuManager == null)
+            menuManager = FindAnyObjectByType<MenuManager>();
 
         uiSprite = Sprite.Create(
             Texture2D.whiteTexture,
@@ -81,7 +83,7 @@ public sealed class LevelSelectController : MonoBehaviour
 
         RectTransform root = CreateRect(
             "Root",
-            canvasObject.transform,
+            transform,
             Vector2.zero,
             Vector2.one,
             new Vector2(0.5f, 0.5f),
@@ -94,16 +96,29 @@ public sealed class LevelSelectController : MonoBehaviour
         CreateLabel(root, "Title", "ВЫБОР УРОВНЯ", new Vector2(0f, 430f),
             new Vector2(1100f, 90f), 58f, Color.white);
 
+        cardsRoot = CreateRect("LevelCards", root, Vector2.zero, Vector2.one,
+            new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+        MenuButtonStyle.Default.CreateButton(root, "BackButton", "НАЗАД", Vector2.one,
+            new Vector2(180f, 76f), new Vector2(-38f, -38f), menuManager.CloseLevels, 30f);
+
+        comingSoonOverlay = BuildComingSoonOverlay(root);
+        comingSoonOverlay.SetActive(false);
+    }
+
+    private void RefreshCards()
+    {
+        if (cardsRoot == null)
+            return;
+        foreach (Transform child in cardsRoot)
+        {
+            child.gameObject.SetActive(false);
+            Destroy(child.gameObject);
+        }
         LevelDefinition[] levels = LevelProgress.Levels;
         float spacing = 500f;
         float startX = -spacing * (levels.Length - 1) * 0.5f;
         for (int i = 0; i < levels.Length; i++)
-        {
-            CreateLevelCard(root, levels[i], new Vector2(startX + spacing * i, -20f));
-        }
-
-        comingSoonOverlay = BuildComingSoonOverlay(root);
-        comingSoonOverlay.SetActive(false);
+            CreateLevelCard(cardsRoot, levels[i], new Vector2(startX + spacing * i, -20f));
     }
 
     private void CreateLevelCard(Transform parent, LevelDefinition level, Vector2 position)
@@ -121,7 +136,7 @@ public sealed class LevelSelectController : MonoBehaviour
             position);
 
         Image cardImage = card.gameObject.AddComponent<Image>();
-        ConfigureImage(cardImage, unlocked ? Color.white : new Color32(188, 188, 188, 255));
+        ConfigureImage(cardImage, unlocked ? Color.white : (Color)new Color32(188, 188, 188, 255));
 
         Button button = card.gameObject.AddComponent<Button>();
         button.targetGraphic = cardImage;
@@ -133,6 +148,7 @@ public sealed class LevelSelectController : MonoBehaviour
         button.interactable = unlocked;
         int levelId = level.Id;
         button.onClick.AddListener(() => OnLevelClicked(levelId));
+        card.gameObject.AddComponent<MenuControlFeedback>();
 
         CreateLabel(card, "Name", level.DisplayName, new Vector2(0f, 278f),
             new Vector2(400f, 64f), 36f, new Color32(45, 45, 45, 255));
@@ -161,7 +177,7 @@ public sealed class LevelSelectController : MonoBehaviour
         previewImage.sprite = LoadPreview(level.PreviewResourcePath);
         previewImage.preserveAspect = true;
         previewImage.raycastTarget = false;
-        previewImage.color = unlocked ? Color.white : new Color32(140, 140, 140, 255);
+        previewImage.color = unlocked ? Color.white : (Color)new Color32(140, 140, 140, 255);
         if (previewImage.sprite == null)
         {
             previewImage.sprite = uiSprite;
@@ -249,8 +265,9 @@ public sealed class LevelSelectController : MonoBehaviour
             return;
         }
 
+        AudioManager.Instance?.PlayUiClick();
         LevelProgress.SelectLevel(level.Id);
-        SceneManager.LoadScene(level.SceneName);
+        SceneTransition.Load(level.SceneName);
     }
 
     private GameObject BuildComingSoonOverlay(Transform parent)
@@ -291,6 +308,13 @@ public sealed class LevelSelectController : MonoBehaviour
         }
     }
 
+    public bool DismissComingSoon()
+    {
+        bool open = comingSoonOverlay != null && comingSoonOverlay.activeSelf;
+        HideComingSoon();
+        return open;
+    }
+
     private Button CreateButton(
         Transform parent,
         string objectName,
@@ -300,34 +324,8 @@ public sealed class LevelSelectController : MonoBehaviour
         UnityAction onClick,
         float fontSize)
     {
-        RectTransform rect = CreateRect(
-            objectName,
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            size,
-            position);
-
-        Image background = rect.gameObject.AddComponent<Image>();
-        ConfigureImage(background, Color.white);
-
-        Button button = rect.gameObject.AddComponent<Button>();
-        button.targetGraphic = background;
-        button.transition = Selectable.Transition.ColorTint;
-        button.colors = MenuColorBlock.Create();
-        button.onClick.AddListener(onClick);
-
-        RectTransform labelRect = CreateRect(
-            "Label",
-            rect,
-            Vector2.zero,
-            Vector2.one,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(-18f, -10f),
-            Vector2.zero);
-        CreateText(labelRect, label, fontSize, new Color32(45, 45, 45, 255));
-        return button;
+        return MenuButtonStyle.Default.CreateButton(parent, objectName, label,
+            new Vector2(0.5f, 0.5f), size, position, onClick, fontSize);
     }
 
     private void CreateLabel(
@@ -397,16 +395,19 @@ public sealed class LevelSelectController : MonoBehaviour
         image.raycastTarget = true;
     }
 
-    private static Sprite LoadPreview(string resourcePath)
+    private Sprite LoadPreview(string resourcePath)
     {
         if (string.IsNullOrEmpty(resourcePath))
         {
             return null;
         }
+        if (previews.TryGetValue(resourcePath, out Sprite cached))
+            return cached;
 
         Sprite sprite = Resources.Load<Sprite>(resourcePath);
         if (sprite != null)
         {
+            previews[resourcePath] = sprite;
             return sprite;
         }
 
@@ -416,9 +417,12 @@ public sealed class LevelSelectController : MonoBehaviour
             return null;
         }
 
-        return Sprite.Create(
+        sprite = Sprite.Create(
             texture,
             new Rect(0f, 0f, texture.width, texture.height),
             new Vector2(0.5f, 0.5f));
+        generatedPreviews.Add(sprite);
+        previews[resourcePath] = sprite;
+        return sprite;
     }
 }

@@ -8,7 +8,7 @@ using UnityEngine;
 public static class LevelProgress
 {
     public const int MaxStars = 3;
-    public const string LobbySceneName = "LevelSelect";
+    public const string MainMenuSceneName = "MainMenu";
     public const string GameplaySceneName = "Gameplay";
 
     private const string StarsKeyPrefix = "bpg_level_stars_";

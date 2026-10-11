@@ -959,11 +959,13 @@ MonoBehaviour:
   pivotPoint: {fileID: 933486504}
   gameplayCamera: {fileID: 519420033}
   maxPullDistance: 2.5
-  launchPower: 20
+  launchPower: 22
   projectileGravityScale: 2
   trajectoryPoints: 180
   timeStep: 0.04
-  trajectoryWidthPixels: 3
+  trajectoryDotPixels: 7
+  dotTimeSpacing: 0.12
+  airResistance: 0.06
   impactLayers:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -984,7 +986,6 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::LevelSession
   gameplayController: {fileID: 854157704}
-  lobbySceneName: LevelSelect
   completeDelay: 1.1
 --- !u!1 &933486503
 GameObject:
@@ -1395,6 +1396,14 @@ MonoBehaviour:
   impactSize: 12
   launcherOffset: {x: 2, y: 2}
   transitionDuration: 0.5
+  shotLauncherSize: 20
+  preShotHold: 1
+  followSize: 20
+  followSharpness: 12
+  followLookAhead: 0.16
+  groundHold: 1
+  buildingHold: 2
+  returnDuration: 0.7
   onLauncherFocused:
     m_PersistentCalls:
       m_Calls: []
@@ -1536,7 +1545,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e247c7cb4d9d4732bb509a90bb26e7ba, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::PauseMenuController
-  mainMenuSceneName: LevelSelect
   gameplayController: {fileID: 854157704}
 --- !u!1 &1200000000
 GameObject:
@@ -1709,6 +1717,8 @@ MonoBehaviour:
   uiOpenSound: {fileID: 0}
   uiCloseSound: {fileID: 0}
   uiSource: {fileID: 0}
+  shotSound: {fileID: 0}
+  shotSoundVolume: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

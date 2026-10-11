@@ -23,16 +23,31 @@ public class GameplayCameraController : MonoBehaviour
     public Vector2 launcherOffset = new Vector2(2f, 2f);
     public float transitionDuration = 0.5f;
 
+    [Header("Shot camera")]
+    public float shotLauncherSize = 20f;
+    public float preShotHold = 1f;
+    public float followSize = 20f;
+    public float followSharpness = 12f;
+    public float followLookAhead = 0.16f;
+    public float groundHold = 1f;
+    public float buildingHold = 2f;
+    public float returnDuration = 0.7f;
+
     [Header("Future upgrade menu")]
     public UnityEvent onLauncherFocused = new UnityEvent();
     public bool showControls = true;
-    public bool IsBusy => preparingShot || viewTransition != null;
+    public bool IsBusy => shotSequence || viewTransition != null;
 
     private enum ViewMode { Overview, Launcher, Target }
     private ViewMode mode;
     private Camera view;
     private Coroutine viewTransition;
-    private bool preparingShot;
+    private bool shotSequence;
+    private bool impactRecorded;
+    private bool buildingImpact;
+    private Vector2 impactFocus;
+    private Rigidbody2D trackedProjectile;
+    private Coroutine cinematic;
     private float lastAspect;
     private float groundSurface;
     private GameObject controlsCanvas;
@@ -41,7 +56,7 @@ public class GameplayCameraController : MonoBehaviour
     private Button overviewButton;
     private Button targetButton;
 
-    private bool CanNavigate => !preparingShot && slingshot != null
+    private bool CanNavigate => !shotSequence && !SceneTransition.IsLoading && slingshot != null
         && slingshot.isActiveAndEnabled && !slingshot.IsDragging && Time.timeScale > 0f;
     private Vector2 OverviewPosition => (mapMin + mapMax) * 0.5f;
     private float OverviewSize => Mathf.Max((mapMax.y - mapMin.y) * 0.5f,
@@ -66,6 +81,14 @@ public class GameplayCameraController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (trackedProjectile != null && !impactRecorded && Time.timeScale > 0f)
+        {
+            Vector2 destination = trackedProjectile.position
+                + trackedProjectile.linearVelocity * followLookAhead + Vector2.up * 2f;
+            float t = 1f - Mathf.Exp(-followSharpness * Time.deltaTime);
+            SetView(Vector2.Lerp(transform.position, destination, t),
+                Mathf.Lerp(view.orthographicSize, followSize, t));
+        }
         if (!Mathf.Approximately(lastAspect, view.aspect))
         {
             FitBackdrop();
@@ -85,17 +108,54 @@ public class GameplayCameraController : MonoBehaviour
         targetButton.interactable = CanNavigate && mode != ViewMode.Target && targetFocus != null;
     }
 
-    // Every shot starts from the overview. Flight and impact never move the camera.
     public IEnumerator PrepareForShot()
     {
         StopViewTransition();
-        preparingShot = true;
+        shotSequence = true;
+        impactRecorded = false;
         mode = ViewMode.Overview;
-        if (Vector2.Distance(transform.position, OverviewPosition) > 0.01f
-            || Mathf.Abs(view.orthographicSize - OverviewSize) > 0.01f)
-            yield return MoveView(OverviewPosition, OverviewSize, transitionDuration);
-        SetView(OverviewPosition, OverviewSize);
-        preparingShot = false;
+        yield return MoveView(LauncherPosition, shotLauncherSize, transitionDuration);
+        yield return new WaitForSeconds(preShotHold);
+    }
+
+    public void FollowShot(Rigidbody2D body)
+    {
+        trackedProjectile = body;
+        if (cinematic != null)
+            StopCoroutine(cinematic);
+        cinematic = StartCoroutine(TrackShot());
+    }
+
+    public void RecordImpact(Vector2 point, Collider2D collider)
+    {
+        if (!shotSequence || impactRecorded)
+            return;
+        impactRecorded = true;
+        buildingImpact = collider != null && (collider.GetComponentInParent<LevelTarget>() != null
+            || (targetFocus != null && collider.transform.IsChildOf(targetFocus)));
+        impactFocus = buildingImpact && targetFocus != null && collider.transform.IsChildOf(targetFocus)
+            ? (Vector2)targetFocus.position + Vector2.up * 3f
+            : point + Vector2.up * (impactSize * 0.3f);
+    }
+
+    private IEnumerator TrackShot()
+    {
+        float deadline = Time.time + 7f;
+        while (!impactRecorded && trackedProjectile != null && Time.time < deadline)
+            yield return null;
+        if (!impactRecorded)
+        {
+            buildingImpact = false;
+            impactFocus = trackedProjectile != null
+                ? trackedProjectile.position + Vector2.up * (impactSize * 0.3f)
+                : (Vector2)transform.position;
+        }
+        trackedProjectile = null;
+        yield return MoveView(impactFocus, impactSize, 0.18f);
+        yield return new WaitForSeconds(buildingImpact ? buildingHold : groundHold);
+        yield return MoveView(OverviewPosition, OverviewSize, returnDuration);
+        shotSequence = false;
+        cinematic = null;
     }
 
     public void FocusLauncher() => SelectView(ViewMode.Launcher);
@@ -165,6 +225,39 @@ public class GameplayCameraController : MonoBehaviour
     {
         transform.position = new Vector3(position.x, position.y, transform.position.z);
         view.orthographicSize = Mathf.Max(0.1f, size);
+        ExpandBackdrop(position, view.orthographicSize);
+    }
+
+    private void ExpandBackdrop(Vector2 position, float size)
+    {
+        // Follow shots beyond the map without exposing gaps below or beside the terrain.
+        float left = position.x - size * view.aspect - 8f;
+        float right = position.x + size * view.aspect + 8f;
+        float bottom = position.y - size - 8f;
+        float top = position.y + size + 8f;
+        if (ground != null && ground.sprite != null)
+        {
+            Bounds bounds = ground.bounds;
+            left = Mathf.Min(left, bounds.min.x);
+            right = Mathf.Max(right, bounds.max.x);
+            float groundBottom = Mathf.Min(bottom, bounds.min.y);
+            ground.transform.position = new Vector3((left + right) * 0.5f,
+                (groundSurface + groundBottom) * 0.5f, ground.transform.position.z);
+            Vector3 spriteSize = ground.sprite.bounds.size;
+            ground.transform.localScale = new Vector3((right - left) / spriteSize.x,
+                (groundSurface - groundBottom) / spriteSize.y, 1f);
+        }
+        if (background != null)
+        {
+            Bounds bounds = background.bounds;
+            left = Mathf.Min(left, bounds.min.x);
+            right = Mathf.Max(right, bounds.max.x);
+            bottom = Mathf.Min(bottom, bounds.min.y);
+            top = Mathf.Max(top, bounds.max.y);
+            background.transform.position = new Vector3((left + right) * 0.5f,
+                (bottom + top) * 0.5f, background.transform.position.z);
+            background.size = new Vector2(right - left, top - bottom);
+        }
     }
 
     private void FitBackdrop()
@@ -256,7 +349,9 @@ public class GameplayCameraController : MonoBehaviour
     {
         StopAllCoroutines();
         viewTransition = null;
-        preparingShot = false;
+        shotSequence = false;
+        trackedProjectile = null;
+        cinematic = null;
         if (controlsCanvas != null)
             controlsCanvas.SetActive(false);
     }

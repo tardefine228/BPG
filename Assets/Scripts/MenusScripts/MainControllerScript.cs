@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MainControllerScript : MonoBehaviour
@@ -9,9 +8,12 @@ public class MainControllerScript : MonoBehaviour
     [SerializeField] private Button playButton;
     [SerializeField] private Button settingsButton;
     [SerializeField] private Button quitButton;
+    [SerializeField] private MenuManager menuManager;
 
     private void Awake()
     {
+        if (menuManager == null)
+            menuManager = FindAnyObjectByType<MenuManager>();
         AddListener(playButton, OnPlay);
         AddListener(settingsButton, OnSettings);
         AddListener(quitButton, OnQuit);
@@ -42,14 +44,8 @@ public class MainControllerScript : MonoBehaviour
 
     private void OnPlay()
     {
-        // Play before scene loading destroys this button and its feedback listener.
         AudioManager.Instance?.PlayUiClick();
-        if (playButton != null)
-        {
-            playButton.interactable = false;
-        }
-
-        SceneManager.LoadScene(LevelProgress.LobbySceneName);
+        menuManager.OpenLevels();
     }
 
     private void OnSettings()

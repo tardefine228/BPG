@@ -30,6 +30,11 @@ public sealed class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip uiOpenSound;
     [SerializeField] private AudioClip uiCloseSound;
 
+    [Header("Звук выстрела (задаётся в Gameplay, громкость эффектов)")]
+    [Tooltip("Перетащите звук выстрела сюда на AudioManager в сцене Gameplay. Пустое поле оставляет выстрел без звука.")]
+    [SerializeField] private AudioClip shotSound;
+    [SerializeField, Range(0f, 1f)] private float shotSoundVolume = 1f;
+
     [Header("Громкость")]
     [SerializeField, Range(0f, 1f)] private float defaultMusicVolume = 0.5f;
     [SerializeField, Range(0f, 1f)] private float defaultEffectsVolume = 0.5f;
@@ -61,6 +66,12 @@ public sealed class AudioManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
+            // MainMenu owns the persistent manager; Gameplay supplies its shot clip.
+            if (gameObject.scene.name == LevelProgress.GameplaySceneName)
+            {
+                Instance.shotSound = shotSound;
+                Instance.shotSoundVolume = shotSoundVolume;
+            }
             isDuplicate = true;
             Destroy(gameObject);
             return;
@@ -89,11 +100,13 @@ public sealed class AudioManager : MonoBehaviour
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    private void Start()
+    private IEnumerator Start()
     {
         if (isDuplicate)
-            return;
+            yield break;
         BindInterfaceControls();
+        while (SceneTransition.StartupVisible)
+            yield return null;
         if (playMusicOnStart)
         {
             PlayPlaylist();
@@ -243,6 +256,8 @@ public sealed class AudioManager : MonoBehaviour
 
         effectsSource.PlayOneShot(clip, Mathf.Max(0f, volumeScale));
     }
+
+    public void PlayShotSound() => PlaySfx(shotSound, shotSoundVolume);
 
     /// <summary>UI one-shots share EffectsVolume and remain audible in pause menus.</summary>
     public void PlayUiSound(AudioClip clip, float volumeScale = 1f)
