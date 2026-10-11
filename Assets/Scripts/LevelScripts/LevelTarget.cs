@@ -99,6 +99,7 @@ public sealed class LevelTarget : MonoBehaviour
 
     private void Awake()
     {
+        MatchColliderToTiledSprite();
         body = GetComponent<Rigidbody2D>();
         damageSprites.AddRange(GetComponentsInChildren<SpriteRenderer>(true));
         baseColors = new Color[damageSprites.Count];
@@ -109,6 +110,28 @@ public sealed class LevelTarget : MonoBehaviour
 
         startPosition = transform.position;
         ApplyDamageTint();
+    }
+
+    // Размер плиточного блока (Draw Mode: Tiled или Sliced) задаётся полем Size у SpriteRenderer.
+    // Коллайдер повторяет ровно видимый прямоугольник, без Auto Tiling и устаревших сохранённых значений.
+    private void MatchColliderToTiledSprite()
+    {
+        if (!TryGetComponent(out SpriteRenderer sprite) || sprite.drawMode == SpriteDrawMode.Simple
+            || !TryGetComponent(out BoxCollider2D box))
+        {
+            return;
+        }
+
+        Vector2 pivot = new Vector2(0.5f, 0.5f);
+        Sprite image = sprite.sprite;
+        if (image != null && image.rect.width > 0f && image.rect.height > 0f)
+        {
+            pivot = new Vector2(image.pivot.x / image.rect.width, image.pivot.y / image.rect.height);
+        }
+
+        box.autoTiling = false;
+        box.size = sprite.size;
+        box.offset = Vector2.Scale(new Vector2(0.5f, 0.5f) - pivot, sprite.size);
     }
 
     private void Update()

@@ -19,7 +19,9 @@
      (Max Projectiles читается из сцены). Как точки прогноза в игре, он видит траекторию
      до первого столкновения и выбирает ту, что упирается в живую мышь; если таких нет —
      в блок рядом с мышью. Между выстрелами 8 с, кот исчезает через 12 с (Projectile Lifetime).
-Правила урона мыши совпадают со скриптом MouseTarget.
+Правила урона мыши совпадают со скриптом MouseTarget. Как в CatFlightEffects, кот выходит из
+физики после первого столкновения (с чем угодно): удар успевает передаться в этом шаге,
+дальше отскок только декоративный, и сквозь постройку кот не прокатывается.
 """
 import math
 import os
@@ -79,6 +81,7 @@ class Sim:
         self.time = 0.0
         self.mice = {}
         self.events = []
+        self.projectiles = []
         ox = layout.target_x
         # Земля: огромный статичный прямоугольник, верх на GROUND_TOP.
         self.ground = self.world.CreateStaticBody(position=(5.0, LL.GROUND_TOP - 40.0))
@@ -117,6 +120,11 @@ class Sim:
     def on_contact(self, contact):
         a = contact.fixtureA.body
         b = contact.fixtureB.body
+        # CatFlightEffects: первое столкновение запускает уход кота из физики.
+        for body in (a, b):
+            st = body.userData or {}
+            if st.get("kind") == "projectile":
+                st["exit"] = True
         for me, other in ((a, b), (b, a)):
             st = me.userData
             if not st or st.get("kind") != "mouse" or st["dead"]:
@@ -164,6 +172,10 @@ class Sim:
             for name, (body, st) in self.mice.items():
                 if st["dead"] and body.active:
                     body.active = False
+            # Кот после первого удара отключается в LateUpdate того же кадра.
+            for body in self.projectiles:
+                if body.active and body.userData.get("exit"):
+                    body.active = False
 
     def max_drift(self):
         worst = (0.0, None)
@@ -184,7 +196,8 @@ class Sim:
         body.linearDamping = 0.06
         body.angularDamping = 0.05
         body.bullet = True
-        body.userData = {"kind": "projectile"}
+        body.userData = {"kind": "projectile", "exit": False}
+        self.projectiles.append(body)
         a = math.radians(angle_deg)
         speed = MAX_SPEED * power
         body.linearVelocity = (math.cos(a) * speed, math.sin(a) * speed)
@@ -330,6 +343,7 @@ def play_series(layout, ammo, rng):
             sim.step(DT)
             for i, (t0, body) in enumerate(flying):
                 if body is not None and sim.time - t0 >= PROJECTILE_LIFETIME:
+                    sim.projectiles.remove(body)
                     sim.world.DestroyBody(body)
                     flying[i] = (t0, None)
         if all(st["dead"] for _, st in sim.mice.values()):

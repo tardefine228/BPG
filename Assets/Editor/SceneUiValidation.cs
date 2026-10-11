@@ -53,6 +53,7 @@ public static class SceneUiValidation
                         "launcherButton", "overviewButton", "targetButton");
                     References(Find<SlingshotController>().Single(), "dots");
                     ValidateMice(scene.name, Find<GameplayCameraController>().Single());
+                    ValidateBlocks(scene.name, Find<GameplayCameraController>().Single());
                     var slingshot = Find<SlingshotController>().Single();
                     References(slingshot, "catProjectilePrefabs", "queueOrigin");
                     var cats = new SerializedObject(slingshot).FindProperty("catProjectilePrefabs");
@@ -129,6 +130,25 @@ public static class SceneUiValidation
             var body = mouse.GetComponent<Collider2D>();
             Require(body != null && body.bounds.min.y > groundTop + 0.5f,
                 sceneName + ": " + mouse.name + " не должна стоять на земле");
+        }
+    }
+
+    // Плиточные блоки построек: коллайдер равен видимому размеру, блок не утоплен в землю.
+    // С Auto Tiling Unity сама пересчитывает размер коллайдера, и блоки проваливались сквозь землю.
+    private static void ValidateBlocks(string sceneName, GameplayCameraController camera)
+    {
+        float groundTop = camera.ground.bounds.max.y;
+        foreach (var block in Find<LevelTarget>())
+        {
+            var sprite = block.GetComponent<SpriteRenderer>();
+            var box = block.GetComponent<BoxCollider2D>();
+            if (sprite == null || box == null || sprite.drawMode == SpriteDrawMode.Simple)
+                continue;
+            string label = sceneName + ": " + block.name;
+            Require(!box.autoTiling, label + " — у BoxCollider2D должен быть выключен Auto Tiling");
+            Require(Vector2.Distance(box.size, sprite.size) < 0.001f,
+                label + " — Size у BoxCollider2D должен совпадать с Size у SpriteRenderer");
+            Require(box.bounds.min.y > groundTop - 0.05f, label + " — блок утоплен в землю");
         }
     }
 

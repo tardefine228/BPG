@@ -491,8 +491,42 @@ public sealed class ValidationRunner : MonoBehaviour
         Require(errors.Count == 0, "Cat flight produced runtime errors");
     }
 
+    // Постройки стоят сами: после загрузки уровня ни один блок не съезжает, ни одна мышь
+    // не погибает, и уровень не завершается без выстрела.
+    private IEnumerator StructureChecks()
+    {
+        yield return Until(() => !SceneTransition.IsLoading, "no transition before structure checks");
+        foreach (var level in LevelProgress.Levels.Where(level => level.CanLoad))
+        {
+            LevelProgress.SelectLevel(level.Id);
+            SceneTransition.Load(level.SceneName);
+            yield return Scene(level.SceneName);
+            float start = Time.time;
+            yield return Until(() => Time.time - start >= 2.5f, level.SceneName + ": game time runs after load", 15f);
+            var mice = All<MouseTarget>();
+            var blocks = All<LevelTarget>();
+            Require(mice.Length > 0 && blocks.Length > 0, level.SceneName + ": no blocks or mice");
+            Require(mice.All(mouse => mouse.gameObject.activeInHierarchy && !mouse.IsDefeated),
+                level.SceneName + ": a mouse fell before any shot");
+            float drift = blocks.Max(block => block.MaxTravelDistance);
+            Require(blocks.All(block => !block.IsCleared) && drift < 0.1f,
+                level.SceneName + ": structure moved before any shot, max shift " + drift.ToString("0.000"));
+            var session = Find<LevelSession>();
+            Require(!(bool)Get(session, "completed") && !(bool)Get(session, "failed"),
+                level.SceneName + ": level ended before any shot");
+            Pass(level.SceneName + ": " + blocks.Length + " blocks and " + mice.Length
+                + " mice stand still after load (max shift " + drift.ToString("0.000") + ")");
+        }
+    }
+
     private IEnumerator Checks()
     {
+        if (Environment.GetCommandLineArgs().Contains("-bpgStructuresOnly"))
+        {
+            yield return Scene("MainMenu");
+            yield return StructureChecks();
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Contains("-bpgCatFlightOnly"))
         {
             yield return CatFlightChecks();
@@ -702,6 +736,7 @@ public sealed class ValidationRunner : MonoBehaviour
         Pass("Continue after the last implemented level returns to MainMenu");
         yield return PauseReturnChecks();
         yield return CatQueueChecks();
+        yield return StructureChecks();
         Require(errors.Count == 0, "Runtime produced errors");
     }
 }

@@ -97,18 +97,29 @@ class PrefabInfo:
         meta = io.open(path + ".meta", encoding="utf-8").read()
         self.guid = re.search(r"^guid: ([0-9a-f]{32})", meta, re.M).group(1)
         _, docs = parse(io.open(path, encoding="utf-8").read())
+        self.rel = rel
         self.go = self.tr = self.sr = self.box = self.mouse = None
+        self.sr_size = self.box_size = None
+        self.auto_tiling = False
         for d in docs:
             if d.cls == TR and ref(field(d.body, "m_Father")) == 0:
                 self.tr = d.id
                 self.go = ref(field(d.body, "m_GameObject"))
             elif d.cls == SR:
                 self.sr = d.id
+                self.sr_size = vec2(field(d.body, "m_Size"))
             elif d.cls == BOX:
                 self.box = d.id
+                self.box_size = vec2(field(d.body, "m_Size"))
+                self.auto_tiling = field(d.body, "m_AutoTiling") == "1"
             elif d.cls == MB and "MouseTarget" in d.body:
                 self.mouse = d.id
         assert self.go and self.tr and self.sr, rel
+
+
+def vec2(value):
+    m = re.match(r"\{x: ([-\d.e]+), y: ([-\d.e]+)\}", value or "")
+    return (float(m.group(1)), float(m.group(2))) if m else None
 
 
 def sprite_guid(rel):
@@ -147,12 +158,11 @@ def instance_docs(item, prefab, parent_tr, instance_id):
         mods.append(modification(prefab.tr, g, "m_LocalEulerAnglesHint." + axis, fmt(val)))
     mods.append(modification(prefab.go, g, "m_Name", item.name))
     if item.kind != "mouse":
-        for prop in ("m_Size", "m_SpriteTilingProperty.oldSize", "m_SpriteTilingProperty.newSize"):
-            target = prefab.sr if prop == "m_Size" else prefab.box
-            mods.append(modification(target, g, prop + ".x", fmt(item.w)))
-            mods.append(modification(target, g, prop + ".y", fmt(item.h)))
-        mods.append(modification(prefab.box, g, "m_Size.x", fmt(item.w)))
-        mods.append(modification(prefab.box, g, "m_Size.y", fmt(item.h)))
+        # Размер блока задаётся явно и одинаково у спрайта и коллайдера.
+        # Auto Tiling у коллайдеров блоков выключен: Unity не пересчитывает m_Size сама.
+        for target in (prefab.sr, prefab.box):
+            mods.append(modification(target, g, "m_Size.x", fmt(item.w)))
+            mods.append(modification(target, g, "m_Size.y", fmt(item.h)))
     elif item.lives and item.lives != 2:
         mods.append(modification(prefab.mouse, g, "lives", str(item.lives)))
     body = ("PrefabInstance:\n"
@@ -314,12 +324,49 @@ def apply(layout):
              if not re.match(r"  - \{fileID: (-?\d+)\}", ln) or int(re.match(r"  - \{fileID: (-?\d+)\}", ln).group(1)) in alive]
     roots.body = "".join(lines)
 
-    errors = validate(scene)
+    errors = validate(scene) + validate_blocks(scene)
     if errors:
         raise SystemExit("%s: ошибки сцены:\n  %s" % (layout.scene, "\n  ".join(errors[:20])))
     scene.save()
     print("%-9s TargetArea x=%-6s блоков %2d, мышей %d, impactSize %d" % (
         layout.scene, fmt(target_x), len(layout.blocks), len(layout.mice), size))
+
+
+MOD = re.compile(r"- target: \{fileID: (-?\d+), guid: ([0-9a-f]{32}), type: 3\}\n"
+                 r"\s+propertyPath: (\S+)\n\s+value: (.*)\n")
+
+
+def validate_blocks(scene):
+    """Коллайдер каждого блока совпадает с его спрайтом, Auto Tiling не используется.
+
+    С включённым Auto Tiling Unity сама пересчитывает размер BoxCollider2D по рамке
+    спрайта; на этом блоки проваливались сквозь землю. Поэтому размер задаётся явно.
+    """
+    errors = []
+    blocks = {WOOD.guid: WOOD, STONE.guid: STONE}
+    for info in blocks.values():
+        if info.box is None or info.auto_tiling:
+            errors.append("%s: у BoxCollider2D должен быть выключен Auto Tiling" % info.rel)
+        if info.sr_size != info.box_size:
+            errors.append("%s: размер BoxCollider2D не совпадает с размером спрайта" % info.rel)
+    for d in scene.docs:
+        if d.cls != PREFAB:
+            continue
+        m = re.search(r"m_SourcePrefab: \{fileID: \d+, guid: ([0-9a-f]{32})", d.body)
+        info = blocks.get(m.group(1)) if m else None
+        if info is None:
+            continue
+        mods = {(int(t), path): value.strip() for t, g, path, value in MOD.findall(d.body) if g == info.guid}
+        name = mods.get((info.go, "m_Name"), str(d.id))
+        if any(t == info.box and (path.startswith("m_SpriteTilingProperty") or path == "m_AutoTiling")
+               for t, path in mods):
+            errors.append("%s: лишние переопределения Auto Tiling у коллайдера" % name)
+        for axis, default_sr, default_box in zip("xy", info.sr_size, info.box_size):
+            sr = float(mods.get((info.sr, "m_Size." + axis), default_sr))
+            box = float(mods.get((info.box, "m_Size." + axis), default_box))
+            if abs(sr - box) > 1e-4:
+                errors.append("%s: размер спрайта %s по %s не равен коллайдеру %s" % (name, fmt(sr), axis, fmt(box)))
+    return errors
 
 
 def validate(scene):
@@ -385,7 +432,8 @@ def main(argv):
         if only and layout.level_id not in only:
             continue
         if check_only:
-            errors = validate(Scene(os.path.join(SCENES, layout.scene + ".unity")))
+            scene = Scene(os.path.join(SCENES, layout.scene + ".unity"))
+            errors = validate(scene) + validate_blocks(scene)
             print(layout.scene, "OK" if not errors else "ОШИБКИ: " + "; ".join(errors[:5]))
             failed |= bool(errors)
         else:

@@ -234,7 +234,12 @@ def level_4():
 
 
 def level_5():
-    """Уровень 5 — замок на каменном цоколе: два этажа, башенка и сторожевая вышка справа."""
+    """Уровень 5 — замок на каменном цоколе: два этажа, башенка и сторожевая вышка справа.
+
+    Кот наносит только один удар (CatFlightEffects), поэтому каждая мышь достижима прямым
+    выстрелом, но с точностью: в открытую слева нижнюю комнату — пологим выстрелом под
+    перекрытием, на балкон за башенкой — высоким навесным.
+    """
     L = Layout(5, "Level5", target_x=42.0, sling_x=-70.0, impact_size=12.0, palette=PALETTES[5])
     base_top = L.slab("TowerBase", -1.0, -1.11, 13.0, 3.0)
     right_top = L.slab("RightPodium", 10.0, -1.11, 6.0, 3.0)
@@ -243,20 +248,20 @@ def level_5():
     L.pillar("stone", -1.0, base_top, 3.0)
     s = L.pillar("stone", 4.6, base_top, 3.0)
     floor1 = L.wood(-1.0, s.top, 12.4, T)
-    # Первый этаж: три пролёта — мышь, каменный куб, мышь.
-    L.pillar("wood", -6.6, floor1.top, 2.4)
+    # Первый этаж: комната с мышью открыта слева, дальше каменный и деревянный кубы.
     L.pillar("wood", -2.8, floor1.top, 2.4)
     L.pillar("wood", 0.8, floor1.top, 2.4)
     q = L.pillar("wood", 4.6, floor1.top, 2.4)
     L.mouse(-4.7, floor1.top)
     L.stone(-1.0, floor1.top, 1.2, 1.2)
-    L.mouse(2.7, floor1.top)
+    L.wood(2.7, floor1.top, 1.2, 1.2)
     floor2 = L.wood(-1.0, q.top, 12.4, T)
-    # Башенка на втором этаже с каменной крышей.
+    # Башенка на втором этаже с каменной крышей, справа от неё мышь на балконе.
     L.pillar("wood", -2.8, floor2.top, 2.4)
     t = L.pillar("wood", 0.8, floor2.top, 2.4)
     roof = L.stone(-1.0, t.top, 5.4, T)
     L.wood(-1.0, floor2.top, 1.2, 1.2)
+    L.mouse(3.6, floor2.top)
     L.wood(-3.05, roof.top, 1.2, 1.2)
     L.mouse(-1.0, roof.top)
     L.wood(1.05, roof.top, 1.2, 1.2)
