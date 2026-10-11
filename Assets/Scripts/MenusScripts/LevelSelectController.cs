@@ -225,13 +225,19 @@ public sealed class LevelSelectController : MonoBehaviour
             new Vector2(0f, 360f), new Vector2(900f, 44f), 26f,
             new Color32(150, 150, 150, 255));
 
+        pageCount = Mathf.Max(1, Mathf.CeilToInt(levels.Length / (float)cardsPerPage));
+        pageWidth = CardSpacing * cardsPerPage;
+
+        // Вьюпорт шириной ровно в страницу: маска срезает карточки соседних
+        // страниц ещё до зоны стрелок, иначе на последней странице крайняя
+        // карточка вылезает из-под кнопки листания.
         RectTransform viewport = CreateRect(
             "Viewport",
             root,
-            new Vector2(0f, 0.5f),
-            new Vector2(1f, 0.5f),
             new Vector2(0.5f, 0.5f),
-            new Vector2(0f, ViewportHeight),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f),
+            new Vector2(pageWidth, ViewportHeight),
             new Vector2(0f, ViewportY));
         viewport.gameObject.AddComponent<RectMask2D>();
 
@@ -243,9 +249,6 @@ public sealed class LevelSelectController : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             new Vector2(0f, ViewportHeight),
             Vector2.zero);
-
-        pageCount = Mathf.Max(1, Mathf.CeilToInt(levels.Length / (float)cardsPerPage));
-        pageWidth = CardSpacing * cardsPerPage;
 
         for (int i = 0; i < levels.Length; i++)
         {
