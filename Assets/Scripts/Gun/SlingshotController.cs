@@ -67,7 +67,7 @@ public class SlingshotController : MonoBehaviour
     private bool CanLoadProjectile => levelSession == null
         || (!levelSession.IsEnding && levelSession.RemainingShots > 0);
 
-    // Проверяет и ранее выпущенные снаряды: они ещё могут докатиться до цели.
+    // Ждёт завершения полёта и ухода котов за поле перед показом поражения.
     public bool HasMovingProjectiles
     {
         get
@@ -80,6 +80,8 @@ public class SlingshotController : MonoBehaviour
                     launchedProjectiles.RemoveAt(i);
                     continue;
                 }
+                if (fired.GetComponent<CatFlightEffects>() is CatFlightEffects effects && effects.IsExiting)
+                    return true;
                 if (fired.simulated && !fired.IsSleeping()
                     && (fired.linearVelocity.sqrMagnitude > 0.0225f
                         || Mathf.Abs(fired.angularVelocity) > 12f))
@@ -390,6 +392,7 @@ public class SlingshotController : MonoBehaviour
         ShotsFired++;
         launchedProjectiles.Add(fired);
         fired.GetComponent<ProjectileComicEffects>()?.BeginFlight();
+        fired.GetComponent<CatFlightEffects>()?.BeginFlight(gameplayCamera != null ? gameplayCamera.mapMin.y : -15f);
         projectile = null;
         AudioManager.Instance?.PlayShotSound();
         AudioManager.Instance?.PlaySfx(flightMeow, flightMeowVolume);

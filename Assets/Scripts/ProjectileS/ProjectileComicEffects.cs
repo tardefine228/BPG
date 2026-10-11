@@ -145,6 +145,8 @@ public sealed class ProjectileComicEffects : MonoBehaviour
             dustCount, chipCount, impactScale, sortingLayer, effectsSortingOrder + 3);
     }
 
+    public void EndFlight() => StopTrail();
+
     private void StopTrail()
     {
         if (trailStopped)

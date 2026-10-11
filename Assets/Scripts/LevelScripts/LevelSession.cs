@@ -55,7 +55,6 @@ public sealed class LevelSession : MonoBehaviour
     [SerializeField] private Sprite starOffSprite;
     [SerializeField] private TMP_Text scoreValueText;
     [SerializeField] private TMP_Text scoreHintText;
-    [SerializeField] private TMP_Text ammoValueText;
     [SerializeField] private GameObject completionOverlay;
     [SerializeField] private GameObject defeatOverlay;
     [SerializeField] private TMP_Text completionScoreText;
@@ -101,8 +100,6 @@ public sealed class LevelSession : MonoBehaviour
         if (!completed && !failed)
         {
             RefreshScoreHud();
-            if (ammoValueText != null)
-                ammoValueText.text = RemainingShots + " / " + MaxProjectiles;
         }
 
         if (IsEnding || !HasGoal)

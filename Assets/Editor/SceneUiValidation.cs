@@ -44,7 +44,7 @@ public static class SceneUiValidation
                     Require(new SerializedObject(session).FindProperty("maxProjectiles").intValue >= 1,
                         scene.name + ": боезапас должен быть положительным");
                     References(session, "gameplayController", "starOnSprite", "starOffSprite", "scoreValueText",
-                        "scoreHintText", "ammoValueText", "completionOverlay", "defeatOverlay",
+                        "scoreHintText", "completionOverlay", "defeatOverlay",
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
@@ -95,8 +95,14 @@ public static class SceneUiValidation
                     && cat.GetComponent<Rigidbody2D>() != null && cat.GetComponent<CircleCollider2D>() != null
                     && cat.GetComponent<ProjectileImpactReporter>() != null, "Cat" + i + ": неполный префаб снаряда");
                 References(cat.GetComponent<CatProjectile>(), "spriteRenderer");
+                References(cat.GetComponent<CatFlightEffects>(), "furPrefab");
                 References(cat.GetComponent<ProjectileComicEffects>(), "comicMaterial", "trailRoot", "outline", "ribbon", "core");
             }
+            var fur = AssetDatabase.LoadAssetAtPath<ParticleSystem>("Assets/Prefabs/Cats/FurTrail.prefab");
+            Require(fur != null && !fur.main.playOnAwake
+                && fur.main.simulationSpace == ParticleSystemSimulationSpace.World,
+                "Шерсть: неверные настройки префаба частиц");
+            References(fur.GetComponent<ParticleSystemRenderer>(), "m_Materials");
             Debug.Log("Все связи интерфейса и эффектов проверены.");
         }
         finally
