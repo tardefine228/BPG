@@ -119,6 +119,72 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &268435900
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 268435901}
+  - component: {fileID: 268435902}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &268435901
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 268435900}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &268435902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 268435900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d951568ee6f84656ba1b95938c24125a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  musicTracks:
+  - {fileID: 8300000, guid: f781c646ae2d44a9bb6da0b3f9a23037, type: 3}
+  - {fileID: 8300000, guid: f755c4ad35d64c50bb364a0d7e20ec31, type: 3}
+  - {fileID: 8300000, guid: 683e52063c6c4e64a73dda464d357328, type: 3}
+  - {fileID: 8300000, guid: 56a56db9bb24485eb8f173351a3fd216, type: 3}
+  loopPlaylist: 1
+  playMusicOnStart: 1
+  uiClickSound: {fileID: 8300000, guid: c40f86fbbacf4e6285bfe1c19279503d, type: 3}
+  uiHoverSound: {fileID: 0}
+  uiOpenSound: {fileID: 0}
+  uiCloseSound: {fileID: 0}
+  shotSound: {fileID: 0}
+  shotSoundVolume: 1
+  defaultMusicVolume: 0.5
+  defaultEffectsVolume: 0.5
+  saveVolumeSettings: 1
+  musicVolumePrefsKey: bpg_audio_music_volume
+  effectsVolumePrefsKey: bpg_audio_effects_volume
+  preferenceSaveDelay: 0.5
+  musicSource: {fileID: 0}
+  effectsSource: {fileID: 0}
+  uiSource: {fileID: 0}
 --- !u!1 &272414282
 GameObject:
   m_ObjectHideFlags: 0
@@ -599,6 +665,42 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &519420033
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2826a25ebf34913a7a937c48750117a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameplayCameraController
+  slingshot: {fileID: 854157704}
+  launcherFocus: {fileID: 933486504}
+  targetFocus: {fileID: 1800000011}
+  ground: {fileID: 513407834}
+  background: {fileID: 1800000002}
+  mapMin: {x: -85, y: -7.5}
+  mapMax: {x: 95, y: 62.5}
+  overviewPadding: 4
+  launcherSize: 8
+  impactSize: 12
+  launcherOffset: {x: 2, y: 2}
+  transitionDuration: 0.5
+  shotLauncherSize: 20
+  preShotHold: 1
+  followSize: 20
+  followSharpness: 12
+  followLookAhead: 0.5
+  groundHold: 1
+  buildingHold: 2
+  returnDuration: 0.7
+  onLauncherFocused:
+    m_PersistentCalls:
+      m_Calls: []
+  showControls: 1
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
@@ -906,6 +1008,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1800000011}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &840884115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 840884110}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1a5f4e3b7c95062e8f0a2b4c3d6e579, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
+  fallY: -6
+  impactSpeed: 2
 --- !u!1 &854157702
 GameObject:
   m_ObjectHideFlags: 0
@@ -959,34 +1075,23 @@ MonoBehaviour:
   pivotPoint: {fileID: 933486504}
   gameplayCamera: {fileID: 519420033}
   maxPullDistance: 2.5
-  launchPower: 22
+  launchPower: 25
   projectileGravityScale: 2
-  trajectoryPoints: 180
-  timeStep: 0.04
-  trajectoryDotPixels: 7
-  dotTimeSpacing: 0.12
   airResistance: 0.06
   impactLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  grabRadiusPixels: 24
+  trajectoryPoints: 380
+  timeStep: 0.04
+  trajectoryDotPixels: 12
+  dotTimeSpacing: 0.08
+  weakPullColor: {r: 1, g: 0.2, b: 0.16, a: 1}
+  mediumPullColor: {r: 1, g: 0.77, b: 0.12, a: 1}
+  strongPullColor: {r: 0.23, g: 0.8, b: 0.35, a: 1}
+  grabRadiusPixels: 200
   fullPullScreenFraction: 0.2
   spawnDelay: 2.5
   projectileLifetime: 12
---- !u!114 &1200000005
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 854157702}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c0f4e3d2a6b84951d7e9f1a3b2c5d468, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::LevelSession
-  gameplayController: {fileID: 854157704}
-  completeDelay: 1.1
 --- !u!1 &933486503
 GameObject:
   m_ObjectHideFlags: 0
@@ -1020,6 +1125,112 @@ Transform:
   - {fileID: 1454540096}
   m_Father: {fileID: 272414283}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1200000000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1200000001}
+  - component: {fileID: 1200000003}
+  - component: {fileID: 1200000002}
+  m_Layer: 0
+  m_Name: EventSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1200000001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1200000000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1200000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1200000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.UI.InputSystemUIInputModule
+  m_SendPointerHoverToParent: 1
+  m_MoveRepeatDelay: 0.5
+  m_MoveRepeatRate: 0.1
+  m_XRTrackingOrigin: {fileID: 0}
+  m_ActionsAsset: {fileID: -944628639613478452, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_PointAction: {fileID: -1654692200621890270, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_MoveAction: {fileID: -8784545083839296357, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_SubmitAction: {fileID: 392368643174621059, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_CancelAction: {fileID: 7727032971491509709, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_LeftClickAction: {fileID: 3001919216989983466, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_MiddleClickAction: {fileID: -2185481485913320682, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_RightClickAction: {fileID: -4090225696740746782, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_ScrollWheelAction: {fileID: 6240969308177333660, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_DeselectOnBackgroundClick: 1
+  m_PointerBehavior: 0
+  m_CursorLockBehavior: 0
+  m_ScrollDeltaPerTick: 6
+--- !u!114 &1200000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1200000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
+  m_FirstSelected: {fileID: 0}
+  m_sendNavigationEvents: 1
+  m_DragThreshold: 10
+--- !u!114 &1200000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 854157702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e247c7cb4d9d4732bb509a90bb26e7ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PauseMenuController
+  gameplayController: {fileID: 854157704}
+--- !u!114 &1200000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 854157702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0f4e3d2a6b84951d7e9f1a3b2c5d468, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelSession
+  gameplayController: {fileID: 854157704}
+  completeDelay: 1.1
 --- !u!1 &1428137472
 GameObject:
   m_ObjectHideFlags: 0
@@ -1280,6 +1491,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1800000011}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1451135828
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1451135823}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1a5f4e3b7c95062e8f0a2b4c3d6e579, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
+  fallY: -6
+  impactSpeed: 2
 --- !u!1 &1454540094
 GameObject:
   m_ObjectHideFlags: 0
@@ -1372,42 +1597,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 933486504}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &519420033
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 519420028}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e2826a25ebf34913a7a937c48750117a, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::GameplayCameraController
-  slingshot: {fileID: 854157704}
-  launcherFocus: {fileID: 933486504}
-  targetFocus: {fileID: 1800000011}
-  ground: {fileID: 513407834}
-  background: {fileID: 1800000002}
-  mapMin: {x: -85, y: -7.5}
-  mapMax: {x: 95, y: 62.5}
-  overviewPadding: 4
-  launcherSize: 8
-  impactSize: 12
-  launcherOffset: {x: 2, y: 2}
-  transitionDuration: 0.5
-  shotLauncherSize: 20
-  preShotHold: 1
-  followSize: 20
-  followSharpness: 12
-  followLookAhead: 0.16
-  groundHold: 1
-  buildingHold: 2
-  returnDuration: 0.7
-  onLauncherFocused:
-    m_PersistentCalls:
-      m_Calls: []
-  showControls: 1
 --- !u!1 &1800000000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1533,192 +1722,6 @@ Transform:
   - {fileID: 840884114}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1200000004
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 854157702}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e247c7cb4d9d4732bb509a90bb26e7ba, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::PauseMenuController
-  gameplayController: {fileID: 854157704}
---- !u!1 &1200000000
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1200000001}
-  - component: {fileID: 1200000003}
-  - component: {fileID: 1200000002}
-  m_Layer: 0
-  m_Name: EventSystem
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1200000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1200000000}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.UI.InputSystemUIInputModule
-  m_SendPointerHoverToParent: 1
-  m_MoveRepeatDelay: 0.5
-  m_MoveRepeatRate: 0.1
-  m_XRTrackingOrigin: {fileID: 0}
-  m_ActionsAsset: {fileID: -944628639613478452, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_PointAction: {fileID: -1654692200621890270, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_MoveAction: {fileID: -8784545083839296357, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_SubmitAction: {fileID: 392368643174621059, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_CancelAction: {fileID: 7727032971491509709, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_LeftClickAction: {fileID: 3001919216989983466, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_MiddleClickAction: {fileID: -2185481485913320682, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_RightClickAction: {fileID: -4090225696740746782, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_ScrollWheelAction: {fileID: 6240969308177333660, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_DeselectOnBackgroundClick: 1
-  m_PointerBehavior: 0
-  m_CursorLockBehavior: 0
-  m_ScrollDeltaPerTick: 6
---- !u!114 &1200000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1200000000}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
-  m_FirstSelected: {fileID: 0}
-  m_sendNavigationEvents: 1
-  m_DragThreshold: 10
---- !u!4 &1200000001
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1200000000}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1451135828
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1451135823}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d1a5f4e3b7c95062e8f0a2b4c3d6e579, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
-  fallY: -6
-  impactSpeed: 2
---- !u!114 &840884115
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 840884110}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d1a5f4e3b7c95062e8f0a2b4c3d6e579, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
-  fallY: -6
-  impactSpeed: 2
---- !u!1 &268435900
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 268435901}
-  - component: {fileID: 268435902}
-  m_Layer: 0
-  m_Name: AudioManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &268435901
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 268435900}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &268435902
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 268435900}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d951568ee6f84656ba1b95938c24125a, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
-  musicTracks:
-  - {fileID: 8300000, guid: f781c646ae2d44a9bb6da0b3f9a23037, type: 3}
-  - {fileID: 8300000, guid: f755c4ad35d64c50bb364a0d7e20ec31, type: 3}
-  - {fileID: 8300000, guid: 683e52063c6c4e64a73dda464d357328, type: 3}
-  - {fileID: 8300000, guid: 56a56db9bb24485eb8f173351a3fd216, type: 3}
-  loopPlaylist: 1
-  playMusicOnStart: 1
-  defaultMusicVolume: 0.5
-  defaultEffectsVolume: 0.5
-  saveVolumeSettings: 1
-  musicVolumePrefsKey: bpg_audio_music_volume
-  effectsVolumePrefsKey: bpg_audio_effects_volume
-  preferenceSaveDelay: 0.5
-  musicSource: {fileID: 0}
-  effectsSource: {fileID: 0}
-  uiClickSound: {fileID: 8300000, guid: c40f86fbbacf4e6285bfe1c19279503d, type: 3}
-  uiHoverSound: {fileID: 0}
-  uiOpenSound: {fileID: 0}
-  uiCloseSound: {fileID: 0}
-  uiSource: {fileID: 0}
-  shotSound: {fileID: 0}
-  shotSoundVolume: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
