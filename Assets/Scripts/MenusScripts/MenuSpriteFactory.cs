@@ -1,10 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// Builds the small UI sprites the lobby draws in code (paging arrows and page
-/// dots) so the menu does not need extra art assets. Works the same way as
-/// <see cref="StarSpriteFactory"/>: every icon is generated into a texture at
-/// runtime and destroyed together with the menu.
+/// Builds the small UI sprites the lobby draws in code (paging arrows, plus
+/// circle and ring helpers) so the menu does not need extra art assets. Works
+/// the same way as <see cref="StarSpriteFactory"/>: every icon is generated
+/// into a texture at runtime and destroyed together with the menu.
 /// </summary>
 public static class MenuSpriteFactory
 {

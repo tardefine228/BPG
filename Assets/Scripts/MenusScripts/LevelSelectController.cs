@@ -28,6 +28,16 @@ public sealed class LevelSelectController : MonoBehaviour
     private const float ArrowY = -18f;
     private const float ScrollCooldown = 0.15f;
 
+    // Индикатор страниц: текущая страница — оранжевый [X], остальные — серые [ ].
+    private const string CurrentPageMark = "[X]";
+    private const string OtherPageMark = "[ ]";
+    private const float PageMarkY = -420f;
+    private const float CurrentPageFontSize = 34f;
+    private const float OtherPageFontSize = 28f;
+    private static readonly Color CurrentPageColor = new Color32(230, 155, 82, 255);
+    private static readonly Color OtherPageColor = new Color32(150, 150, 150, 255);
+    private static readonly Color LabelColor = new Color32(120, 120, 120, 255);
+
     [Tooltip("Открыть все уровни сразу — удобно для тестирования новых карт.")]
     [SerializeField] private bool unlockAllLevels;
 
@@ -55,8 +65,6 @@ public sealed class LevelSelectController : MonoBehaviour
     private Sprite starOffSprite;
     private Sprite arrowLeftSprite;
     private Sprite arrowRightSprite;
-    private Sprite dotSprite;
-    private Sprite dotRingSprite;
     private TMP_FontAsset uiFont;
     private GameObject comingSoonOverlay;
     private LevelSelectPagingSurface pagingSurface;
@@ -65,7 +73,7 @@ public sealed class LevelSelectController : MonoBehaviour
     private Button previousPageButton;
     private Button nextPageButton;
     private TMP_Text pageLabel;
-    private readonly List<Image> pageDots = new List<Image>();
+    private readonly List<TMP_Text> pageMarks = new List<TMP_Text>();
     private float pageWidth = CardSpacing;
     private int pageCount = 1;
     private int currentPage;
@@ -110,8 +118,6 @@ public sealed class LevelSelectController : MonoBehaviour
 
         DestroyIcon(arrowLeftSprite);
         DestroyIcon(arrowRightSprite);
-        DestroyIcon(dotSprite);
-        DestroyIcon(dotRingSprite);
     }
 
     private void Update()
@@ -187,8 +193,6 @@ public sealed class LevelSelectController : MonoBehaviour
         starOffSprite = StarSpriteFactory.Create(false);
         arrowRightSprite = MenuSpriteFactory.CreateArrow(true);
         arrowLeftSprite = MenuSpriteFactory.CreateArrow(false);
-        dotSprite = MenuSpriteFactory.CreateCircle();
-        dotRingSprite = MenuSpriteFactory.CreateRing();
 
         RectTransform root = CreateRect(
             "Root",
@@ -245,7 +249,7 @@ public sealed class LevelSelectController : MonoBehaviour
 
         CreateArrowButton(root, -ArrowX, false);
         CreateArrowButton(root, ArrowX, true);
-        BuildPageDots(root);
+        BuildPageIndicator(root);
         BuildBackToMainMenuButton(root);
 
         if (pageCount > 1)
@@ -442,56 +446,66 @@ public sealed class LevelSelectController : MonoBehaviour
         }
     }
 
-    private void BuildPageDots(Transform parent)
+    /// <summary>
+    /// Page indicator: one mark per page, the current page is an orange [X] and
+    /// the rest are grey [ ] marks. It is drawn with TMP text on purpose - text
+    /// renders everywhere, while runtime-generated sprites were showing up as
+    /// plain white squares in some builds.
+    /// </summary>
+    private void BuildPageIndicator(Transform parent)
     {
         if (pageCount <= 1)
         {
             return;
         }
 
-        RectTransform row = CreateRect(
-            "PageDots",
-            parent,
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(0.5f, 0.5f),
-            new Vector2(pageCount * 58f, 44f),
-            new Vector2(0f, -420f));
-
         for (int i = 0; i < pageCount; i++)
         {
-            RectTransform dot = CreateRect(
-                "Dot" + i,
-                row,
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(0.5f, 0.5f),
-                new Vector2(34f, 34f),
-                new Vector2((i - (pageCount - 1) * 0.5f) * 58f, 0f));
+            TMP_Text mark = CreateLabel(
+                parent,
+                "PageMark" + i,
+                i == currentPage ? CurrentPageMark : OtherPageMark,
+                new Vector2((i - (pageCount - 1) * 0.5f) * 58f, PageMarkY),
+                new Vector2(56f, 44f),
+                CurrentPageFontSize,
+                i == currentPage ? CurrentPageColor : OtherPageColor);
 
-            Image image = dot.gameObject.AddComponent<Image>();
-            ConfigureImage(image, Color.white);
-            image.sprite = dotRingSprite;
-            image.preserveAspect = true;
-            ApplyDotState(image, i == currentPage);
+            if (mark != null)
+            {
+                // CreateText выключает луч и включает авто-подбор кегля - для
+                // метки нужно наоборот: по ней кликают, а размер задаёт состояние.
+                mark.raycastTarget = true;
+                mark.enableAutoSizing = false;
+                mark.fontSize = i == currentPage ? CurrentPageFontSize : OtherPageFontSize;
 
-            Button button = dot.gameObject.AddComponent<Button>();
-            button.targetGraphic = image;
-            // No ColorTint: the button would repaint the dot white on hover and
-            // wipe out the "current page" colour.
-            button.transition = Selectable.Transition.None;
-            Navigation navigation = button.navigation;
-            navigation.mode = Navigation.Mode.None;
-            button.navigation = navigation;
-            int page = i;
-            button.onClick.AddListener(() => SetPage(page));
+                // Клик по метке перелистывает на её страницу. Кнопка ничего не
+                // перекрашивает: transition выключен, targetGraphic пустой.
+                Button button = mark.gameObject.AddComponent<Button>();
+                button.targetGraphic = null;
+                button.transition = Selectable.Transition.None;
+                Navigation navigation = button.navigation;
+                navigation.mode = Navigation.Mode.None;
+                button.navigation = navigation;
+                int page = i;
+                button.onClick.AddListener(() => SetPage(page));
+            }
 
-            pageDots.Add(image);
+            pageMarks.Add(mark);
         }
 
-        pageLabel = CreateLabel(parent, "PageLabel", "СТРАНИЦА 1 / " + pageCount,
+        pageLabel = CreateLabel(parent, "PageLabel", PageLabelText(),
             new Vector2(0f, -462f), new Vector2(600f, 34f), 22f,
-            new Color32(120, 120, 120, 255));
+            LabelColor);
+    }
+
+    private static string PageMarkText(bool isCurrent)
+    {
+        return isCurrent ? CurrentPageMark : OtherPageMark;
+    }
+
+    private string PageLabelText()
+    {
+        return "СТРАНИЦА " + (currentPage + 1) + " / " + pageCount;
     }
 
     private void StepPage(int delta)
@@ -575,35 +589,28 @@ public sealed class LevelSelectController : MonoBehaviour
             nextPageButton.gameObject.SetActive(canGoForward);
         }
 
-        for (int i = 0; i < pageDots.Count; i++)
+        for (int i = 0; i < pageMarks.Count; i++)
         {
-            ApplyDotState(pageDots[i], i == currentPage);
+            ApplyPageMark(pageMarks[i], i == currentPage);
         }
 
         if (pageLabel != null)
         {
-            pageLabel.text = "СТРАНИЦА " + (currentPage + 1) + " / " + pageCount;
+            pageLabel.text = PageLabelText();
         }
     }
 
-    /// <summary>
-    /// Draws one page indicator: the current page is a filled orange dot, the
-    /// others are hollow grey rings.
-    /// </summary>
-    private void ApplyDotState(Image dot, bool isCurrent)
+    /// <summary>Repaints one page mark for the given state.</summary>
+    private void ApplyPageMark(TMP_Text mark, bool isCurrent)
     {
-        if (dot == null)
+        if (mark == null)
         {
             return;
         }
 
-        dot.sprite = isCurrent ? dotSprite : dotRingSprite;
-        dot.color = isCurrent
-            ? new Color32(230, 155, 82, 255)
-            : new Color32(150, 150, 150, 255);
-        dot.rectTransform.sizeDelta = isCurrent
-            ? new Vector2(36f, 36f)
-            : new Vector2(26f, 26f);
+        mark.text = PageMarkText(isCurrent);
+        mark.color = isCurrent ? CurrentPageColor : OtherPageColor;
+        mark.fontSize = isCurrent ? CurrentPageFontSize : OtherPageFontSize;
     }
 
     /// <summary>Top right button that leaves the lobby for the main menu.</summary>
