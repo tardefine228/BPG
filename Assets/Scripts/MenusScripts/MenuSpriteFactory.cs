@@ -58,7 +58,7 @@ public static class MenuSpriteFactory
     }
 
     /// <summary>Circle outline used for the inactive page dots.</summary>
-    public static Sprite CreateRing(int size = 64, float thickness = 0.34f)
+    public static Sprite CreateRing(int size = 64, float thickness = 0.16f)
     {
         size = Mathf.Max(16, size);
         Texture2D texture = NewTexture(size, "DotRing");

@@ -129,7 +129,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1000000002}
   - component: {fileID: 1000000003}
-  - component: {fileID: 1000000004}
   m_Layer: 0
   m_Name: LevelSelectManager
   m_TagString: Untagged
@@ -168,20 +167,9 @@ MonoBehaviour:
   cardsPerPage: 3
   slideDuration: 0.32
   dragFlipDistance: 90
---- !u!114 &1000000004
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1000000001}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e247c7cb4d9d4732bb509a90bb26e7ba, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::PauseMenuController
+  showBackToMainMenuButton: 1
   mainMenuSceneName: MainMenu
-  gameplayController: {fileID: 0}
+  escapeReturnsToMainMenu: 1
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0

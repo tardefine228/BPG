@@ -41,6 +41,15 @@ public sealed class LevelSelectController : MonoBehaviour
     [Tooltip("Сдвиг мышью или пальцем, при котором страница перелистывается.")]
     [SerializeField, Min(0f)] private float dragFlipDistance = 90f;
 
+    [Tooltip("Кнопка «в главное меню» в правом верхнем углу.")]
+    [SerializeField] private bool showBackToMainMenuButton = true;
+
+    [Tooltip("Сцена главного меню, куда возвращает кнопка.")]
+    [SerializeField] private string mainMenuSceneName = "MainMenu";
+
+    [Tooltip("Выход в главное меню по клавише Esc.")]
+    [SerializeField] private bool escapeReturnsToMainMenu = true;
+
     private Sprite uiSprite;
     private Sprite starOnSprite;
     private Sprite starOffSprite;
@@ -55,6 +64,7 @@ public sealed class LevelSelectController : MonoBehaviour
     private RectTransform track;
     private Button previousPageButton;
     private Button nextPageButton;
+    private TMP_Text pageLabel;
     private readonly List<Image> pageDots = new List<Image>();
     private float pageWidth = CardSpacing;
     private int pageCount = 1;
@@ -106,14 +116,20 @@ public sealed class LevelSelectController : MonoBehaviour
 
     private void Update()
     {
-        if (pageCount <= 1)
+#if ENABLE_INPUT_SYSTEM
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null)
         {
             return;
         }
 
-#if ENABLE_INPUT_SYSTEM
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null)
+        if (escapeReturnsToMainMenu && keyboard.escapeKey.wasPressedThisFrame)
+        {
+            ReturnToMainMenu();
+            return;
+        }
+
+        if (pageCount <= 1)
         {
             return;
         }
@@ -127,6 +143,14 @@ public sealed class LevelSelectController : MonoBehaviour
             StepPage(-1);
         }
 #endif
+    }
+
+    /// <summary>Leaves the lobby and returns to the main menu scene.</summary>
+    public void ReturnToMainMenu()
+    {
+        AudioManager.Instance?.PlayUiClick();
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(mainMenuSceneName);
     }
 
     private void BuildLobby()
@@ -222,12 +246,13 @@ public sealed class LevelSelectController : MonoBehaviour
         CreateArrowButton(root, -ArrowX, false);
         CreateArrowButton(root, ArrowX, true);
         BuildPageDots(root);
+        BuildBackToMainMenuButton(root);
 
         if (pageCount > 1)
         {
             CreateLabel(root, "PagingHint",
                 "ЛИСТАЙТЕ СТРАНИЦЫ: СТРЕЛКИ, КОЛЕСО ИЛИ СВАЙП",
-                new Vector2(0f, -468f), new Vector2(1200f, 36f), 20f,
+                new Vector2(0f, -496f), new Vector2(1200f, 36f), 20f,
                 new Color32(96, 96, 96, 255));
         }
 
@@ -448,11 +473,13 @@ public sealed class LevelSelectController : MonoBehaviour
             ConfigureImage(image, Color.white);
             image.sprite = dotRingSprite;
             image.preserveAspect = true;
+            ApplyDotState(image, i == currentPage);
 
             Button button = dot.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
-            button.transition = Selectable.Transition.ColorTint;
-            button.colors = MenuColorBlock.Create();
+            // No ColorTint: the button would repaint the dot white on hover and
+            // wipe out the "current page" colour.
+            button.transition = Selectable.Transition.None;
             Navigation navigation = button.navigation;
             navigation.mode = Navigation.Mode.None;
             button.navigation = navigation;
@@ -461,6 +488,10 @@ public sealed class LevelSelectController : MonoBehaviour
 
             pageDots.Add(image);
         }
+
+        pageLabel = CreateLabel(root, "PageLabel", "СТРАНИЦА 1 / " + pageCount,
+            new Vector2(0f, -462f), new Vector2(600f, 34f), 22f,
+            new Color32(120, 120, 120, 255));
     }
 
     private void StepPage(int delta)
@@ -546,16 +577,82 @@ public sealed class LevelSelectController : MonoBehaviour
 
         for (int i = 0; i < pageDots.Count; i++)
         {
-            Image dot = pageDots[i];
-            if (dot == null)
-            {
-                continue;
-            }
-
-            bool active = i == currentPage;
-            dot.sprite = active ? dotSprite : dotRingSprite;
-            dot.color = active ? new Color32(230, 155, 82, 255) : new Color32(110, 110, 110, 255);
+            ApplyDotState(pageDots[i], i == currentPage);
         }
+
+        if (pageLabel != null)
+        {
+            pageLabel.text = "СТРАНИЦА " + (currentPage + 1) + " / " + pageCount;
+        }
+    }
+
+    /// <summary>
+    /// Draws one page indicator: the current page is a filled orange dot, the
+    /// others are hollow grey rings.
+    /// </summary>
+    private void ApplyDotState(Image dot, bool isCurrent)
+    {
+        if (dot == null)
+        {
+            return;
+        }
+
+        dot.sprite = isCurrent ? dotSprite : dotRingSprite;
+        dot.color = isCurrent
+            ? new Color32(230, 155, 82, 255)
+            : new Color32(150, 150, 150, 255);
+        dot.rectTransform.sizeDelta = isCurrent
+            ? new Vector2(36f, 36f)
+            : new Vector2(26f, 26f);
+    }
+
+    /// <summary>Top right button that leaves the lobby for the main menu.</summary>
+    private void BuildBackToMainMenuButton(Transform parent)
+    {
+        if (!showBackToMainMenuButton)
+        {
+            return;
+        }
+
+        MenuButtonStyle style = MenuButtonStyle.Default;
+        if (style != null)
+        {
+            style.CreateButton(parent, "BackToMainMenuButton", "В ГЛАВНОЕ МЕНЮ",
+                Vector2.one, new Vector2(360f, 76f), new Vector2(-38f, -38f),
+                ReturnToMainMenu, 32f);
+            return;
+        }
+
+        // Fallback without the shared style asset: plain white button in the corner.
+        RectTransform rect = CreateRect(
+            "BackToMainMenuButton",
+            parent,
+            Vector2.one,
+            Vector2.one,
+            Vector2.one,
+            new Vector2(360f, 76f),
+            new Vector2(-38f, -38f));
+        Image background = rect.gameObject.AddComponent<Image>();
+        ConfigureImage(background, Color.white);
+
+        Button button = rect.gameObject.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.transition = Selectable.Transition.ColorTint;
+        button.colors = MenuColorBlock.Create();
+        Navigation navigation = button.navigation;
+        navigation.mode = Navigation.Mode.None;
+        button.navigation = navigation;
+        button.onClick.AddListener(ReturnToMainMenu);
+
+        RectTransform labelRect = CreateRect(
+            "Label",
+            rect,
+            Vector2.zero,
+            Vector2.one,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(-18f, -10f),
+            Vector2.zero);
+        CreateText(labelRect, "В ГЛАВНОЕ МЕНЮ", 32f, new Color32(45, 45, 45, 255));
     }
 
     private void OnDraggedHorizontally(float deltaX)
@@ -782,7 +879,7 @@ public sealed class LevelSelectController : MonoBehaviour
         return button;
     }
 
-    private void CreateLabel(
+    private TMP_Text CreateLabel(
         Transform parent,
         string objectName,
         string value,
@@ -799,7 +896,7 @@ public sealed class LevelSelectController : MonoBehaviour
             new Vector2(0.5f, 0.5f),
             size,
             position);
-        CreateText(rect, value, fontSize, color);
+        return CreateText(rect, value, fontSize, color);
     }
 
     private TMP_Text CreateText(RectTransform parent, string value, float fontSize, Color color)
