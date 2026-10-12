@@ -2,7 +2,8 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-// Мышь получает урон от сильных столкновений; при 0 HP считается уничтоженной.
+// Мышь погибает от сильных столкновений с шаром, а также при падении с высоты
+// (или при провале за пределы уровня); при 0 HP считается уничтоженной.
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
 public sealed class MouseEnemy : MonoBehaviour
@@ -23,17 +24,18 @@ public sealed class MouseEnemy : MonoBehaviour
     [Tooltip("Защита от многократного урона за одно столкновение.")]
     [SerializeField, Min(0f)] private float hitCooldown = 0.15f;
 
-    [Header("Падение и смерть")]
-    [Tooltip("Мышь погибает, если падает ниже этой высоты.")]
+    [Header("Смерть")]
+    [Tooltip("Мышь погибает, если проваливается ниже этой высоты (за пределы уровня).")]
     [SerializeField] private float fallY = -6f;
     [Tooltip("Задержка перед скрытием мыши; флаг IsDead ставится сразу.")]
     [SerializeField, Min(0f)] private float deathDelay = 0.4f;
 
     [Header("Смерть от падения с высоты")]
-    [Tooltip("Если включено, мышь получает урон (или погибает), когда приземляется " +
-             "после падения с высоты больше указанного порога.")]
+    [Tooltip("Если включено, мышь погибает (или получает урон), когда падает с высоты " +
+             "больше указанного порога: при приземлении либо сразу в полёте.")]
     [SerializeField] private bool dieOnFallDamage = true;
-    [Tooltip("Минимальная высота падения (в блоках/юнитах), при которой приземление наносит урон.")]
+    [Tooltip("Минимальная высота падения (в блоках/юнитах), при которой приземление убивает " +
+             "(или ранит — см. «Мгновенная смерть при падении»).")]
     [SerializeField, Min(0f)] private float fallDamageHeight = 2f;
     [Tooltip("Мгновенно убивать мышь при таком падении. Если выключено — наносится урон, " +
              "зависящий от высоты падения (см. «Множитель урона»).")]
@@ -94,6 +96,16 @@ public sealed class MouseEnemy : MonoBehaviour
             fallStartY = fallStartY > 0f
                 ? Mathf.Max(fallStartY, transform.position.y)
                 : transform.position.y;
+
+            float drop = fallStartY - transform.position.y;
+
+            // Если мышь падает вниз без шанса приземлиться (за пределы уровня) —
+            // погибает сразу, не дожидаясь касания дна.
+            if (instakillOnFall && drop >= fallDamageHeight && WouldLeaveLevel(body))
+            {
+                Kill();
+                return;
+            }
         }
         else if (fallStartY > 0f)
         {
@@ -104,6 +116,13 @@ public sealed class MouseEnemy : MonoBehaviour
             if (drop >= fallDamageHeight)
                 ApplyFallDamage(drop);
         }
+    }
+
+    // Должна ли мышь по текущей траектории провалиться ниже kill-зоны уровня.
+    private bool WouldLeaveLevel(Rigidbody2D body)
+    {
+        float predictedY = transform.position.y + body.linearVelocity.y * 0.3f;
+        return predictedY <= fallY || transform.position.y <= fallY + 0.5f;
     }
 
     private void ApplyFallDamage(float dropHeight)
@@ -160,7 +179,7 @@ public sealed class MouseEnemy : MonoBehaviour
             return;
 
         // Столкновение с землёй/объектом во время падения засчитываем как приземление.
-        if (fallStartY > 0f)
+        if (dieOnFallDamage && fallStartY > 0f)
         {
             float drop = fallStartY - transform.position.y;
             fallStartY = 0f;
