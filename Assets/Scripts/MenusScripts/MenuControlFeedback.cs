@@ -14,7 +14,7 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
     [SerializeField] private bool sharedFocusColor = true;
     [SerializeField] private MenuButtonStyle.Plate plate = MenuButtonStyle.Plate.Primary;
 
-    [Header("Лёгкое покачивание кнопки")]
+    [Header("Лёгкое покачивание элемента")]
     [SerializeField] private bool idleSway;
     [Tooltip("Максимальный наклон в градусах. Для едва заметного движения: 0.3–0.6.")]
     [SerializeField, Range(0f, 3f)] private float swayAngle = 0.45f;
@@ -109,7 +109,7 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
     private void LateUpdate()
     {
         UpdateFocus();
-        if (!idleSway || button == null || rect == null)
+        if (!idleSway || rect == null)
         {
             RestorePose();
         }
