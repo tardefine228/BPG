@@ -36,22 +36,55 @@ public static class SceneUiValidation
                     }
                 }
 
-                References(Find<SceneTransition>().Single(), "settings", "group", "progressFill", "caption", "percent",
-                    "logoImage", "titleText", "subtitleText", "backgroundImage", "accentLine");
+                References(Find<SceneTransition>().Single(), "settings", "group", "progressFill", "caption", "percent", "backgroundImage");
+                if (scene.name != "Boot")
+                {
+                    var transition = Find<SceneTransition>().Single();
+                    var names = transition.GetComponentsInChildren<Transform>(true).Select(child => child.name).ToArray();
+                    Require(new[] { "AccentLine", "LogoPlaceholder", "GameTitle", "StudioText" }.All(name => !names.Contains(name)),
+                        scene.name + ": лишние объекты на панели загрузки");
+                }
+                foreach (var splash in Find<StartupController>())
+                    References(splash, "settings", "screenGroup", "brandingGroup", "backgroundImage", "logoImage", "companyNameText");
+                foreach (var guide in Find<FirstLevelGuide>())
+                    References(guide, "overlayFade", "firstIllustration", "secondIllustration", "gameplayController", "pauseButton");
                 foreach (var audio in Find<AudioManager>()) References(audio, "musicSource", "effectsSource", "uiSource");
                 foreach (var session in Find<LevelSession>())
                 {
                     Require(new SerializedObject(session).FindProperty("maxProjectiles").intValue >= 1,
                         scene.name + ": боезапас должен быть положительным");
                     References(session, "gameplayController", "starOnSprite", "starOffSprite", "scoreValueText",
-                        "scoreHintText", "ammoValueText", "completionOverlay", "defeatOverlay",
+                        "scoreHintText", "completionOverlay", "defeatOverlay",
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
                     ValidatePauseHierarchy(Find<PauseMenuController>().Single());
-                    References(Find<GameplayCameraController>().Single(), "controlsCanvas", "controlsRect",
-                        "launcherButton", "overviewButton", "targetButton");
+                    References(Find<GameplayCameraController>().Single(), "background");
+                    Require(Find<GameplayCameraController>().Single().TerrainCollider != null,
+                        scene.name + ": не назначена земля для очереди и мышей");
+                    if (scene.name == "Gameplay" || scene.name == "Level2")
+                    {
+                        Require(!Find<Transform>().Any(item => item.name == "FlatGround"), "Прежний пол не удалён");
+                        Require(Find<GameplayCameraController>().Single().TerrainCollider is UnityEngine.Tilemaps.TilemapCollider2D
+                            && Find<GameplayCameraController>().Single().TerrainCollider.name == "Layer1",
+                            "Земля должна ссылаться на плотный Layer1");
+                    }
+                    var preview = Find<GameplayCameraController>().Single();
+                    Require(Vector2.Distance(preview.transform.position, (preview.mapMin + preview.mapMax) * 0.5f) < 0.01f,
+                        scene.name + ": редакторская камера не совпадает с игровым кадром");
+                    Require(!Find<Transform>().Any(item => item.name == "GameplayCameraCanvas"),
+                        scene.name + ": остались переключатели камеры");
                     References(Find<SlingshotController>().Single(), "dots");
+                    var slingshot = Find<SlingshotController>().Single();
+                    References(slingshot, "catProjectilePrefabs", "queueOrigin");
+                    var cats = new SerializedObject(slingshot).FindProperty("catProjectilePrefabs");
+                    Require(cats.arraySize == 5, scene.name + ": должно быть пять видов котов");
+                    Require(Enumerable.Range(0, cats.arraySize).Select(index =>
+                        cats.GetArrayElementAtIndex(index).objectReferenceValue).Distinct().Count() == 5,
+                        scene.name + ": префабы котов должны быть разными");
+                    int expectedAmmo = scene.name == "Gameplay" ? 2 : scene.name == "Level2" ? 3 :
+                        scene.name == "Level3" ? 4 : 5;
+                    Require(session.MaxProjectiles == expectedAmmo, scene.name + ": неверное количество котов");
                     var dots = new SerializedObject(Find<SlingshotController>().Single()).FindProperty("dots");
                     Require(dots.arraySize > 0, "Не сохранены точки траектории");
                     Require(Find<ComicParticleBurst>().Length > 0, "Не сохранены эффекты попадания");
@@ -66,6 +99,8 @@ public static class SceneUiValidation
                 foreach (var card in Find<LevelCardView>())
                 {
                     References(card, "button", "preview", "currentHighlight", "lockOverlay", "soonOverlay", "parHint", "stars");
+                    if (card.LevelId >= 1 && card.LevelId <= 5)
+                        References(card, "hoverOutline");
                     var highlight = (GameObject)new SerializedObject(card).FindProperty("currentHighlight").objectReferenceValue;
                     if (highlight.transform.parent == card.transform.parent)
                         Require(highlight.transform.GetSiblingIndex() < card.transform.GetSiblingIndex(),
@@ -76,6 +111,26 @@ public static class SceneUiValidation
             var projectile = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Projectile.prefab");
             Require(projectile.GetComponent<ProjectileImpactReporter>() != null, "У снаряда нет обработчика попаданий");
             References(projectile.GetComponent<ProjectileComicEffects>(), "comicMaterial", "trailRoot", "outline", "ribbon", "core");
+            for (int i = 1; i <= 5; i++)
+            {
+                var cat = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Cats/Cat" + i + ".prefab");
+                Require(cat != null && cat.GetComponent<CatProjectile>() != null
+                    && cat.GetComponent<Rigidbody2D>() != null && cat.GetComponent<CircleCollider2D>() != null
+                    && cat.GetComponent<ProjectileImpactReporter>() != null, "Cat" + i + ": неполный префаб снаряда");
+                References(cat.GetComponent<CatProjectile>(), "spriteRenderer");
+                References(cat.GetComponent<CatFlightEffects>(), "furPrefab");
+                References(cat.GetComponent<ProjectileComicEffects>(), "comicMaterial", "trailRoot", "outline", "ribbon", "core");
+            }
+            var mouse = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
+            Require(mouse.GetComponent<BoxCollider2D>() != null && mouse.GetComponent<CircleCollider2D>() == null,
+                "Мышь должна использовать прямоугольный коллайдер");
+            References(mouse.GetComponent<MouseEnemy>(), "deathSprite");
+            var fur = AssetDatabase.LoadAssetAtPath<ParticleSystem>("Assets/Prefabs/Cats/FurTrail.prefab");
+            Require(fur != null && !fur.main.playOnAwake
+                && fur.main.simulationSpace == ParticleSystemSimulationSpace.World,
+                "Шерсть: неверные настройки префаба частиц");
+            References(fur.GetComponent<ParticleSystemRenderer>(), "m_Materials");
+            ValidateMainPrototype();
             Debug.Log("Все связи интерфейса и эффектов проверены.");
         }
         finally
@@ -86,6 +141,33 @@ public static class SceneUiValidation
     }
 
     private static T[] Find<T>() where T : Object => Object.FindObjectsByType<T>(FindObjectsInactive.Include);
+
+    private static void ValidateMainPrototype()
+    {
+        const string path = "Assets/Scenes/Gameplay_MainPrototype.unity";
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null)
+            return;
+        var scene = EditorSceneManager.OpenScene(path);
+        foreach (var root in scene.GetRootGameObjects())
+        foreach (var child in root.GetComponentsInChildren<Transform>(true))
+        {
+            Require(GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(child.gameObject) == 0,
+                path + ": отсутствует скрипт на " + child.name);
+            Require(PrefabUtility.GetPrefabInstanceStatus(child.gameObject) != PrefabInstanceStatus.MissingAsset,
+                path + ": отсутствует префаб " + child.name);
+        }
+        Require(Find<LevelTarget>().Length >= 15 && Find<MouseEnemy>().Length >= 5,
+            "Прототип main потерял часть постройки или мышей");
+        foreach (var button in Find<Button>())
+        for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+        {
+            var target = button.onClick.GetPersistentTarget(i);
+            Require(target != null && target.GetType().GetMethods().Any(method =>
+                method.Name == button.onClick.GetPersistentMethodName(i)),
+                path + ": потерян обработчик кнопки " + button.name);
+        }
+        Debug.Log("PROTOTYPE CHECK OK: main objects and current UI preserved");
+    }
 
     private static void ValidatePauseHierarchy(PauseMenuController pause)
     {

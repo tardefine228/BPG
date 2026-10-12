@@ -1,325 +1,158 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.UI;
 
 [RequireComponent(typeof(Camera))]
-public class GameplayCameraController : MonoBehaviour
+[ExecuteAlways]
+public sealed class GameplayCameraController : MonoBehaviour
 {
-    [Header("Объекты сцены")]
-    public SlingshotController slingshot;
-    public Transform launcherFocus;
-    public Transform targetFocus;
+    [Header("Вся карта в одном кадре")]
     public SpriteRenderer ground;
+    [Tooltip("Коллайдер плотных блоков карты (Grid / Tilemap / Layer1). Используется для очереди и гибели мышей.")]
+    public Collider2D terrain;
     public SpriteRenderer background;
-    public Vector2 mapMin = new Vector2(-85f, -7.5f);
-    public Vector2 mapMax = new Vector2(95f, 62.5f);
-    public float overviewPadding = 4f;
+    public Vector2 mapMin = new Vector2(-39f, -7.5f);
+    public Vector2 mapMax = new Vector2(39f, 29f);
+    [Min(0f)] public float overviewPadding = 1.5f;
 
-    [Header("Ручное приближение")]
-    public float launcherSize = 8f;
-    public float impactSize = 12f;
-    public Vector2 launcherOffset = new Vector2(2f, 2f);
-    public float transitionDuration = 0.5f;
+    [Header("Приближение при входе в уровень")]
+    [Tooltip("Насколько дальше камера в начале. 0 — без приближения, 0.12 — на 12% дальше.")]
+    [Range(0f, 0.35f)] public float introZoom = 0.12f;
+    [Range(0.2f, 3f)] public float introDuration = 1.2f;
 
-    [Header("Камера выстрела")]
-    public float shotLauncherSize = 20f;
-    public float preShotHold = 1f;
-    public float followSize = 20f;
-    public float followSharpness = 12f;
-    public float followLookAhead = 0.16f;
-    public float groundHold = 1f;
-    public float buildingHold = 2f;
-    public float returnDuration = 0.7f;
-    [Tooltip("Плавное перемещение к месту попадания без дополнительного увеличения.")]
-    [Min(0.1f)] public float impactTransitionDuration = 0.75f;
-
-    [Header("Управление камерой")]
-    public UnityEvent onLauncherFocused = new UnityEvent();
-    public bool showControls = true;
-    [Tooltip("Оттенок кнопки текущего режима камеры, сохраняющийся при паузе.")]
-    [SerializeField, InspectorName("Оттенок выбранной кнопки")]
-    private Color selectedViewTint = new Color32(255, 226, 180, 255);
-    public bool IsBusy => shotSequence || viewTransition != null;
-
-    private enum ViewMode { Overview, Launcher, Target }
-    private ViewMode mode;
+    public bool IsBusy => introPlaying;
+    public Collider2D TerrainCollider => terrain != null ? terrain
+        : (ground != null ? ground.GetComponent<Collider2D>() : null);
+    private readonly RaycastHit2D[] surfaceHits = new RaycastHit2D[64];
     private Camera view;
-    private Coroutine viewTransition;
-    private bool shotSequence;
-    private bool impactRecorded;
-    private bool buildingImpact;
-    private Vector2 impactFocus;
-    private Rigidbody2D trackedProjectile;
-    private Coroutine cinematic;
+    private float introProgress;
+    private bool introPlaying;
     private float lastAspect;
-    private float groundSurface;
-    [SerializeField] private GameObject controlsCanvas;
-    [SerializeField] private RectTransform controlsRect;
-    [SerializeField] private Button launcherButton;
-    [SerializeField] private Button overviewButton;
-    [SerializeField] private Button targetButton;
-    private Color launcherButtonColor;
-    private Color overviewButtonColor;
-    private Color targetButtonColor;
 
-    private bool CanNavigate => !shotSequence && !SceneTransition.IsLoading && slingshot != null
-        && slingshot.isActiveAndEnabled && !slingshot.IsDragging && Time.timeScale > 0f;
-    private Vector2 OverviewPosition => (mapMin + mapMax) * 0.5f;
-    private float OverviewSize => Mathf.Max((mapMax.y - mapMin.y) * 0.5f,
+    private float GameplaySize => Mathf.Max((mapMax.y - mapMin.y) * 0.5f,
         (mapMax.x - mapMin.x) / (2f * Mathf.Max(0.1f, view.aspect))) + overviewPadding;
-    private Vector2 LauncherPosition => (Vector2)launcherFocus.position + launcherOffset;
 
     private void Awake()
     {
         view = GetComponent<Camera>();
         view.orthographic = true;
-        if (ground != null)
-            groundSurface = ground.bounds.max.y;
+        introPlaying = Application.IsPlaying(gameObject) && introZoom > 0f;
+        introProgress = Application.IsPlaying(gameObject) ? 0f : 1f;
+        ApplyFrame();
+        FitBackdrop();
+        lastAspect = view.aspect;
     }
 
-    private void Start()
+    private IEnumerator Start()
     {
-        FitBackdrop();
-        SetView(OverviewPosition, OverviewSize);
-        lastAspect = view.aspect;
-        launcherButtonColor = launcherButton.targetGraphic.color;
-        overviewButtonColor = overviewButton.targetGraphic.color;
-        targetButtonColor = targetButton.targetGraphic.color;
+        if (!Application.IsPlaying(gameObject))
+            yield break;
+        // Приближение начинается после загрузки и закрытия обучения.
+        while (SceneTransition.IsLoading || Time.timeScale <= 0f)
+            yield return null;
+        while (introPlaying && introProgress < 1f)
+        {
+            if (Time.timeScale > 0f)
+                introProgress = Mathf.Clamp01(introProgress + Time.deltaTime / Mathf.Max(0.2f, introDuration));
+            ApplyFrame();
+            yield return null;
+        }
+        introPlaying = false;
+        introProgress = 1f;
+        ApplyFrame();
     }
 
     private void LateUpdate()
     {
-        if (trackedProjectile != null && !impactRecorded && Time.timeScale > 0f)
+        if (view == null)
+            view = GetComponent<Camera>();
+        if (!Application.IsPlaying(gameObject))
         {
-            Vector2 destination = trackedProjectile.position
-                + trackedProjectile.linearVelocity * followLookAhead + Vector2.up * 2f;
-            float t = 1f - Mathf.Exp(-followSharpness * Time.deltaTime);
-            SetView(Vector2.Lerp(transform.position, destination, t),
-                Mathf.Lerp(view.orthographicSize, followSize, t));
+            introProgress = 1f;
+            ApplyFrame();
         }
-        if (!Mathf.Approximately(lastAspect, view.aspect))
+        if (Mathf.Approximately(lastAspect, view.aspect))
+            return;
+        ApplyFrame();
+        FitBackdrop();
+        lastAspect = view.aspect;
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (!UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
         {
-            FitBackdrop();
-            if (!IsBusy)
+            UnityEditor.EditorApplication.delayCall -= PreviewFrame;
+            UnityEditor.EditorApplication.delayCall += PreviewFrame;
+        }
+    }
+
+    private void PreviewFrame()
+    {
+        if (this == null || UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+            return;
+        view = GetComponent<Camera>();
+        view.orthographic = true;
+        introProgress = 1f;
+        ApplyFrame();
+        FitBackdrop();
+    }
+#endif
+
+    private void ApplyFrame()
+    {
+        Vector2 center = (mapMin + mapMax) * 0.5f;
+        transform.position = new Vector3(center.x, center.y, transform.position.z);
+        view.orthographicSize = Mathf.Max(0.1f, GameplaySize)
+            * Mathf.Lerp(1f + introZoom, 1f, Mathf.SmoothStep(0f, 1f, introProgress));
+    }
+
+    public bool TryGetSurfaceHeight(float worldX, out float surfaceY)
+    {
+        surfaceY = 0f;
+        Collider2D surface = TerrainCollider;
+        if (surface == null || !surface.enabled || !surface.gameObject.activeInHierarchy)
+            return false;
+        float top = Mathf.Max(mapMax.y, surface.bounds.max.y) + 4f;
+        var filter = new ContactFilter2D { useTriggers = false };
+        filter.SetLayerMask(1 << surface.gameObject.layer);
+        int count = Physics2D.Raycast(new Vector2(worldX, top), Vector2.down,
+            filter, surfaceHits, top - surface.bounds.min.y + 8f);
+        for (int i = 0; i < count; i++)
+            if (surfaceHits[i].collider == surface && surfaceHits[i].normal.y > 0.1f)
             {
-                GetSelectedView(out Vector2 position, out float size);
-                SetView(position, size);
+                surfaceY = surfaceHits[i].point.y;
+                return true;
             }
-            lastAspect = view.aspect;
-        }
-        if (controlsCanvas == null)
-            return;
-        controlsCanvas.SetActive(showControls && slingshot != null);
-        launcherButton.interactable = CanNavigate && mode != ViewMode.Launcher;
-        overviewButton.interactable = CanNavigate && mode != ViewMode.Overview;
-        targetButton.interactable = CanNavigate && mode != ViewMode.Target && targetFocus != null;
-        // Выбор режима отмечается цветом отдельно от блокировки кнопок на паузе.
-        launcherButton.targetGraphic.color = launcherButtonColor * (mode == ViewMode.Launcher ? selectedViewTint : Color.white);
-        overviewButton.targetGraphic.color = overviewButtonColor * (mode == ViewMode.Overview ? selectedViewTint : Color.white);
-        targetButton.targetGraphic.color = targetButtonColor * (mode == ViewMode.Target ? selectedViewTint : Color.white);
-    }
-
-    public IEnumerator PrepareForShot()
-    {
-        StopViewTransition();
-        shotSequence = true;
-        impactRecorded = false;
-        mode = ViewMode.Overview;
-        yield return MoveView(LauncherPosition, shotLauncherSize, transitionDuration);
-        yield return new WaitForSeconds(preShotHold);
-    }
-
-    public void FollowShot(Rigidbody2D body)
-    {
-        trackedProjectile = body;
-        if (cinematic != null)
-            StopCoroutine(cinematic);
-        cinematic = StartCoroutine(TrackShot());
-    }
-
-    public void RecordImpact(Vector2 point, Collider2D collider)
-    {
-        if (!shotSequence || impactRecorded)
-            return;
-        impactRecorded = true;
-        buildingImpact = collider != null && (collider.GetComponentInParent<LevelTarget>() != null
-            || (targetFocus != null && collider.transform.IsChildOf(targetFocus)));
-        impactFocus = buildingImpact && targetFocus != null && collider.transform.IsChildOf(targetFocus)
-            ? (Vector2)targetFocus.position + Vector2.up * 3f
-            : point + Vector2.up * (impactSize * 0.3f);
-    }
-
-    private IEnumerator TrackShot()
-    {
-        float deadline = Time.time + 7f;
-        while (!impactRecorded && trackedProjectile != null && Time.time < deadline)
-            yield return null;
-        if (!impactRecorded)
-        {
-            buildingImpact = false;
-            impactFocus = trackedProjectile != null
-                ? trackedProjectile.position + Vector2.up * (impactSize * 0.3f)
-                : (Vector2)transform.position;
-        }
-        trackedProjectile = null;
-        yield return MoveView(impactFocus, view.orthographicSize, impactTransitionDuration);
-        yield return new WaitForSeconds(buildingImpact ? buildingHold : groundHold);
-        yield return MoveView(OverviewPosition, OverviewSize, returnDuration);
-        shotSequence = false;
-        cinematic = null;
-    }
-
-    public void FocusLauncher() => SelectView(ViewMode.Launcher);
-    public void FocusTarget() => SelectView(ViewMode.Target);
-    public void ShowOverview() => SelectView(ViewMode.Overview);
-
-    private void SelectView(ViewMode selected)
-    {
-        if (!CanNavigate || (selected == ViewMode.Target && targetFocus == null))
-            return;
-        StopViewTransition();
-        mode = selected;
-        viewTransition = StartCoroutine(ChangeView());
-    }
-
-    private IEnumerator ChangeView()
-    {
-        GetSelectedView(out Vector2 position, out float size);
-        yield return MoveView(position, size, transitionDuration);
-        GetSelectedView(out position, out size);
-        SetView(position, size);
-        viewTransition = null;
-        if (mode == ViewMode.Launcher)
-            onLauncherFocused.Invoke();
-    }
-
-    private void GetSelectedView(out Vector2 position, out float size)
-    {
-        position = OverviewPosition;
-        size = OverviewSize;
-        if (mode == ViewMode.Launcher)
-        {
-            position = LauncherPosition;
-            size = launcherSize;
-        }
-        else if (mode == ViewMode.Target && targetFocus != null)
-        {
-            // Удерживает центр постройки в кадре даже после разлёта обломков.
-            position = (Vector2)targetFocus.position + Vector2.up * 3f;
-            size = impactSize;
-        }
-    }
-
-    private void StopViewTransition()
-    {
-        if (viewTransition != null)
-            StopCoroutine(viewTransition);
-        viewTransition = null;
-    }
-
-    private IEnumerator MoveView(Vector2 position, float size, float duration)
-    {
-        Vector2 from = transform.position;
-        float fromSize = view.orthographicSize;
-        float elapsed = 0f;
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
-            SetView(Vector2.Lerp(from, position, t), Mathf.Lerp(fromSize, size, t));
-            yield return null;
-        }
-        SetView(position, size);
-    }
-
-    private void SetView(Vector2 position, float size)
-    {
-        transform.position = new Vector3(position.x, position.y, transform.position.z);
-        view.orthographicSize = Mathf.Max(0.1f, size);
-        ExpandBackdrop(position, view.orthographicSize);
-    }
-
-    private void ExpandBackdrop(Vector2 position, float size)
-    {
-        // Продлевает землю и фон, чтобы при полёте за границы карты не появились пустоты.
-        float left = position.x - size * view.aspect - 8f;
-        float right = position.x + size * view.aspect + 8f;
-        float bottom = position.y - size - 8f;
-        float top = position.y + size + 8f;
-        if (ground != null && ground.sprite != null)
-        {
-            Bounds bounds = ground.bounds;
-            left = Mathf.Min(left, bounds.min.x);
-            right = Mathf.Max(right, bounds.max.x);
-            float groundBottom = Mathf.Min(bottom, bounds.min.y);
-            ground.transform.position = new Vector3((left + right) * 0.5f,
-                (groundSurface + groundBottom) * 0.5f, ground.transform.position.z);
-            Vector3 spriteSize = ground.sprite.bounds.size;
-            ground.transform.localScale = new Vector3((right - left) / spriteSize.x,
-                (groundSurface - groundBottom) / spriteSize.y, 1f);
-        }
-        if (background != null)
-        {
-            Bounds bounds = background.bounds;
-            left = Mathf.Min(left, bounds.min.x);
-            right = Mathf.Max(right, bounds.max.x);
-            bottom = Mathf.Min(bottom, bounds.min.y);
-            top = Mathf.Max(top, bounds.max.y);
-            background.transform.position = new Vector3((left + right) * 0.5f,
-                (bottom + top) * 0.5f, background.transform.position.z);
-            background.size = new Vector2(right - left, top - bottom);
-        }
+        return false;
     }
 
     private void FitBackdrop()
     {
-        // Добавляет запас земли за видимыми краями экрана.
-        float halfWidth = OverviewSize * view.aspect;
-        float left = Mathf.Min(mapMin.x, OverviewPosition.x - halfWidth);
-        float right = Mathf.Max(mapMax.x, OverviewPosition.x + halfWidth);
-        if (launcherFocus != null)
-        {
-            left = Mathf.Min(left, LauncherPosition.x - launcherSize * view.aspect);
-            right = Mathf.Max(right, LauncherPosition.x + launcherSize * view.aspect);
-        }
-        if (targetFocus != null)
-        {
-            left = Mathf.Min(left, targetFocus.position.x - impactSize * view.aspect);
-            right = Mathf.Max(right, targetFocus.position.x + impactSize * view.aspect);
-        }
-        left -= 8f;
-        right += 8f;
-        float bottom = Mathf.Min(groundSurface - 80f, OverviewPosition.y - OverviewSize - 8f);
-        float top = OverviewPosition.y + OverviewSize + 8f;
+        float size = GameplaySize * (1f + introZoom);
+        Vector2 center = (mapMin + mapMax) * 0.5f;
+        float left = center.x - size * view.aspect - 8f;
+        float right = center.x + size * view.aspect + 8f;
+        float bottom = center.y - size - 8f;
+        float top = center.y + size + 8f;
         if (ground != null && ground.sprite != null)
         {
+            // Сохраняет высоту физического пола при подгонке краёв кадра.
+            Bounds bounds = ground.bounds;
+            left = Mathf.Min(left, bounds.min.x);
+            right = Mathf.Max(right, bounds.max.x);
+            bottom = Mathf.Min(bottom, bounds.min.y);
             ground.transform.position = new Vector3((left + right) * 0.5f,
-                (groundSurface + bottom) * 0.5f, ground.transform.position.z);
+                (bounds.max.y + bottom) * 0.5f, ground.transform.position.z);
             Vector3 spriteSize = ground.sprite.bounds.size;
             ground.transform.localScale = new Vector3((right - left) / spriteSize.x,
-                (groundSurface - bottom) / spriteSize.y, 1f);
+                (bounds.max.y - bottom) / spriteSize.y, 1f);
         }
         if (background != null)
         {
             background.transform.position = new Vector3((left + right) * 0.5f,
                 (bottom + top) * 0.5f, background.transform.position.z);
-            background.size = new Vector2(Mathf.Max(240f, right - left), Mathf.Max(180f, top - bottom));
+            background.size = new Vector2(right - left, top - bottom);
         }
-    }
-
-    public bool IsPointerOverControls(Vector2 screenPosition) => controlsCanvas != null
-        && controlsCanvas.activeInHierarchy
-        && RectTransformUtility.RectangleContainsScreenPoint(controlsRect, screenPosition);
-
-    private void OnDisable()
-    {
-        StopAllCoroutines();
-        viewTransition = null;
-        shotSequence = false;
-        trackedProjectile = null;
-        cinematic = null;
-        if (controlsCanvas != null)
-            controlsCanvas.SetActive(false);
     }
 }

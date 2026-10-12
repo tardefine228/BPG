@@ -12,12 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d321ff901c7b4c0eae8d45c935b2ee48, type: 3}
   m_Name: SceneTransitionSettings
   m_EditorClassIdentifier: Assembly-CSharp::SceneTransitionSettings
-  logo: {fileID: 0}
-  title: "НАЗВАНИЕ ИГРЫ"
-  subtitle: "СТУДИЯ / ВАШ СЛОГАН"
-  startupCaption: "ГОТОВИМ КАТАПУЛЬТУ"
-  loadingCaption: "ЗАГРУЗКА"
-  startupHold: 1.5
+  loadingCaption: "\u0417\u0410\u0413\u0420\u0423\u0417\u041A\u0410"
   minimumLoadingTime: 0.65
   fadeDuration: 0.3
   backgroundColor: {r: 0.06666667, g: 0.09411765, b: 0.14117648, a: 1}
