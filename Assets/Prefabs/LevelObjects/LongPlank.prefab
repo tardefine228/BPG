@@ -192,6 +192,10 @@ MonoBehaviour:
   breakOnCleared: 1
   breakImpulse: 6
   breakTorque: 30
+  destroyOnCleared: 1
+  destroyDelay: 0.4
+  debrisPrefab: {fileID: 0}
+  shatterIntoDebris: 0
   pushResistance: 0
   slidingFriction: 1
   onHit:
