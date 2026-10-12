@@ -121,7 +121,7 @@ public static class SceneUiValidation
                 References(cat.GetComponent<CatFlightEffects>(), "furPrefab");
                 References(cat.GetComponent<ProjectileComicEffects>(), "comicMaterial", "trailRoot", "outline", "ribbon", "core");
             }
-            var mouse = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MouseEnemy.prefab");
+            var mouse = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
             Require(mouse.GetComponent<BoxCollider2D>() != null && mouse.GetComponent<CircleCollider2D>() == null,
                 "Мышь должна использовать прямоугольный коллайдер");
             References(mouse.GetComponent<MouseEnemy>(), "deathSprite");
@@ -130,6 +130,7 @@ public static class SceneUiValidation
                 && fur.main.simulationSpace == ParticleSystemSimulationSpace.World,
                 "Шерсть: неверные настройки префаба частиц");
             References(fur.GetComponent<ParticleSystemRenderer>(), "m_Materials");
+            ValidateMainPrototype();
             Debug.Log("Все связи интерфейса и эффектов проверены.");
         }
         finally
@@ -140,6 +141,33 @@ public static class SceneUiValidation
     }
 
     private static T[] Find<T>() where T : Object => Object.FindObjectsByType<T>(FindObjectsInactive.Include);
+
+    private static void ValidateMainPrototype()
+    {
+        const string path = "Assets/Scenes/Gameplay_MainPrototype.unity";
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null)
+            return;
+        var scene = EditorSceneManager.OpenScene(path);
+        foreach (var root in scene.GetRootGameObjects())
+        foreach (var child in root.GetComponentsInChildren<Transform>(true))
+        {
+            Require(GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(child.gameObject) == 0,
+                path + ": отсутствует скрипт на " + child.name);
+            Require(PrefabUtility.GetPrefabInstanceStatus(child.gameObject) != PrefabInstanceStatus.MissingAsset,
+                path + ": отсутствует префаб " + child.name);
+        }
+        Require(Find<LevelTarget>().Length >= 15 && Find<MouseEnemy>().Length >= 5,
+            "Прототип main потерял часть постройки или мышей");
+        foreach (var button in Find<Button>())
+        for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+        {
+            var target = button.onClick.GetPersistentTarget(i);
+            Require(target != null && target.GetType().GetMethods().Any(method =>
+                method.Name == button.onClick.GetPersistentMethodName(i)),
+                path + ": потерян обработчик кнопки " + button.name);
+        }
+        Debug.Log("PROTOTYPE CHECK OK: main objects and current UI preserved");
+    }
 
     private static void ValidatePauseHierarchy(PauseMenuController pause)
     {

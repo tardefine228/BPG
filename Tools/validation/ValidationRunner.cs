@@ -623,7 +623,7 @@ public sealed class ValidationRunner : MonoBehaviour
 
     private IEnumerator MouseContactChecks(GameplayCameraController camera)
     {
-        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MouseEnemy.prefab");
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
         var falling = Instantiate(prefab, new Vector3(0f, 0f, 0f), Quaternion.identity).GetComponent<MouseEnemy>();
         int deaths = 0;
         falling.Died += enemy => deaths++;
@@ -800,12 +800,26 @@ public sealed class ValidationRunner : MonoBehaviour
                     && cat.GetComponent<SpriteRenderer>().bounds.min.y >= y, "Legacy queue below its floor");
             Pass(level.SceneName + ": legacy ground and queue preserved");
         }
+        const string prototypePath = "Assets/Scenes/Gameplay_MainPrototype.unity";
+        if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEditor.SceneAsset>(prototypePath) != null)
+        {
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(prototypePath,
+                new LoadSceneParameters(LoadSceneMode.Single));
+            yield return null;
+            Find<LevelSession>().enabled = false;
+            yield return Until(() => !SceneTransition.IsLoading && !Find<GameplayCameraController>().IsBusy,
+                "recovered main prototype opens");
+            Require(All<LevelTarget>().Length >= 15 && All<MouseEnemy>().Length >= 5,
+                "Recovered main prototype lost its objects");
+            yield return Capture("main-prototype-recovered");
+            Pass("Separate main prototype: recovered complete construction, enemies and current UI load without runtime errors");
+        }
     }
 
     private IEnumerator TilemapMouseChecks(GameplayCameraController camera, float x)
     {
         Require(camera.TryGetSurfaceHeight(x, out float y), "No tile surface for mouse check");
-        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MouseEnemy.prefab");
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
         var mouse = Instantiate(prefab, new Vector3(x, y + 2f, 0f), Quaternion.identity).GetComponent<MouseEnemy>();
         Bounds bounds = mouse.GetComponent<Collider2D>().bounds;
         mouse.transform.position += Vector3.up * (y + 0.05f - bounds.min.y);
@@ -850,7 +864,7 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return Until(() => target.IsCleared, "second collision damages a target", 3f);
         Destroy(box);
         yield return null;
-        var mousePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MouseEnemy.prefab");
+        var mousePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
         var mouse = Instantiate(mousePrefab, cat.transform.position + Vector3.right * 3f, Quaternion.identity).GetComponent<MouseEnemy>();
         mouse.GetComponent<Rigidbody2D>().gravityScale = 0f;
         cat.linearVelocity = Vector2.right * 12f;
