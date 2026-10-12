@@ -448,8 +448,8 @@ public sealed class LevelSession : MonoBehaviour
     // Итоговое окно уже находится в сцене; здесь меняются только значения.
     private void ShowCompletionOverlay(int stars, int score, bool awardedScore, int shots)
     {
-        completionScoreText.text = awardedScore ? "ОЧКИ  " + score
-            : "ОЧКИ  " + score + " (ПОВТОР: БЕЗ НАГРАДЫ)";
+        // Подписи о повторном прохождении нет; о нём говорит только цвет очков.
+        completionScoreText.text = "ОЧКИ  " + score;
         completionScoreText.color = awardedScore ? new Color32(230, 155, 82, 255)
             : new Color32(200, 200, 200, 255);
         int par = LevelProgress.ThreeStarShots(LevelId);

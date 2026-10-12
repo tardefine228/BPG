@@ -202,7 +202,7 @@ GameObject:
   - component: {fileID: 2704395791220613592}
   - component: {fileID: 4100000002}
   - component: {fileID: 4400000000}
-  - component: {fileID: 248286827164570703}
+  - component: {fileID: 4608509411896804272}
   m_Layer: 0
   m_Name: Cat3
   m_TagString: Untagged
@@ -451,6 +451,25 @@ MonoBehaviour:
   settleDuration: 1
   fadeDuration: 0.45
   cleanupMargin: 4
+--- !u!114 &4608509411896804272
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbcd7448f7d746d98a562197b4b3b6d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MultiplyCatAbility
+  totalCats: 3
+  fanAngle: 20
+  forwardImpulse: 4
+  copyLifetime: 2.5
+  solidLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1 &5474453461093134296
 GameObject:
   m_ObjectHideFlags: 0
