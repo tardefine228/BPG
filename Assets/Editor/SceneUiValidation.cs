@@ -63,6 +63,7 @@ public static class SceneUiValidation
                     References(session, "gameplayController", "starOnSprite", "starOffSprite", "scoreValueText",
                         "scoreHintText", "completionOverlay", "defeatOverlay",
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
+                    ValidateScoreHud(session);
                     ValidateCompletionMenuButton(session);
                     // Уровень заканчивается победой, когда убита последняя обязательная мышь,
                     // поэтому хотя бы одна включённая мышь на карте должна считать за победу.
@@ -160,6 +161,25 @@ public static class SceneUiValidation
     }
 
     private static T[] Find<T>() where T : Object => Object.FindObjectsByType<T>(FindObjectsInactive.Include);
+
+    private static void ValidateScoreHud(LevelSession session)
+    {
+        var serialized = new SerializedObject(session);
+        var score = (TMP_Text)serialized.FindProperty("scoreValueText").objectReferenceValue;
+        var hint = (TMP_Text)serialized.FindProperty("scoreHintText").objectReferenceValue;
+        string sceneName = session.gameObject.scene.name;
+        var panel = score.transform.parent;
+        Require(panel != null && panel.name == "ScorePanel",
+            sceneName + ": счетчик очков должен находиться в ScorePanel");
+        Require(hint.transform.parent == panel,
+            sceneName + ": подсказка очков должна находиться в ScorePanel");
+        var canvas = panel.GetComponentInParent<Canvas>(true);
+        Require(canvas != null && canvas.gameObject.name == "LevelScoreCanvas" && canvas.isActiveAndEnabled,
+            sceneName + ": ScorePanel должен находиться на включённом LevelScoreCanvas");
+        Require(panel.gameObject.activeInHierarchy && score.gameObject.activeInHierarchy
+            && hint.gameObject.activeInHierarchy,
+            sceneName + ": элементы счетчика очков должны быть включены");
+    }
 
     private static void ValidateCompletionMenuButton(LevelSession session)
     {
