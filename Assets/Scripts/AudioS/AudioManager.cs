@@ -246,6 +246,25 @@ public sealed class AudioManager : MonoBehaviour
         effectsSource.PlayOneShot(clip, Mathf.Max(0f, volumeScale));
     }
 
+    // Запускает эффект на отдельном AudioSource, чтобы вызывающий компонент
+    // мог остановить его без прерывания остальных эффектов.
+    public void PlaySfxFromSource(AudioSource source, AudioClip clip, float volumeScale = 1f)
+    {
+        if (source == null || clip == null)
+            return;
+
+        float baseVolume = Mathf.Max(0f, volumeScale);
+        effectsSourceBaseVolumes[source] = baseVolume;
+        source.volume = baseVolume * effectsVolume;
+        source.playOnAwake = false;
+        source.loop = false;
+        source.spatialBlend = 0f;
+        source.dopplerLevel = 0f;
+        source.Stop();
+        source.clip = clip;
+        source.Play();
+    }
+
     public void PlayShotSound() => PlaySfx(shotSound, shotSoundVolume);
 
     // Звуки интерфейса подчиняются громкости эффектов и работают во время паузы.

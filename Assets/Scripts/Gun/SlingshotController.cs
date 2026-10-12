@@ -57,7 +57,7 @@ public class SlingshotController : MonoBehaviour
 
     [Header("Звуки натяжения катапульты и кота (громкость эффектов)")]
     [SerializeField] private AudioClip grabMeow;
-    [Tooltip("Проигрывается после окончания мяуканья в начале натяжения.")]
+    [Tooltip("Играет после мяуканья, пока катапульту держат натянутой; останавливается при отпускании и не повторяется.")]
     [SerializeField] private AudioClip pullSound;
     [SerializeField] private AudioClip flightMeow;
     [SerializeField, Range(0f, 1f)] private float grabMeowVolume = 0.7f;
@@ -120,6 +120,8 @@ public class SlingshotController : MonoBehaviour
     private int visibleDots;
     private Quaternion restingArmRotation;
     private readonly List<SpriteRenderer> dotShadows = new List<SpriteRenderer>();
+    private AudioSource pullSoundSource;
+    private int pullSoundSequenceId;
 
     private void Awake()
     {
@@ -129,6 +131,13 @@ public class SlingshotController : MonoBehaviour
             grabMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowShort");
         if (flightMeow == null)
             flightMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowLong");
+
+        pullSoundSource = gameObject.AddComponent<AudioSource>();
+        pullSoundSource.volume = pullSoundVolume;
+        pullSoundSource.playOnAwake = false;
+        pullSoundSource.loop = false;
+        pullSoundSource.spatialBlend = 0f;
+        pullSoundSource.dopplerLevel = 0f;
     }
 
     private void Start()
@@ -275,10 +284,11 @@ public class SlingshotController : MonoBehaviour
                 / (2f * mainCamera.orthographicSize);
             if (Vector2.Distance(pointer, shellScreen) <= Mathf.Max(grabRadiusPixels, visibleRadius))
             {
+                StopPullSound();
                 isDragging = true;
                 AudioManager.Instance?.PlaySfx(grabMeow, grabMeowVolume);
                 if (pullSound != null)
-                    StartCoroutine(PlayPullSoundAfterMeow());
+                    StartCoroutine(PlayPullSoundAfterMeow(pullSoundSequenceId));
                 dragStartScreen = pointer;
             }
         }
@@ -288,6 +298,7 @@ public class SlingshotController : MonoBehaviour
         if (isDragging && Mouse.current.leftButton.wasReleasedThisFrame)
         {
             isDragging = false;
+            StopPullSound();
             if (launchVelocity.sqrMagnitude < 1f)
                 CancelInput();
             else
@@ -295,12 +306,22 @@ public class SlingshotController : MonoBehaviour
         }
     }
 
-    private IEnumerator PlayPullSoundAfterMeow()
+    private IEnumerator PlayPullSoundAfterMeow(int sequenceId)
     {
         if (grabMeow != null)
             yield return new WaitForSeconds(grabMeow.length);
 
-        AudioManager.Instance?.PlaySfx(pullSound, pullSoundVolume);
+        if (!isDragging || sequenceId != pullSoundSequenceId || pullSound == null)
+            yield break;
+
+        AudioManager.Instance?.PlaySfxFromSource(pullSoundSource, pullSound, pullSoundVolume);
+    }
+
+    private void StopPullSound()
+    {
+        pullSoundSequenceId++;
+        if (pullSoundSource != null)
+            pullSoundSource.Stop();
     }
 
     // Повторное нажатие ЛКМ (не по UI) или пробела использует способность
@@ -525,6 +546,7 @@ public class SlingshotController : MonoBehaviour
     public void CancelInput()
     {
         isDragging = false;
+        StopPullSound();
         // Пауза во время выстрела сохраняет уже выбранную скорость запуска.
         if (!shotInProgress)
         {
