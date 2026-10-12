@@ -136,6 +136,24 @@ MonoBehaviour:
   backgroundImage: {fileID: 4600000009}
   logoImage: {fileID: 4600000016}
   companyNameText: {fileID: 4600000020}
+--- !u!114 &4600000022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4600000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d6a4a1a7ff6460ca14df5ff1eb54294, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SplashCatRunner
+  owner: {fileID: 4600000021}
+  catHeightPx: 96
+  baselineY: -150
+  minRunDuration: 3
+  fps: 12
+  bobAmplitude: 4
 --- !u!1 &4600000006
 GameObject:
   m_ObjectHideFlags: 0
