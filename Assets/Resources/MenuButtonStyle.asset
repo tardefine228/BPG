@@ -16,6 +16,6 @@ MonoBehaviour:
   font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   buttonColor: {r: 1, g: 1, b: 1, a: 1}
   textColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
-  highlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-  pressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+  highlightedColor: {r: 1, g: 0.88235295, b: 0.6901961, a: 1}
+  pressedColor: {r: 0.92156863, g: 0.7882353, b: 0.6, a: 1}
   disabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}

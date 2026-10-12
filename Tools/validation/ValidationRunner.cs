@@ -81,7 +81,8 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return Until(() => SceneManager.GetActiveScene().name == name && !SceneTransition.IsLoading, "scene " + name, 60f);
         if (Camera.main != null) Camera.main.aspect = 16f / 9f;
         yield return null;
-        if (!Environment.GetCommandLineArgs().Contains("-bpgPresentationOnly") && name == "Gameplay")
+        if (!Environment.GetCommandLineArgs().Contains("-bpgPresentationOnly")
+            && !Environment.GetCommandLineArgs().Contains("-bpgDesignOnly") && name == "Gameplay")
         {
             yield return null;
             if (FirstLevelGuide.IsOpen)
@@ -91,7 +92,7 @@ public sealed class ValidationRunner : MonoBehaviour
             }
         }
     }
-    private IEnumerator Capture(string name)
+    private IEnumerator Capture(string name, Action<Color32[]> inspect = null)
     {
         yield return null;
         Camera camera = Camera.main;
@@ -100,6 +101,7 @@ public sealed class ValidationRunner : MonoBehaviour
         var modes = canvases.Select(canvas => canvas.renderMode).ToArray();
         var cameras = canvases.Select(canvas => canvas.worldCamera).ToArray();
         var distances = canvases.Select(canvas => canvas.planeDistance).ToArray();
+        var sortingOrders = canvases.Select(canvas => canvas.sortingOrder).ToArray();
         var target = new RenderTexture(1920,1080,24);
         var previousTarget = camera.targetTexture;
         float aspect = camera.aspect;
@@ -110,6 +112,8 @@ public sealed class ValidationRunner : MonoBehaviour
             canvas.renderMode = RenderMode.ScreenSpaceCamera;
             canvas.worldCamera = camera;
             canvas.planeDistance = camera.nearClipPlane + 0.1f;
+            // ScreenSpaceOverlay рисуется поверх мира; сохраняем это и в снимке.
+            canvas.sortingOrder = Mathf.Min(32760, 20000 + canvas.sortingOrder);
         }
         Canvas.ForceUpdateCanvases();
         bool asyncCompilation = UnityEditor.ShaderUtil.allowAsyncCompilation;
@@ -121,6 +125,7 @@ public sealed class ValidationRunner : MonoBehaviour
         var pixels = new Texture2D(1920,1080,TextureFormat.RGB24,false);
         pixels.ReadPixels(new Rect(0,0,1920,1080),0,0);
         pixels.Apply();
+        inspect?.Invoke(pixels.GetPixels32());
         File.WriteAllBytes("validation-" + name + ".png", pixels.EncodeToPNG());
         RenderTexture.active = previous;
         camera.targetTexture = previousTarget;
@@ -130,6 +135,7 @@ public sealed class ValidationRunner : MonoBehaviour
             canvases[i].renderMode = modes[i];
             canvases[i].worldCamera = cameras[i];
             canvases[i].planeDistance = distances[i];
+            canvases[i].sortingOrder = sortingOrders[i];
         }
         target.Release(); Destroy(target); Destroy(pixels);
         yield return null;
@@ -957,7 +963,7 @@ public sealed class ValidationRunner : MonoBehaviour
                 && Find<SlingshotController>().WaitingCatCount == ammo - 1, "Restart lost the compact queue");
             Pass(name + ": Layer1 terrain, floor removed, cats above tiles and around catapult, all shots, loading pause, cleanup and restart");
         }
-        // Прежние уровни продолжают использовать свою землю.
+        // Поздние уровни используют назначенную землю через Terrain или Ground.
         foreach (var level in LevelProgress.Levels.Where(item => item.Id >= 3))
         {
             LevelProgress.SelectLevel(level.Id);
@@ -965,11 +971,11 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return Scene(level.SceneName);
             yield return Until(() => !Find<GameplayCameraController>().IsBusy, "legacy intro");
             var camera = Find<GameplayCameraController>();
-            Require(camera.TerrainCollider != null && camera.ground != null, "Legacy ground fallback lost");
+            Require(camera.TerrainCollider != null, "Authored terrain collider lost");
             foreach (var cat in All<CatProjectile>().Where(item => item.IsQueued))
                 Require(camera.TryGetSurfaceHeight(cat.transform.position.x, out float y)
                     && cat.GetComponent<SpriteRenderer>().bounds.min.y >= y, "Legacy queue below its floor");
-            Pass(level.SceneName + ": legacy ground and queue preserved");
+            Pass(level.SceneName + ": authored terrain and queue preserved");
         }
         const string prototypePath = "Assets/Scenes/Gameplay_MainPrototype.unity";
         if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEditor.SceneAsset>(prototypePath) != null)
@@ -1072,14 +1078,325 @@ public sealed class ValidationRunner : MonoBehaviour
         cat.Sleep();
         Require(effects.HasPendingCleanup, "Stopped cat does not delay defeat");
         yield return Until(() => effects.IsExiting, "settled cat starts fading", 10f);
-        Require(Time.time - impactedAt >= 2.95f && !cat.simulated, "Cat disappears too soon after impact");
+        float configuredLifetime = (float)Get(effects, "minimumPostImpactLifetime");
+        // Префаб задаёт собственное время жизни; контакт фиксируется внутри
+        // физического кадра, а проверка наблюдает его на следующем Update.
+        Require(Time.time - impactedAt >= configuredLifetime - Time.maximumDeltaTime - 0.01f && !cat.simulated,
+            "Cat disappears before its configured physical lifetime");
         yield return Until(() => cat == null, "cat fades and disappears", 3f);
         Require(All<ParticleSystem>().All(item => item.name != "FurTrail(Clone)"), "Rolling cat leaked fur");
         Pass("Cat keeps physics after first impact, damages a second box and a mouse, rolls, pauses, settles for minimum lifetime and fades cleanly");
     }
 
+    private Rigidbody2D SpawnDesignCat(int id, Vector3 position)
+    {
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Cats/Cat" + id + ".prefab");
+        var cat = Instantiate(prefab, position, Quaternion.identity);
+        cat.GetComponent<CatProjectile>().ShowLoaded();
+        var body = cat.GetComponent<Rigidbody2D>();
+        body.bodyType = RigidbodyType2D.Dynamic;
+        body.simulated = true;
+        body.gravityScale = 0f;
+        body.linearVelocity = new Vector2(4f, 1f);
+        cat.GetComponent<Collider2D>().isTrigger = true;
+        cat.GetComponent<ProjectileComicEffects>().BeginFlight();
+        return body;
+    }
+
+    private IEnumerator DesignAbilityChecks(bool capture)
+    {
+        for (int id = 2; id <= 5; id++)
+        {
+            foreach (var burst in All<ComicParticleBurst>())
+                foreach (var particles in burst.GetComponentsInChildren<ParticleSystem>())
+                    particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            Vector3 position = Camera.main.ViewportToWorldPoint(new Vector3(0.45f, 0.65f, 10f));
+            position.z = 0f;
+            var existing = new HashSet<CatProjectile>(All<CatProjectile>());
+            var body = SpawnDesignCat(id, position);
+            var ability = body.GetComponent<CatAbility>();
+            Require(!ability.TryActivate(), "Queued cat can activate an ability");
+            float mass = body.mass;
+            float speed = body.linearVelocity.magnitude;
+            Vector3 scale = body.transform.localScale;
+            ability.Arm();
+            Require(ability.TryActivate() && !ability.TryActivate(), "Ability must activate exactly once");
+            Require(All<ComicParticleBurst>().Any(burst => burst.IsPlaying), "No ability particles for Cat" + id);
+            if (id == 2) Require(body.linearVelocity.magnitude > speed, "Yellow cat no longer accelerates");
+            if (id == 5) Require(body.mass > mass, "Inflation no longer increases mass");
+            yield return null;
+            var spawned = All<CatProjectile>().Where(cat => !existing.Contains(cat)).ToArray();
+            if (id == 3)
+            {
+                Require(body == null && spawned.Length == 3, "Split must replace the original with three cats");
+                Require(spawned.All(cat => cat.GetComponent<CatAbility>() == null), "Split copies can split recursively");
+                var color = ((TrailRenderer)Get(spawned[0].GetComponent<ProjectileComicEffects>(), "ribbon")).colorGradient.Evaluate(0f);
+                Require(color.b > color.r, "Split copies lost the blue trail");
+            }
+            yield return new WaitForSeconds(0.15f);
+            var live = All<ComicParticleBurst>().SelectMany(burst => burst.GetComponentsInChildren<ParticleSystem>())
+                .Where(particles => particles.particleCount > 0).ToArray();
+            Require(live.Length > 0, "Ability effect ended before it was readable");
+            Time.timeScale = 0f;
+            // Завершает кадр, для которого Unity уже рассчитала deltaTime.
+            yield return null;
+            var particlesBefore = new ParticleSystem.Particle[live[0].main.maxParticles];
+            int count = live[0].GetParticles(particlesBefore);
+            Require(count > 0, "No particles left to inspect during pause");
+            if (capture) yield return Capture("ability-cat" + id);
+            yield return new WaitForSecondsRealtime(0.2f);
+            var particlesAfter = new ParticleSystem.Particle[live[0].main.maxParticles];
+            Require(live[0].GetParticles(particlesAfter) == count
+                && particlesBefore[0].position == particlesAfter[0].position
+                && particlesBefore[0].remainingLifetime == particlesAfter[0].remainingLifetime,
+                "Ability particles move or expire during pause");
+            Time.timeScale = 1f;
+            yield return new WaitForSeconds(0.35f);
+            if (id == 5) Require(body.transform.localScale.x > scale.x, "Inflation stopped growing the cat");
+            if (id != 3)
+            {
+                Require((float)Get(body.GetComponent<ProjectileComicEffects>(), "abilityTrailRemaining") > 0f || id == 2,
+                    "Ability trail feedback did not remain visible");
+                body.GetComponent<ProjectileComicEffects>().EndFlight();
+                yield return new WaitForSeconds(0.22f);
+                Require(!body.GetComponentsInChildren<TrailRenderer>().Any(trail => trail.emitting),
+                    "Trail keeps emitting after landing");
+            }
+            foreach (var cat in spawned) if (cat != null) Destroy(cat.gameObject);
+            // Во время проверки постройка тоже может породить обычное попадание.
+            // Ожидаем завершения всего пула, вместо проверки на одной границе кадра.
+            yield return Until(() => All<ComicParticleBurst>().All(burst => !burst.IsPlaying),
+                "ability effect cleanup for Cat" + id, 3f);
+            Pass(SceneManager.GetActiveScene().name + ": Cat" + id + " ability, feedback, pause and cleanup");
+        }
+    }
+
+    private static float ImageDifference(Color32[] first, Color32[] second, out int changed)
+    {
+        Require(first != null && second != null && first.Length == second.Length, "Invalid render samples");
+        long total = 0;
+        changed = 0;
+        for (int i = 0; i < first.Length; i++)
+        {
+            int delta = Math.Abs(first[i].r - second[i].r) + Math.Abs(first[i].g - second[i].g)
+                + Math.Abs(first[i].b - second[i].b);
+            total += delta;
+            if (delta > 2) changed++;
+        }
+        return total / (float)(first.Length * 3);
+    }
+
+    private IEnumerator AtmosphereChecks(bool capture)
+    {
+        var atmosphere = Find<ForestAtmosphere>();
+        Require(atmosphere != null && atmosphere.GetComponent<Camera>() == Camera.main
+            && atmosphere.IsOverlayReady && atmosphere.IsRendering, "Forest atmosphere is not ready on Main Camera");
+        Require(atmosphere.atmosphereMaterial != null && atmosphere.atmosphereMaterial.shader.isSupported
+            && !UnityEditor.ShaderUtil.ShaderHasError(atmosphere.atmosphereMaterial.shader), "Forest shader failed");
+        var bodies = All<Rigidbody2D>();
+        var simulated = bodies.Select(body => body.simulated).ToArray();
+        foreach (var body in bodies) body.simulated = false;
+        var sprites = All<SpriteRenderer>();
+        var spriteColors = sprites.Select(sprite => sprite.color).ToArray();
+        Time.timeScale = 0f;
+        yield return null;
+        float phase = atmosphere.AnimationTime;
+        yield return new WaitForSecondsRealtime(0.25f);
+        Require(atmosphere.AnimationTime == phase, "Atmosphere moves during pause");
+        float fog = atmosphere.fogOpacity, rays = atmosphere.rayIntensity, dapples = atmosphere.dappleIntensity;
+        atmosphere.fogOpacity = atmosphere.rayIntensity = atmosphere.dappleIntensity = 0f;
+        yield return null;
+        Require(!atmosphere.IsRendering, "Zero opacity does not turn atmosphere off");
+        Color32[] without = null, with = null, advanced = null;
+        yield return Capture("atmosphere-" + SceneManager.GetActiveScene().name + "-off", pixels => without = pixels);
+        atmosphere.fogOpacity = fog;
+        atmosphere.rayIntensity = rays;
+        atmosphere.dappleIntensity = dapples;
+        yield return null;
+        yield return Capture("atmosphere-" + SceneManager.GetActiveScene().name + "-on", pixels => with = pixels);
+        float difference = ImageDifference(without, with, out int changed);
+        Require(changed > with.Length / 100 && difference > 0.12f && difference < 18f,
+            "Atmosphere is missing or obscures the world: mean RGB change=" + difference + ", changed pixels=" + changed);
+        // HUD remains pixel-identical when only the world overlay is toggled.
+        int hudChanged = 0;
+        for (int y = 970; y < 1045; y++)
+        for (int x = 1730; x < 1845; x++)
+        {
+            int i = y * 1920 + x;
+            if (!without[i].Equals(with[i])) hudChanged++;
+        }
+        Require(hudChanged == 0, "Atmosphere draws over the pause button");
+        foreach (float aspect in new[] { 4f / 3f, 16f / 9f })
+        {
+            Camera.main.aspect = aspect;
+            yield return null;
+            var renderer = (MeshRenderer)Get(atmosphere, "overlayRenderer");
+            var low = Camera.main.WorldToViewportPoint(renderer.bounds.min);
+            var high = Camera.main.WorldToViewportPoint(renderer.bounds.max);
+            Require(low.x <= 0f && low.y <= 0f && high.x >= 1f && high.y >= 1f, "Fog does not cover the camera aspect " + aspect);
+        }
+        Time.timeScale = 1f;
+        yield return new WaitForSeconds(2f);
+        Time.timeScale = 0f;
+        yield return null;
+        Require(atmosphere.AnimationTime > phase + 1f, "Atmosphere animation did not resume");
+        if (capture)
+        {
+            yield return Capture("atmosphere-" + SceneManager.GetActiveScene().name + "-moving", pixels => advanced = pixels);
+            Require(ImageDifference(with, advanced, out _) > 0.015f, "Rendered fog and light do not drift");
+        }
+        Require(sprites.Select((sprite, index) => sprite == null || sprite.color == spriteColors[index]).All(value => value),
+            "Atmosphere overwrites sprite colors used by hit feedback");
+        atmosphere.enabled = false;
+        yield return null;
+        Require(!atmosphere.IsRendering, "Atmosphere stays visible after disabling its component");
+        atmosphere.enabled = true;
+        yield return null;
+        Require(atmosphere.IsRendering && Camera.main.GetComponentsInChildren<MeshRenderer>(true)
+            .Count(renderer => renderer.sharedMaterial != null && renderer.sharedMaterial.shader == atmosphere.atmosphereMaterial.shader) == 1,
+            "Atmosphere duplicated its quad on re-enable");
+        for (int i = 0; i < bodies.Length; i++) if (bodies[i] != null) bodies[i].simulated = simulated[i];
+        Time.timeScale = 1f;
+        Pass(SceneManager.GetActiveScene().name + ": soft rendered fog/light, HUD preserved, pause, aspect, motion and clean re-enable; RGB delta=" + difference.ToString("F2"));
+    }
+
+    private IEnumerator DesignChecks()
+    {
+        yield return Scene("MainMenu");
+        var menuButtons = All<Button>().Where(button => button.GetComponent<MenuControlFeedback>() != null).ToArray();
+        Require(menuButtons.Length > 0 && menuButtons.All(button => (bool)Get(button.GetComponent<MenuControlFeedback>(), "idleSway")),
+            "MainMenu buttons do not have sway enabled");
+        var play = Action("OnPlay");
+        var feedback = play.GetComponent<MenuControlFeedback>();
+        var rect = (RectTransform)play.transform;
+        Quaternion initialRotation = rect.localRotation;
+        Time.timeScale = 0f;
+        float movement = 0f;
+        for (int sample = 0; sample < 8; sample++)
+        {
+            yield return new WaitForSecondsRealtime(0.2f);
+            movement = Mathf.Max(movement, Mathf.Abs(Mathf.DeltaAngle(initialRotation.eulerAngles.z, rect.localEulerAngles.z)));
+        }
+        Require(movement > 0.01f, "Menu sway stopped with timeScale zero");
+        Require(Mathf.Abs(Mathf.DeltaAngle(((Quaternion)Get(feedback, "restingRotation")).eulerAngles.z, rect.localEulerAngles.z)) <= 0.46f,
+            "Menu sway is stronger than configured");
+        feedback.enabled = false;
+        Require(rect.anchoredPosition == (Vector2)Get(feedback, "restingPosition")
+            && rect.localRotation == (Quaternion)Get(feedback, "restingRotation"), "Disabling sway does not restore the pose");
+        feedback.enabled = true;
+        Time.timeScale = 1f;
+        yield return Capture("design-main-menu");
+        var manager = Find<MenuManager>();
+        var audio = Find<AudioSettingsController>();
+        for (int i = 0; i < 3; i++)
+        {
+            yield return Click(Action("OnSettings"));
+            yield return new WaitForSecondsRealtime(0.25f);
+            Require(manager.SettingsOpen, "Settings no longer open");
+            ((Slider)Get(audio, "effectsVolumeSlider")).value = 0.35f;
+            Require(Mathf.Approximately(AudioManager.Instance.EffectsVolume, 0.35f), "Settings slider lost its binding");
+            if (i == 0) yield return Capture("design-settings");
+            yield return Click(Action("CloseSettings"));
+            yield return new WaitForSecondsRealtime(0.25f);
+        }
+        Require(new HashSet<Button>(menuButtons).IsSubsetOf(All<Button>()), "Menu buttons were replaced");
+        yield return Click(play);
+        yield return new WaitForSecondsRealtime(0.25f);
+        var select = Find<LevelSelectController>();
+        foreach (var card in All<LevelCardView>())
+            Require(((Image)Get(card, "preview")).sprite != null, "Card lost its preview");
+        yield return Capture("design-levels-page1");
+        select.SetPage(1);
+        yield return new WaitForSecondsRealtime(0.4f);
+        yield return Capture("design-levels-page2");
+        select.ReturnToMainMenu();
+        Pass("MainMenu: subtle sway, mouse clicks, settings sliders and level pagination");
+
+        LevelProgress.SelectLevel(1);
+        SceneTransition.Load("Gameplay");
+        yield return Scene("Gameplay");
+        yield return Until(() => FirstLevelGuide.IsOpen, "first launch guide");
+        var guide = Find<FirstLevelGuide>();
+        foreach (string field in new[] { "firstIllustration", "secondIllustration" })
+        {
+            var illustration = (Image)Get(guide, field);
+            Require(illustration.enabled && illustration.sprite != null && illustration.preserveAspect,
+                "Guide illustration missing or stretched: " + field);
+        }
+        Require(Time.timeScale == 0f && !Find<SlingshotController>().enabled, "Guide no longer blocks gameplay");
+        yield return new WaitForSecondsRealtime(0.35f);
+        yield return Capture("design-tutorial");
+        yield return Click(Action("StartPlaying"));
+        yield return Until(() => !FirstLevelGuide.IsOpen, "guide acceptance");
+        Require(FirstLevelGuide.HasBeenCompleted && Time.timeScale == 1f, "Guide completion was not saved");
+        Pass("Guide: both illustrated panels, input blocking and persistent acceptance");
+
+        foreach (var level in LevelProgress.Levels)
+        {
+            if (SceneManager.GetActiveScene().name != level.SceneName)
+            {
+                LevelProgress.SelectLevel(level.Id);
+                SceneTransition.Load(level.SceneName);
+                yield return Scene(level.SceneName);
+            }
+            Find<LevelSession>().enabled = false;
+            yield return Until(() => !Find<GameplayCameraController>().IsBusy, "camera ready");
+            yield return new WaitForSeconds(0.9f);
+            Require(!FirstLevelGuide.IsOpen, "Completed guide reopened");
+            yield return AtmosphereChecks(level.Id == 1);
+            var source = (AudioSource)Get(AudioManager.Instance, "effectsSource");
+            Require(Resources.Load<AudioClip>("Audio/music for box/falling-objects-with-a-crash") != null
+                && Resources.Load<AudioClip>("Audio/music for mouse/468442__breviceps__video-game-squeak") != null
+                && Resources.Load<AudioClip>("Audio/music for mouse/800274__securesubset__mouse-rodent-squeak-whistle") != null,
+                level.SceneName + ": missing sound clips");
+            source.Stop();
+            All<LevelTarget>().First(target => !target.IsCleared).ApplyAbilityHit(100f, Vector2.right);
+            Require(source.isPlaying, level.SceneName + ": box ability hit is silent");
+            var mouse = All<MouseEnemy>().First(enemy => !enemy.IsDead);
+            source.Stop();
+            mouse.TakeDamage(0.1f);
+            Require(source.isPlaying, level.SceneName + ": nonlethal mouse ability hit is silent");
+            source.Stop();
+            mouse.TakeDamage(mouse.Health);
+            Require(source.isPlaying && mouse.IsDead, level.SceneName + ": mouse ability death is silent");
+            var floor = new GameObject("SoundCheckFloor");
+            floor.transform.position = new Vector3(0f, 50f, 0f);
+            var floorCollider = floor.AddComponent<BoxCollider2D>();
+            floorCollider.size = new Vector2(6f, 0.5f);
+            var mousePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
+            var falling = Instantiate(mousePrefab, new Vector3(0f, 52f, 0f), Quaternion.identity).GetComponent<MouseEnemy>();
+            Set(falling, "floor", floorCollider);
+            int deathEvents = 0;
+            falling.Died += enemy => deathEvents++;
+            source.Stop();
+            yield return Until(() => falling.IsDead, "floor contact sound", 3f);
+            Require(source.isPlaying && deathEvents == 1, level.SceneName + ": floor death is silent or duplicated");
+            falling.TakeDamage(100f);
+            Require(deathEvents == 1, "Dead mouse emitted another death event");
+            Destroy(falling.gameObject);
+            Destroy(floor);
+            Pass(level.SceneName + ": existing box and mouse clips play through the shared audio channel");
+            yield return DesignAbilityChecks(level.Id == 1);
+            yield return Click(Action("OpenPauseMenu"));
+            Require(Time.timeScale == 0f, "Pause no longer works");
+            yield return new WaitForSecondsRealtime(0.35f);
+            yield return Click(Action("ResumeGame"));
+            Require(Time.timeScale == 1f, "Resume no longer works");
+        }
+    }
+
     private IEnumerator Checks()
     {
+        if (Environment.GetCommandLineArgs().Contains("-bpgDesignOnly"))
+        {
+            yield return DesignChecks();
+            if (Environment.GetCommandLineArgs().Contains("-bpgCatFlightOnly"))
+            {
+                SceneTransition.Load("MainMenu");
+                yield return CatFlightChecks();
+            }
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Contains("-bpgTilemapAndRollingOnly"))
         {
             yield return TilemapAndRollingChecks();

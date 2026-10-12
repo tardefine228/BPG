@@ -10,5 +10,6 @@ public sealed class DashCatAbility : CatAbility
         Vector2 direction = Body.linearVelocity.sqrMagnitude > 0.01f
             ? Body.linearVelocity.normalized : (Vector2)transform.right;
         Body.AddForce(direction * boostImpulse, ForceMode2D.Impulse);
+        GetComponent<ProjectileComicEffects>()?.PlayAbilityEffect(ComicParticleBurst.AbilityEffect.Speed);
     }
 }

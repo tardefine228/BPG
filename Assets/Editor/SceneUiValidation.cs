@@ -72,6 +72,13 @@ public static class SceneUiValidation
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
                     ValidatePauseHierarchy(Find<PauseMenuController>().Single());
                     References(Find<GameplayCameraController>().Single(), "background");
+                    var atmosphere = Find<ForestAtmosphere>().Single();
+                    References(atmosphere, "atmosphereMaterial");
+                    Require(atmosphere.GetComponent<Camera>() != null, scene.name + ": атмосфера должна быть на камере");
+                    var atmosphereMaterial = (Material)new SerializedObject(atmosphere)
+                        .FindProperty("atmosphereMaterial").objectReferenceValue;
+                    Require(atmosphereMaterial.shader != null && !ShaderUtil.ShaderHasError(atmosphereMaterial.shader),
+                        scene.name + ": ошибка шейдера атмосферы");
                     Require(Find<GameplayCameraController>().Single().TerrainCollider != null,
                         scene.name + ": не назначена земля для очереди и мышей");
                     if (scene.name == "Gameplay" || scene.name == "Level2")
