@@ -206,9 +206,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f25049c3b2ca343408198ade5a447d40, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::IdleSpriteAnimation
-  frames: []
-  framesPerSecond: 6
-  pingPong: 0
+  frames:
+  - {fileID: -5878041888078439618, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: -7939581552580421345, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: 4978673324828531396, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: -9216231671123730175, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: -2612213944270399342, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: 5386098470276973046, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  framesPerSecond: 3
+  pingPong: 1
   variedStart: 1
   onlyWhenStill: 1
   stillSpeed: 0.2

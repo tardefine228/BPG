@@ -397,6 +397,26 @@ MonoBehaviour:
   woodChips: {r: 0.76, g: 0.43, b: 0.2, a: 1}
   flashColor: {r: 1, g: 0.95, b: 0.5, a: 1}
   effectsSortingOrder: 10
+  abilityEffects: 1
+  abilityEffectScale: 1.45
+  abilityIntensity: 1
+  abilityPulseDuration: 0.72
+  abilityStrokeWidth: 0.1
+  splitEffectScale: 0.65
+  splitPulseDuration: 0.42
+  splitTrailWidthMultiplier: 1.35
+  speedEffectScale: 0.62
+  speedPulseDuration: 0.32
+  blastEffectScale: 1.1
+  inflateEffectScale: 1
+  abilityTrailDuration: 1
+  abilityTrailWidthMultiplier: 2.1
+  speedTrailDuration: 0.45
+  speedTrailWidthMultiplier: 1.25
+  splitColor: {r: 0.3, g: 0.9, b: 1, a: 1}
+  speedColor: {r: 1, g: 0.8, b: 0.2, a: 1}
+  blastColor: {r: 1, g: 0.45, b: 0.12, a: 1}
+  inflateColor: {r: 1, g: 0.83, b: 0.6, a: 1}
   outline: {fileID: 8321685278188437099}
   ribbon: {fileID: 6219637200790077929}
   core: {fileID: 5323874457174425361}
@@ -481,9 +501,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f25049c3b2ca343408198ade5a447d40, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::IdleSpriteAnimation
-  frames: []
-  framesPerSecond: 6
-  pingPong: 0
+  frames:
+  - {fileID: 8451605621938854895, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: 6419083628924954193, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: -8480070441652296804, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: -4097859825955133766, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: 6419083628924954193, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  - {fileID: 8451605621938854895, guid: 951686ad5e12e5d458cf664466af0f95, type: 3}
+  framesPerSecond: 3
+  pingPong: 1
   variedStart: 1
   onlyWhenStill: 1
   stillSpeed: 0.2
