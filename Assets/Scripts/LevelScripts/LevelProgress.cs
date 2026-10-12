@@ -1,6 +1,7 @@
 using UnityEngine;
 
-// Каталог уровней и сохранение прогресса: звёзды обновляются при прохождении, очки начисляются один раз, следующий уровень открывается после предыдущего.
+// Каталог уровней и сохранение прогресса: звёзды обновляются при прохождении, очки начисляются один раз.
+// Второй уровень открывается после первого, а начиная с третьего доступ даёт общее количество собранных звёзд.
 public static class LevelProgress
 {
     public const int MaxStars = 3;
@@ -17,46 +18,61 @@ public static class LevelProgress
     private const string TotalScoreKey = "bpg_total_score";
     private const string CurrentLevelKey = "bpg_current_level_id";
 
+    // Поля каждой строки: номер, надпись на карточке, короткое название уровня,
+    // сцена, картинка-превью, готовность, порог звёзд и резервные пороги выстрелов.
+    // Короткое название видно под звёздами карточки; порог звёзд 0 означает,
+    // что уровень открывается после предыдущего, а 5, 8 и 12 звёзд нужны
+    // для третьего, четвёртого и пятого.
     public static readonly LevelDefinition[] Levels =
     {
         new LevelDefinition(
             1,
             "УРОВЕНЬ 1",
+            "СОЛНЕЧНЫЙ ДВОР",
             GameplaySceneName,
             "LevelPreviews/level_1",
             true,
+            0,
             2,
             3),
         new LevelDefinition(
             2,
             "УРОВЕНЬ 2",
+            "АЛЫЙ ЗАКАТ",
             SecondLevelSceneName,
             "LevelPreviews/level_2",
             true,
+            0,
             3,
             9),
         new LevelDefinition(
             3,
             "УРОВЕНЬ 3",
+            "ЗВЁЗДНАЯ НОЧЬ",
             ThirdLevelSceneName,
             "LevelPreviews/level_3",
             true,
+            5,
             4,
             16),
         new LevelDefinition(
             4,
             "УРОВЕНЬ 4",
+            "ПЕСЧАНЫЙ КАНЬОН",
             FourthLevelSceneName,
             "LevelPreviews/level_4",
             true,
+            8,
             5,
             17),
         new LevelDefinition(
             5,
             "УРОВЕНЬ 5",
+            "МЫШИНАЯ КРЕПОСТЬ",
             FifthLevelSceneName,
             "LevelPreviews/level_5",
             true,
+            12,
             5,
             19)
     };
@@ -65,6 +81,9 @@ public static class LevelProgress
 
     // Режим тестирования позволяет открывать все уровни без последовательного прохождения.
     public static bool UnlockAllLevels { get; set; }
+
+    // Сумма всех собранных звёзд — ею открываются третий, четвёртый и пятый уровни.
+    public static int TotalStars => CountStars(Levels);
 
     public static bool IsGameplayScene(string sceneName)
     {
@@ -100,12 +119,47 @@ public static class LevelProgress
 
     public static bool IsUnlocked(int levelId)
     {
-        if (UnlockAllLevels || levelId <= 1)
+        if (UnlockAllLevels)
         {
             return true;
         }
 
-        return IsCompleted(levelId - 1);
+        return IsUnlockedByRules(levelId, TotalStars, IsCompleted(levelId - 1));
+    }
+
+    // Чистое правило доступа: без режима тестирования и без чтения сохранений.
+    // Так порог звёзд можно проверять отдельно от PlayerPrefs.
+    public static bool IsUnlockedByRules(int levelId, int totalStars, bool previousLevelCompleted)
+    {
+        if (levelId <= 1)
+        {
+            return true;
+        }
+
+        int requiredStars = RequiredStarsFor(levelId);
+        if (requiredStars > 0)
+        {
+            return totalStars >= requiredStars;
+        }
+
+        return previousLevelCompleted;
+    }
+
+    // Сколько звёзд нужно для уровня. Ноль — уровень открывается за предыдущий.
+    public static int RequiredStarsFor(int levelId)
+    {
+        return GetLevel(levelId).RequiredStars;
+    }
+
+    // Сколько звёзд ещё не хватает до открытия; у открытого уровня ноль.
+    public static int StarsMissingFor(int levelId)
+    {
+        if (IsUnlocked(levelId))
+        {
+            return 0;
+        }
+
+        return Mathf.Max(0, RequiredStarsFor(levelId) - TotalStars);
     }
 
     public static bool HasAwardedScore(int levelId)
@@ -245,6 +299,17 @@ public static class LevelProgress
         return boxScore + distanceScore + shotBonus;
     }
 
+    private static int CountStars(LevelDefinition[] levels)
+    {
+        int total = 0;
+        for (int i = 0; i < levels.Length; i++)
+        {
+            total += GetStars(levels[i].Id);
+        }
+
+        return total;
+    }
+
     private static string StarsKey(int levelId)
     {
         return StarsKeyPrefix + levelId;
@@ -265,9 +330,16 @@ public readonly struct LevelDefinition
 {
     public readonly int Id;
     public readonly string DisplayName;
+
+    // Короткое название уровня: «СОЛНЕЧНЫЙ ДВОР», «ЗВЁЗДНАЯ НОЧЬ». Видно под
+    // звёздами карточки в меню выбора уровня.
+    public readonly string Tagline;
     public readonly string SceneName;
     public readonly string PreviewResourcePath;
     public readonly bool IsImplemented;
+
+    // Порог звёзд для открытия уровня. Ноль — уровень открывается после предыдущего.
+    public readonly int RequiredStars;
 
     // Резервные пороги выстрелов для уровней без обязательных мышей.
     public readonly int ThreeStarShots;
@@ -276,17 +348,21 @@ public readonly struct LevelDefinition
     public LevelDefinition(
         int id,
         string displayName,
+        string tagline,
         string sceneName,
         string previewResourcePath,
         bool isImplemented,
+        int requiredStars = 0,
         int threeStarShots = 1,
         int twoStarShots = 2)
     {
         Id = id;
         DisplayName = displayName;
+        Tagline = tagline;
         SceneName = sceneName;
         PreviewResourcePath = previewResourcePath;
         IsImplemented = isImplemented;
+        RequiredStars = Mathf.Max(0, requiredStars);
         ThreeStarShots = Mathf.Max(1, threeStarShots);
         TwoStarShots = Mathf.Max(ThreeStarShots, twoStarShots);
     }

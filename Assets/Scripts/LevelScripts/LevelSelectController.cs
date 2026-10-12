@@ -88,7 +88,7 @@ public sealed class LevelSelectController : MonoBehaviour
             if (card.LevelId == LevelProgress.CurrentLevelId)
                 selectedPage = card.PageIndex;
         }
-        starsSummary.text = "СОБРАНО ЗВЁЗД: " + CountCollectedStars(LevelProgress.Levels)
+        starsSummary.text = "СОБРАНО ЗВЁЗД: " + LevelProgress.TotalStars
             + " / " + LevelProgress.Levels.Length * LevelProgress.MaxStars;
         SetPageImmediate(selectedPage);
         dragDistance = 0f;
@@ -308,17 +308,6 @@ public sealed class LevelSelectController : MonoBehaviour
         StepPage(delta > 0f ? -1 : 1);
     }
 
-    private static int CountCollectedStars(LevelDefinition[] levels)
-    {
-        int total = 0;
-        for (int i = 0; i < levels.Length; i++)
-        {
-            total += LevelProgress.GetStars(levels[i].Id);
-        }
-
-        return total;
-    }
-
     public void OnLevelClicked(int levelId)
     {
         if (SceneTransition.IsLoading || Time.unscaledTime < suppressClickUntil)
@@ -327,6 +316,8 @@ public sealed class LevelSelectController : MonoBehaviour
         }
 
         LevelDefinition level = LevelProgress.GetLevel(levelId);
+        // Закрытая кнопка недоступна, но проверка остаётся на случай внешнего вызова:
+        // уровни 3–5 открываются только запасом звёзд.
         if (!LevelProgress.IsUnlocked(level.Id))
         {
             return;
