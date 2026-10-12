@@ -15,6 +15,7 @@ public static class SceneUiValidation
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
         ValidateMouseStarRules();
+        ValidateStarUnlockRules();
         var setup = EditorSceneManager.GetSceneManagerSetup();
         try
         {
@@ -104,7 +105,7 @@ public static class SceneUiValidation
                     References(select, "cards", "track", "pagingSurface", "starsSummary", "pageDots", "menuManager");
                 foreach (var card in Find<LevelCardView>())
                 {
-                    References(card, "button", "preview", "currentHighlight", "lockOverlay", "soonOverlay", "parHint", "stars");
+                    References(card, "button", "preview", "currentHighlight", "lockOverlay", "lockLabel", "soonOverlay", "parHint", "stars");
                     if (card.LevelId >= 1 && card.LevelId <= 5)
                         References(card, "hoverOutline");
                     var highlight = (GameObject)new SerializedObject(card).FindProperty("currentHighlight").objectReferenceValue;
@@ -255,6 +256,35 @@ public static class SceneUiValidation
             && LevelProgress.StarsForDefeatedMice(-1, 8) == 0
             && LevelProgress.StarsForDefeatedMice(0, 0) == 0,
             "Звёзды за мышей: некорректные границы количества не обработаны");
+    }
+
+    // Доступ к уровням: первые два открываются последовательно, третий, четвёртый
+    // и пятый ждут 5, 8 и 12 собранных звёзд.
+    private static void ValidateStarUnlockRules()
+    {
+        Require(LevelProgress.RequiredStarsFor(1) == 0 && LevelProgress.RequiredStarsFor(2) == 0,
+            "Доступ к уровням: у первых двух уровней порога звёзд быть не должно");
+        Require(LevelProgress.RequiredStarsFor(3) == 5,
+            "Доступ к уровням: третий уровень открывается за 5 звёзд");
+        Require(LevelProgress.RequiredStarsFor(4) == 8,
+            "Доступ к уровням: четвёртый уровень открывается за 8 звёзд");
+        Require(LevelProgress.RequiredStarsFor(5) == 12,
+            "Доступ к уровням: пятый уровень открывается за 12 звёзд");
+        Require(LevelProgress.Levels.Length * LevelProgress.MaxStars >= LevelProgress.RequiredStarsFor(5),
+            "Доступ к уровням: всех уровней должно хватать на порог пятого");
+
+        Require(LevelProgress.IsUnlockedByRules(1, 0, false),
+            "Доступ к уровням: первый уровень открыт всегда");
+        Require(LevelProgress.IsUnlockedByRules(2, 0, true) && !LevelProgress.IsUnlockedByRules(2, 0, false),
+            "Доступ к уровням: второй уровень открывается после первого");
+        Require(!LevelProgress.IsUnlockedByRules(3, 4, true) && LevelProgress.IsUnlockedByRules(3, 5, true),
+            "Доступ к уровням: третий уровень ждёт ровно 5 звёзд");
+        Require(!LevelProgress.IsUnlockedByRules(4, 7, true) && LevelProgress.IsUnlockedByRules(4, 8, true),
+            "Доступ к уровням: четвёртый уровень ждёт ровно 8 звёзд");
+        Require(!LevelProgress.IsUnlockedByRules(5, 11, true) && LevelProgress.IsUnlockedByRules(5, 12, true),
+            "Доступ к уровням: пятый уровень ждёт ровно 12 звёзд");
+        Require(LevelProgress.IsUnlockedByRules(3, 5, false) && LevelProgress.IsUnlockedByRules(5, 12, false),
+            "Доступ к уровням: порог звёзд не должен требовать ещё и пройденного предыдущего уровня");
     }
 
     private static void Require(bool condition, string message)

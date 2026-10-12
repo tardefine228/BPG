@@ -12,6 +12,7 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
     [SerializeField] private Image preview;
     [SerializeField] private GameObject currentHighlight;
     [SerializeField] private GameObject lockOverlay;
+    [SerializeField] private TMP_Text lockLabel;
     [SerializeField] private GameObject soonOverlay;
     [SerializeField] private TMP_Text parHint;
     [SerializeField] private Image[] stars;
@@ -78,16 +79,36 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
     {
         LevelDefinition level = LevelProgress.GetLevel(levelId);
         bool unlocked = LevelProgress.IsUnlocked(levelId);
+        int requiredStars = LevelProgress.RequiredStarsFor(levelId);
         button.interactable = unlocked;
         preview.color = unlocked ? Color.white : (Color)new Color32(140, 140, 140, 255);
         currentHighlight.SetActive(false);
         lockOverlay.SetActive(!unlocked);
         soonOverlay.SetActive(unlocked && !level.CanLoad);
-        parHint.text = unlocked ? "ЗВЁЗДЫ ЗА УБИТЫХ МЫШЕЙ" : string.Empty;
+        // На закрытом уровне подпись прямо говорит, сколько звёзд для него нужно.
+        if (lockLabel != null)
+            lockLabel.text = requiredStars > 0 ? "НУЖНО " + requiredStars + " ЗВЁЗД" : "ЗАКРЫТО";
+        parHint.text = HintText(unlocked, requiredStars);
         int earned = LevelProgress.GetStars(levelId);
         for (int i = 0; i < stars.Length; i++)
             if (stars[i] != null) stars[i].sprite = i < earned ? starOn : starOff;
         ApplyHoverState();
+    }
+
+    // Подсказка под звёздами: у уровней с порогом виден текущий запас звёзд.
+    private static string HintText(bool unlocked, int requiredStars)
+    {
+        if (unlocked)
+        {
+            return "ЗВЁЗДЫ ЗА УБИТЫХ МЫШЕЙ";
+        }
+
+        if (requiredStars > 0)
+        {
+            return "СОБРАНО ЗВЁЗД: " + LevelProgress.TotalStars + " ИЗ " + requiredStars;
+        }
+
+        return string.Empty;
     }
 
     public void OnPointerEnter(PointerEventData eventData)

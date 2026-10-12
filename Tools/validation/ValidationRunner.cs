@@ -221,6 +221,112 @@ public sealed class ValidationRunner : MonoBehaviour
             "Loaded cat is outside the catapult");
     }
 
+    // Порог звёзд: сохранения, подписи карточек и попытка открыть закрытый уровень.
+    private IEnumerator StarGateChecks(LevelSelectController select)
+    {
+        LevelCardView Card(int levelId) => All<LevelCardView>().First(card => card.LevelId == levelId);
+        var savedStars = new int[LevelProgress.Levels.Length + 1];
+        var savedCompleted = new bool[LevelProgress.Levels.Length + 1];
+        bool unlockAllLevels = LevelProgress.UnlockAllLevels;
+        for (int id = 1; id < savedStars.Length; id++)
+        {
+            savedStars[id] = LevelProgress.GetStars(id);
+            savedCompleted[id] = LevelProgress.IsCompleted(id);
+        }
+
+        LevelProgress.UnlockAllLevels = false;
+        try
+        {
+            SetLevelStars(0, 0, 0, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 0 && LevelProgress.IsUnlocked(1)
+                && !LevelProgress.IsUnlocked(3) && !LevelProgress.IsUnlocked(4) && !LevelProgress.IsUnlocked(5),
+                "Without stars the levels with a threshold must stay closed");
+            // Второй уровень по-прежнему открывается прохождением первого, а не звёздами:
+            // накопленные звёзды сами по себе его не выдают.
+            Require(LevelProgress.IsUnlocked(2) == LevelProgress.IsCompleted(1),
+                "The second level must keep following the first one instead of the star threshold");
+            Require(!Card(3).GetComponent<Button>().interactable && LockText(Card(3)) == "НУЖНО 5 ЗВЁЗД"
+                && HintText(Card(3)) == "СОБРАНО ЗВЁЗД: 0 ИЗ 5",
+                "The third card should ask for five stars");
+
+            SetLevelStars(2, 2, 0, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 4 && !LevelProgress.IsUnlocked(3)
+                && LockText(Card(3)) == "НУЖНО 5 ЗВЁЗД" && HintText(Card(3)) == "СОБРАНО ЗВЁЗД: 4 ИЗ 5",
+                "Four stars must not open the third level");
+            int selectedBeforeClick = LevelProgress.CurrentLevelId;
+            select.OnLevelClicked(3);
+            yield return null;
+            Require(!SceneTransition.IsLoading && SceneManager.GetActiveScene().name == "MainMenu"
+                && LevelProgress.CurrentLevelId == selectedBeforeClick,
+                "A locked level must not start loading");
+            yield return Capture("level-select-locked");
+
+            SetLevelStars(2, 3, 0, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 5 && LevelProgress.IsUnlocked(3)
+                && Card(3).GetComponent<Button>().interactable
+                && !(((GameObject)Get(Card(3), "lockOverlay")).activeSelf)
+                && HintText(Card(3)) == "ЗВЁЗДЫ ЗА УБИТЫХ МЫШЕЙ",
+                "Five stars should open the third level");
+            Require(!LevelProgress.IsUnlocked(4) && LockText(Card(4)) == "НУЖНО 8 ЗВЁЗД",
+                "The fourth level should wait for eight stars");
+
+            SetLevelStars(2, 3, 3, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 8 && LevelProgress.IsUnlocked(4) && !LevelProgress.IsUnlocked(5)
+                && LockText(Card(5)) == "НУЖНО 12 ЗВЁЗД" && HintText(Card(5)) == "СОБРАНО ЗВЁЗД: 8 ИЗ 12",
+                "Eight stars should open the fourth level and leave the fifth one closed");
+
+            SetLevelStars(2, 3, 3, 3, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 11 && !LevelProgress.IsUnlocked(5),
+                "Eleven stars must not open the fifth level");
+
+            SetLevelStars(3, 3, 3, 3, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 12 && LevelProgress.IsUnlocked(5)
+                && Card(5).GetComponent<Button>().interactable,
+                "Twelve stars should open the fifth level");
+            Require(((TMPro.TMP_Text)Get(select, "starsSummary")).text == "СОБРАНО ЗВЁЗД: 12 / 15",
+                "The stars summary should count the collected stars");
+        }
+        finally
+        {
+            for (int id = 1; id < savedStars.Length; id++)
+            {
+                LevelProgress.ResetStarsForRun(id);
+                LevelProgress.SaveStars(id, savedStars[id]);
+                if (savedCompleted[id]) LevelProgress.MarkCompleted(id);
+            }
+
+            LevelProgress.UnlockAllLevels = unlockAllLevels;
+        }
+
+        RefreshLevelCards(select);
+        Pass("Levels 3, 4 and 5 wait for 5, 8 and 12 collected stars; locked cards show the requirement and cannot be started");
+    }
+
+    private static void SetLevelStars(int level1, int level2, int level3, int level4, int level5)
+    {
+        int[] values = { 0, level1, level2, level3, level4, level5 };
+        for (int id = 1; id < values.Length; id++)
+        {
+            LevelProgress.ResetStarsForRun(id);
+            LevelProgress.SaveStars(id, values[id]);
+        }
+    }
+
+    private static void RefreshLevelCards(LevelSelectController select)
+    {
+        typeof(LevelSelectController).GetMethod("RefreshCards", Flags).Invoke(select, null);
+    }
+
+    private static string LockText(LevelCardView card) => ((TMPro.TMP_Text)Get(card, "lockLabel")).text;
+
+    private static string HintText(LevelCardView card) => ((TMPro.TMP_Text)Get(card, "parHint")).text;
+
     private IEnumerator CatQueueChecks()
     {
         foreach (var level in LevelProgress.Levels)
@@ -991,6 +1097,7 @@ public sealed class ValidationRunner : MonoBehaviour
         Require(ids.SetEquals(All<Button>()), "Menu buttons were replaced");
         Pass("Settings, volumes, pagination and reopening preserve all menu button objects");
         yield return Capture("levels");
+        yield return StarGateChecks(select);
         yield return Click(All<LevelCardView>().First(card => card.LevelId == 1).GetComponent<Button>());
         yield return Scene("Gameplay");
         yield return new WaitForSecondsRealtime(0.4f);

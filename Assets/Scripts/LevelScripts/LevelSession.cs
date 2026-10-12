@@ -486,7 +486,9 @@ public sealed class LevelSession : MonoBehaviour
             return;
         foreach (LevelDefinition level in LevelProgress.Levels)
         {
-            if (level.Id != LevelId + 1 || !level.CanLoad)
+            // Если следующий уровень ещё закрыт порогом звёзд, кнопка возвращает
+            // к выбору уровня: там видно, сколько звёзд до него не хватает.
+            if (level.Id != LevelId + 1 || !level.CanLoad || !LevelProgress.IsUnlocked(level.Id))
                 continue;
             AudioManager.Instance?.PlayUiClick();
             Time.timeScale = 1f;

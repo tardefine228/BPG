@@ -2712,6 +2712,7 @@ MonoBehaviour:
   preview: {fileID: 1179781549}
   currentHighlight: {fileID: 1160417238}
   lockOverlay: {fileID: 1780374274}
+  lockLabel: {fileID: 1734127776}
   soonOverlay: {fileID: 1250999616}
   parHint: {fileID: 2020369931}
   stars:
@@ -4947,6 +4948,7 @@ MonoBehaviour:
   preview: {fileID: 572662965}
   currentHighlight: {fileID: 1917776601}
   lockOverlay: {fileID: 1392383010}
+  lockLabel: {fileID: 1278585158}
   soonOverlay: {fileID: 1873234787}
   parHint: {fileID: 334075219}
   stars:
@@ -7962,6 +7964,7 @@ MonoBehaviour:
   preview: {fileID: 41545279}
   currentHighlight: {fileID: 42647668}
   lockOverlay: {fileID: 390269165}
+  lockLabel: {fileID: 1140273214}
   soonOverlay: {fileID: 296035721}
   parHint: {fileID: 1233579236}
   stars:
@@ -8140,6 +8143,7 @@ MonoBehaviour:
   preview: {fileID: 1886017035}
   currentHighlight: {fileID: 1929494973}
   lockOverlay: {fileID: 755926814}
+  lockLabel: {fileID: 1052347046}
   soonOverlay: {fileID: 1872543379}
   parHint: {fileID: 1534661663}
   stars:
@@ -10277,6 +10281,7 @@ MonoBehaviour:
   preview: {fileID: 271712635}
   currentHighlight: {fileID: 1745919812}
   lockOverlay: {fileID: 1209852106}
+  lockLabel: {fileID: 1783214363}
   soonOverlay: {fileID: 1602611111}
   parHint: {fileID: 209141472}
   stars:
