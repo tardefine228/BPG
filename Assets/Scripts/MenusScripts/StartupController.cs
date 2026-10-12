@@ -14,6 +14,14 @@ public sealed class StartupController : MonoBehaviour
     [SerializeField] private Image logoImage;
     [SerializeField] private TMP_Text companyNameText;
     private bool ownsPresentation;
+    private bool brandingVisible;
+
+    /// <summary>Бренд (логотип + надпись) полностью проявлен — можно запускать анимации заставки.</summary>
+    public bool IsBrandingVisible() => brandingVisible;
+
+    /// <summary>Сколько секунд бренд виден целиком: удержание + половина угасающего fadeOut.</summary>
+    public float GetBrandingVisibleDuration() =>
+        settings != null ? settings.holdDuration + settings.fadeOutDuration * 0.5f : 0f;
 
     private void Awake()
     {
@@ -36,9 +44,11 @@ public sealed class StartupController : MonoBehaviour
         // Холодная загрузка меню не должна пропускать кадры появления надписи.
         yield return null;
         yield return Fade(brandingGroup, 1f, settings.fadeInDuration);
+        brandingVisible = true;
         var load = SceneManager.LoadSceneAsync(LevelProgress.MainMenuSceneName);
         load.allowSceneActivation = false;
         yield return new WaitForSecondsRealtime(settings.holdDuration);
+        brandingVisible = false;
         yield return Fade(brandingGroup, 0f, settings.fadeOutDuration);
         while (load.progress < 0.9f)
             yield return null;
