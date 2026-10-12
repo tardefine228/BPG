@@ -202,6 +202,7 @@ GameObject:
   - component: {fileID: 2704395791220613592}
   - component: {fileID: 4100000002}
   - component: {fileID: 4400000000}
+  - component: {fileID: 248286827164570703}
   m_Layer: 0
   m_Name: Cat3
   m_TagString: Untagged

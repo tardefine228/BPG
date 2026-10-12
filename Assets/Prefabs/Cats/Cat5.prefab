@@ -202,6 +202,7 @@ GameObject:
   - component: {fileID: 2704395791220613592}
   - component: {fileID: 4100000002}
   - component: {fileID: 4400000000}
+  - component: {fileID: 251167919565476779}
   m_Layer: 0
   m_Name: Cat5
   m_TagString: Untagged
@@ -752,3 +753,20 @@ TrailRenderer:
   m_Autodestruct: 0
   m_Emitting: 0
   m_ApplyActiveColorSpace: 1
+--- !u!114 &251167919565476779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63e473adf4f96d44fa691ddb6a99f68a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HeavyCatAbility
+  massMultiplier: 4
+  forwardImpulse: 3
+  expandedSprite: {fileID: 0}
+  expandDuration: 0.25
+  visualScaleMultiplier: 1.6
