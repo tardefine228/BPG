@@ -451,6 +451,9 @@ public sealed class ValidationRunner : MonoBehaviour
             "Cats left in the queue must not keep the level running");
         Require(All<LevelTarget>().Any(target => target.CountsForVictory && !target.IsCleared),
             "Boxes must stop being a victory requirement");
+        string shotsLine = ((TMPro.TMP_Text)Get(Find<LevelSession>(), "completionShotsText")).text;
+        Require(shotsLine.Contains("ВЫСТРЕЛОВ: ") && shotsLine.EndsWith(" / " + Find<LevelSession>().MaxProjectiles),
+            "The victory screen should show shots as used / total: " + shotsLine);
         yield return Capture("mouse-victory");
         Pass("Killing every required mouse ends the level with three stars while boxes stand and cats remain");
         SceneTransition.Load("MainMenu");

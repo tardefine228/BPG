@@ -527,9 +527,11 @@ public sealed class LevelSession : MonoBehaviour
         completionScoreText.text = "ОЧКИ  " + score;
         completionScoreText.color = awardedScore ? new Color32(230, 155, 82, 255)
             : new Color32(200, 200, 200, 255);
+        // Выстрелы показываются как «использовано / весь боезапас»: «ВЫСТРЕЛОВ: 2 / 3».
+        string shotsLine = "ВЫСТРЕЛОВ: " + shots + " / " + MaxProjectiles;
         completionShotsText.text = totalMice > 0
-            ? "ПОБЕЖДЕНО МЫШЕЙ: " + defeatedMice + " / " + totalMice + "      ВЫСТРЕЛОВ: " + shots
-            : "ВЫСТРЕЛОВ: " + shots;
+            ? "ПОБЕЖДЕНО МЫШЕЙ: " + defeatedMice + " / " + totalMice + "      " + shotsLine
+            : shotsLine;
         for (int i = 0; i < completionStars.Length; i++)
             completionStars[i].sprite = i < stars ? starOnSprite : starOffSprite;
         completionOverlay.SetActive(true);
