@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using TMPro;
 
 public class SlingshotController : MonoBehaviour
 {
@@ -44,6 +46,9 @@ public class SlingshotController : MonoBehaviour
     public int trajectoryPoints = 180;
     public float timeStep = 0.04f;
     public float trajectoryDotPixels = 7f;
+    [Tooltip("Размер точек при слабом и полном натяжении относительно Trajectory Dot Pixels.")]
+    [Range(0.3f, 2f)] public float weakPullDotScale = 0.65f;
+    [Range(0.3f, 2f)] public float strongPullDotScale = 1.25f;
     public float dotTimeSpacing = 0.12f;
     public Color weakPullColor = new Color(1f, 0.64f, 0.60f);
     public Color mediumPullColor = new Color(1f, 0.91f, 0.58f);
@@ -65,8 +70,14 @@ public class SlingshotController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float flightMeowVolume = 0.9f;
 
     [Header("Перезарядка")]
-    public float spawnDelay = 2.5f;
+    [Tooltip("Пауза после завершения полёта перед следующим выстрелом, в игровых секундах.")]
+    [Min(0f)] public float spawnDelay = 2f;
     public float projectileLifetime = 12f;
+
+    [Header("Подсказки выстрела")]
+    [SerializeField] private bool shotHints = true;
+    [SerializeField] private Vector2 abilityBadgeOffset = new Vector2(0f, 78f);
+    [SerializeField] private Vector2 cancelHintOffset = new Vector2(-120f, -52f);
 
     public event Action<Rigidbody2D> ShotLaunched;
     public event Action<Vector2> ProjectileImpacted;
@@ -120,6 +131,20 @@ public class SlingshotController : MonoBehaviour
     private int visibleDots;
     private Quaternion restingArmRotation;
     private readonly List<SpriteRenderer> dotShadows = new List<SpriteRenderer>();
+    private float trajectoryStrength;
+    private const string AbilityHintsKey = "BPG.Guide.AbilityUsed.v2";
+    private bool abilityHintShown;
+    private bool IsFirstRound => gameObject.scene.name == LevelProgress.GameplaySceneName;
+    private bool shotHadAbility;
+    private bool showFlightInstruction;
+    private bool abilityUsed;
+    private Transform flightHintAnchor;
+    private Vector3 flightHintPosition;
+    private Canvas hintCanvas;
+    private RectTransform hintCanvasRect;
+    private RectTransform abilityBadge;
+    private TMP_Text abilityBadgeLabel;
+    private RectTransform cancelHint;
     private AudioSource pullSoundSource;
     private int pullSoundSequenceId;
 
@@ -162,6 +187,8 @@ public class SlingshotController : MonoBehaviour
         }
         CreateCats();
         LoadFirstCat();
+        abilityHintShown = PlayerPrefs.GetInt(AbilityHintsKey, 0) != 0;
+        CreateShotHints();
     }
 
     private void CreateCats()
@@ -276,6 +303,11 @@ public class SlingshotController : MonoBehaviour
             return;
 
         Vector2 pointer = Mouse.current.position.ReadValue();
+        if (isDragging && Mouse.current.rightButton.wasPressedThisFrame)
+        {
+            CancelInput();
+            return;
+        }
         if (Mouse.current.leftButton.wasPressedThisFrame
             && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
         {
@@ -345,7 +377,10 @@ public class SlingshotController : MonoBehaviour
         }
 
         if (activeAbility.TryActivate())
+        {
+            abilityUsed = true;
             activeAbility = null;
+        }
     }
 
     private void Aim(Vector2 pointer)
@@ -372,6 +407,7 @@ public class SlingshotController : MonoBehaviour
         // сразу, без задержки интерполяции Rigidbody2D при вращении чаши.
         SetLoadedTransform(launchPoint.position, Quaternion.Euler(0f, 0f, angle));
         float strength = pull.magnitude / Mathf.Max(0.01f, maxPullDistance);
+        trajectoryStrength = Mathf.Clamp01(strength);
         trajectoryColor = strength < 0.5f
             ? Color.Lerp(weakPullColor, mediumPullColor, strength * 2f)
             : Color.Lerp(mediumPullColor, strongPullColor, (strength - 0.5f) * 2f);
@@ -460,7 +496,8 @@ public class SlingshotController : MonoBehaviour
             return;
         SpriteRenderer renderer = dots[visibleDots++];
         float diameter = 2f * mainCamera.orthographicSize * trajectoryDotPixels
-            / Mathf.Max(1, mainCamera.pixelHeight);
+            / Mathf.Max(1, mainCamera.pixelHeight)
+            * Mathf.Lerp(Mathf.Max(0.3f, weakPullDotScale), Mathf.Max(0.3f, strongPullDotScale), trajectoryStrength);
         renderer.transform.position = new Vector3(position.x, position.y, launchPoint.position.z);
         renderer.transform.localScale = Vector3.one * diameter / renderer.sprite.bounds.size.x;
         Color color = trajectoryColor;
@@ -511,6 +548,17 @@ public class SlingshotController : MonoBehaviour
         activeAbility = fired.GetComponent<CatAbility>();
         if (activeAbility != null)
             activeAbility.Arm();
+        shotHadAbility = activeAbility != null;
+        flightHintAnchor = fired.transform;
+        flightHintPosition = fired.position;
+        abilityUsed = false;
+        showFlightInstruction = shotHints && shotHadAbility && IsFirstRound && !abilityHintShown;
+        if (showFlightInstruction)
+        {
+            abilityHintShown = true;
+            PlayerPrefs.SetInt(AbilityHintsKey, 1);
+            PlayerPrefs.Save();
+        }
         ShotsFired++;
         launchedProjectiles.Add(fired);
         fired.GetComponent<ProjectileComicEffects>()?.BeginFlight();
@@ -580,6 +628,115 @@ public class SlingshotController : MonoBehaviour
         rotatingPart.localRotation = restingArmRotation;
         if (projectile != null)
             SetLoadedTransform(launchPoint.position, Quaternion.identity);
+    }
+
+    private void CreateShotHints()
+    {
+        // One reusable, non-interactive overlay; it never catches aiming or ability clicks.
+        var root = new GameObject("ShotHintsCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+        root.transform.SetParent(transform, false);
+        hintCanvas = root.GetComponent<Canvas>();
+        hintCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        hintCanvas.sortingOrder = 75;
+        hintCanvasRect = (RectTransform)root.transform;
+        var scaler = root.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+        abilityBadge = CreateHintPlate("FirstAbilityHint", new Vector2(290f, 42f));
+        abilityBadge.GetComponent<Image>().color = new Color32(22, 24, 39, 235);
+        abilityBadgeLabel = CreateHintLabel(abilityBadge, "Input", 17f);
+        abilityBadgeLabel.color = new Color32(255, 232, 195, 255);
+        abilityBadgeLabel.text = "ЛКМ / ПРОБЕЛ в полёте";
+        cancelHint = CreateHintPlate("CancelPullHint", new Vector2(170f, 32f));
+        CreateHintLabel(cancelHint, "Input", 16f).text = "ПКМ — отменить";
+        abilityBadge.gameObject.SetActive(false);
+        cancelHint.gameObject.SetActive(false);
+    }
+
+    private RectTransform CreateHintPlate(string name, Vector2 size)
+    {
+        var plate = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        plate.transform.SetParent(hintCanvasRect, false);
+        var rect = (RectTransform)plate.transform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = size;
+        var image = plate.GetComponent<Image>();
+        image.sprite = MenuButtonStyle.Default != null ? MenuButtonStyle.Default.buttonSprite : null;
+        image.type = Image.Type.Sliced;
+        image.color = new Color32(255, 242, 219, 235);
+        image.raycastTarget = false;
+        return rect;
+    }
+
+    private static TMP_Text CreateHintLabel(RectTransform parent, string name, float fontSize)
+    {
+        var label = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        label.transform.SetParent(parent, false);
+        var text = label.GetComponent<TextMeshProUGUI>();
+        text.font = MenuButtonStyle.Default != null ? MenuButtonStyle.Default.font : TMP_Settings.defaultFontAsset;
+        text.fontSize = fontSize;
+        text.color = new Color32(66, 47, 30, 255);
+        text.alignment = TextAlignmentOptions.Center;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.raycastTarget = false;
+        text.rectTransform.anchorMin = Vector2.zero;
+        text.rectTransform.anchorMax = Vector2.one;
+        text.rectTransform.offsetMin = new Vector2(6f, 4f);
+        text.rectTransform.offsetMax = new Vector2(-6f, -4f);
+        return text;
+    }
+
+    private void LateUpdate()
+    {
+        if (hintCanvas == null) return;
+        bool visible = shotHints && isActiveAndEnabled && Time.timeScale > 0f
+            && !SceneTransition.IsLoading && !FirstLevelGuide.IsOpen && mainCamera != null
+            && (levelSession == null || !levelSession.IsEnding);
+        bool inFlight = shotInProgress && shotHadAbility;
+        CatAbility loadedAbility = !shotInProgress && projectile != null ? projectile.GetComponent<CatAbility>() : null;
+        bool showBadge = visible && IsFirstRound && !isDragging
+            && (inFlight ? showFlightInstruction && !abilityUsed && activeAbility != null && activeAbility.CanActivate
+                : CanAim && loadedAbility != null && !abilityHintShown);
+        abilityBadge.gameObject.SetActive(showBadge);
+        cancelHint.gameObject.SetActive(visible && isDragging);
+        if (showBadge)
+        {
+            if (inFlight && flightHintAnchor != null) flightHintPosition = flightHintAnchor.position;
+            PositionHint(abilityBadge, abilityBadgeOffset, inFlight ? flightHintPosition : launchPoint.position);
+        }
+        if (visible && isDragging) PositionHint(cancelHint, cancelHintOffset, launchPoint.position);
+    }
+
+    private void PositionHint(RectTransform hint, Vector2 offset, Vector3 worldPosition)
+    {
+        Vector3 screen = mainCamera.WorldToScreenPoint(worldPosition);
+        Camera uiCamera = hintCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : hintCanvas.worldCamera;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(hintCanvasRect, screen, uiCamera, out Vector2 point);
+        Vector2 margin = hint.sizeDelta * 0.5f + Vector2.one * 16f;
+        Vector2 half = hintCanvasRect.rect.size * 0.5f;
+        Vector2 desired = point + offset;
+        hint.anchoredPosition = new Vector2(Mathf.Clamp(desired.x, -half.x + margin.x, half.x - margin.x),
+            Mathf.Clamp(desired.y, -half.y + margin.y, half.y - margin.y));
+    }
+
+    private void OnDisable()
+    {
+        if (hintCanvas != null) hintCanvas.gameObject.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        if (hintCanvas != null) hintCanvas.gameObject.SetActive(true);
+    }
+
+    [ContextMenu("Сбросить подсказки способностей")]
+    public void ResetAbilityHints()
+    {
+        abilityHintShown = false;
+        PlayerPrefs.DeleteKey(AbilityHintsKey);
+        PlayerPrefs.DeleteKey("BPG.Guide.AbilityShots.v1");
+        PlayerPrefs.Save();
     }
 
     private void OnDestroy()

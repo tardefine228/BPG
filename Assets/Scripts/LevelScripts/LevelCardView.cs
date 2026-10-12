@@ -4,7 +4,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 // Hover frame is drawn above card content and does not intercept mouse events.
-public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler,
+    ISelectHandler, IDeselectHandler
 {
     [SerializeField] private int levelId;
     [SerializeField, Min(0)] private int pageIndex;
@@ -19,6 +20,7 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
     [SerializeField] private Outline hoverOutline;
 
     [Header("Рамка при наведении")]
+    [SerializeField] private bool sharedFocusColor = true;
     [SerializeField] private Color hoverFrameColor = new Color32(235, 150, 70, 255);
     [SerializeField, Min(1f)] private float hoverFrameWidth = 7f;
 
@@ -27,10 +29,13 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
 
     private GameObject hoverFrame;
     private bool pointerInside;
+    private bool selected;
 
     private void Awake()
     {
         if (hoverOutline != null) hoverOutline.enabled = false;
+        if (sharedFocusColor && MenuButtonStyle.Default != null)
+            hoverFrameColor = MenuButtonStyle.Default.highlightedColor;
         currentHighlight.SetActive(false);
         // Цвет всей карточки не зависит от состояния Button или доступности уровня.
         button.transition = Selectable.Transition.None;
@@ -109,15 +114,33 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
         ApplyHoverState();
     }
 
-    private void OnEnable() => ApplyHoverState();
+    public void OnSelect(BaseEventData eventData)
+    {
+        selected = true;
+        ApplyHoverState();
+    }
+
+    public void OnDeselect(BaseEventData eventData)
+    {
+        selected = false;
+        ApplyHoverState();
+    }
+
+    private void OnEnable()
+    {
+        selected = EventSystem.current != null && EventSystem.current.currentSelectedGameObject == gameObject;
+        ApplyHoverState();
+    }
     private void OnDisable()
     {
         pointerInside = false;
+        selected = false;
         ApplyHoverState();
     }
 
     private void ApplyHoverState()
     {
-        if (hoverFrame != null) hoverFrame.SetActive(pointerInside && isActiveAndEnabled);
+        if (hoverFrame != null) hoverFrame.SetActive((pointerInside || selected) && isActiveAndEnabled
+            && button != null && button.IsInteractable());
     }
 }

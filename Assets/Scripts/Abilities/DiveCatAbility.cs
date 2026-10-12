@@ -12,5 +12,6 @@ public sealed class DiveCatAbility : CatAbility
             Body.linearVelocity = new Vector2(Body.linearVelocity.x, 0f);
 
         Body.AddForce(Vector2.down * diveImpulse, ForceMode2D.Impulse);
+        GetComponent<ProjectileComicEffects>()?.PlayAbilityEffect(ComicParticleBurst.AbilityEffect.Speed);
     }
 }

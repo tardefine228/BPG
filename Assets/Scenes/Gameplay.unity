@@ -3776,6 +3776,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!222 &43475525
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3856,6 +3864,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &49294431
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4002,6 +4018,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &83808218
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4148,6 +4172,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &102404572
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4804,6 +4836,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &234046770
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6714,6 +6754,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &516740455
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6821,6 +6869,7 @@ GameObject:
   - component: {fileID: 519420029}
   - component: {fileID: 519420030}
   - component: {fileID: 519420033}
+  - component: {fileID: 5700000000}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -8740,6 +8789,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &819435089
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9095,7 +9152,7 @@ MonoBehaviour:
   grabMeowVolume: 0.7
   pullSoundVolume: 0.7
   flightMeowVolume: 0.9
-  spawnDelay: 2.5
+  spawnDelay: 2
   projectileLifetime: 12
   dots:
   - {fileID: 661792053}
@@ -9435,6 +9492,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!224 &864322705
 RectTransform:
   m_ObjectHideFlags: 0
@@ -10516,6 +10581,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &1140584611
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12785,6 +12858,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &1729339609
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13789,6 +13870,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!114 &1941713049
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14101,6 +14190,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!224 &2011121619
 RectTransform:
   m_ObjectHideFlags: 0
@@ -15439,7 +15536,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: cd051a36e0fa49d299bc0923c51436a2, type: 3}
   m_Type: 1
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -15728,7 +15825,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: 7aa3d7bb1ec3494cb0eacb0953d21cfd, type: 3}
   m_Type: 1
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -15884,6 +15981,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!1 &4500000049
 GameObject:
   m_ObjectHideFlags: 0
@@ -16038,6 +16143,10 @@ MonoBehaviour:
   secondIllustration: {fileID: 4500000042}
   gameplayController: {fileID: 854157704}
   pauseButton: {fileID: 43475522}
+  comicSprite: {fileID: 21300000, guid: dc63c042626e4fa48c914e62e50484dc, type: 3}
+  tutorialPanel: {fileID: 4500000011}
+  comicContinueDelay: 2
+  comicFooterHeight: 0.09
 --- !u!1 &5300000000
 GameObject:
   m_ObjectHideFlags: 0
@@ -16244,3 +16353,38 @@ SceneRoots:
   - {fileID: 974845801}
   - {fileID: 960835853}
   - {fileID: 1894714650}
+--- !u!114 &5700000000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58c4f54b3e324a0498c764e774f37c16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ForestAtmosphere
+  atmosphereMaterial: {fileID: 2100000, guid: a1e6026a17fc4e88b4e980f912560a9b, type: 2}
+  fogEnabled: 1
+  fogOpacity: 0.021
+  fogColor: {r: 0.91, g: 0.96, b: 0.9, a: 1}
+  fogWorldScale: 30
+  fogDensity: 0.718
+  fogHeight: 0.06
+  fogHeightFalloff: 0.199
+  fogDrift: {x: 0.58, y: 0.008}
+  lightEnabled: 1
+  sunlightColor: {r: 1, g: 0.94, b: 0.77, a: 1}
+  rayIntensity: 0.011
+  dappleIntensity: 0
+  lightWorldScale: 21
+  rayAngle: 28.9
+  rayWidth: 0.656
+  lightAnimationSpeed: 2
+  lightShimmer: 0.524
+  animationSpeed: 2.59
+  seed: 17
+  sortingOrder: 60
+  previewInEditMode: 1
+  animateInEditMode: 1

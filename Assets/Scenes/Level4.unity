@@ -6885,6 +6885,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!114 &443763688
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9070,6 +9074,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!114 &738583296
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10053,6 +10061,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!114 &893051286
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11139,6 +11151,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!222 &1334054619
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11733,6 +11749,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!224 &1459419453
 RectTransform:
   m_ObjectHideFlags: 0
@@ -12473,6 +12493,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!114 &1555496047
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12681,6 +12705,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!114 &1591588670
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12827,6 +12855,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!114 &1623911818
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13042,6 +13074,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!114 &1642151277
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14167,6 +14203,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!224 &1958859202
 RectTransform:
   m_ObjectHideFlags: 0
@@ -15456,6 +15496,7 @@ GameObject:
   - component: {fileID: 3000000067}
   - component: {fileID: 3000000068}
   - component: {fileID: 3000000069}
+  - component: {fileID: 5700000000}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -15698,7 +15739,7 @@ MonoBehaviour:
   grabMeowVolume: 0.7
   pullSoundVolume: 0.7
   flightMeowVolume: 0.9
-  spawnDelay: 2.5
+  spawnDelay: 2
   projectileLifetime: 12
   dots:
   - {fileID: 521966186}
@@ -16346,6 +16387,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
 --- !u!1 &4200000006
 GameObject:
   m_ObjectHideFlags: 0
