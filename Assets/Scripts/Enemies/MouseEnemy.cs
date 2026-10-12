@@ -92,7 +92,6 @@ public sealed class MouseEnemy : MonoBehaviour
         if (collision.collider.GetComponentInParent<CatProjectile>() != null
             || collision.collider.GetComponentInParent<ProjectileImpactReporter>() != null)
         {
-            PlaySqueakSound();
             TakeDamage(Health);
             return;
         }
@@ -108,7 +107,6 @@ public sealed class MouseEnemy : MonoBehaviour
         if (damage <= 0f)
             return;
 
-        PlaySqueakSound();
         nextHitTime = Time.time + hitCooldown;
         TakeDamage(damage);
     }
@@ -139,6 +137,8 @@ public sealed class MouseEnemy : MonoBehaviour
 
         if (Health <= 0f)
             Kill();
+        else
+            PlaySqueakSound();
     }
 
     private void Kill()
@@ -148,6 +148,8 @@ public sealed class MouseEnemy : MonoBehaviour
 
         IsDead = true;
         Health = 0f;
+        // Пол и взрыв тоже проходят здесь; каждый смертельный удар звучит один раз.
+        PlaySqueakSound();
         // Флаг, столкновения и новая поза меняются в тот же кадр касания.
         StartCoroutine(DeathRoutine());
         Died?.Invoke(this);

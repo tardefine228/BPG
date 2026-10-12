@@ -10,6 +10,7 @@ public sealed class CatProjectile : MonoBehaviour
     [SerializeField] private Sprite queueSprite;
     [Tooltip("Один и тот же спрайт для кота в катапульте и в полёте.")]
     [SerializeField] private Sprite launchSprite;
+    
     [SerializeField] private SpriteRenderer spriteRenderer;
 
     private Sprite placeholderSprite;

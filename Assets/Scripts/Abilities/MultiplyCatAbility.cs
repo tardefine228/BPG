@@ -14,6 +14,7 @@ public sealed class MultiplyCatAbility : CatAbility
 
     protected override void Activate()
     {
+        GetComponent<ProjectileComicEffects>()?.PlayAbilityEffect(ComicParticleBurst.AbilityEffect.Split);
         Vector2 velocity = Body.linearVelocity;
         Vector2 direction = velocity.sqrMagnitude > 0.01f
             ? velocity.normalized
@@ -68,6 +69,7 @@ public sealed class MultiplyCatAbility : CatAbility
             copy.GetComponent<CatProjectile>()?.ShowLoaded();
 
             copy.GetComponent<ProjectileComicEffects>()?.BeginFlight();
+            copy.GetComponent<ProjectileComicEffects>()?.HighlightSplitTrail();
 
             copy.GetComponent<CatFlightEffects>()?.BeginFlight(
                 Camera.main != null

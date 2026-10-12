@@ -144,17 +144,16 @@ public sealed class LevelTarget : MonoBehaviour
 
     private void PlayBoxSound()
     {
+        if (Time.time < nextBoxSoundTime) return;
         AudioClip clip = Resources.Load<AudioClip>("Audio/music for box/falling-objects-with-a-crash");
         if (clip != null && AudioManager.Instance != null)
         {
-            GameObject soundObj = new GameObject("BoxFallingSound");
-            AudioSource source = soundObj.AddComponent<AudioSource>();
-            source.clip = clip;
-            source.volume = AudioManager.Instance.EffectsVolume;
-            source.Play();
-            Destroy(soundObj, clip.length);
+            nextBoxSoundTime = Time.time + 0.15f;
+            AudioManager.Instance.PlaySfx(clip);
         }
     }
+
+    private float nextBoxSoundTime;
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
@@ -207,6 +206,7 @@ public sealed class LevelTarget : MonoBehaviour
             return;
 
         nextHitTime = Time.time + hitCooldown;
+        PlayBoxSound();
         HitsTaken++;
         HitRegistered?.Invoke(this, strength);
         AbsorbHit();

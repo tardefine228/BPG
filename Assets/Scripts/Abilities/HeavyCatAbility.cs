@@ -42,6 +42,7 @@ public sealed class HeavyCatAbility : CatAbility
 
     protected override void Activate()
     {
+        GetComponent<ProjectileComicEffects>()?.PlayAbilityEffect(ComicParticleBurst.AbilityEffect.Inflate);
         Body.mass *= massMultiplier;
         if (Body.linearVelocity.sqrMagnitude > 0.01f)
             Body.AddForce(Body.linearVelocity.normalized * forwardImpulse, ForceMode2D.Impulse);

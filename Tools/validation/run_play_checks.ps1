@@ -1,4 +1,4 @@
-param([string]$UnityPath, [switch]$PauseReturnOnly, [switch]$CatFlightOnly, [switch]$PresentationOnly, [switch]$LoadingOnly, [switch]$MinimalEditor, [switch]$CompactGameplayOnly, [switch]$TilemapAndRollingOnly)
+param([string]$UnityPath, [switch]$PauseReturnOnly, [switch]$CatFlightOnly, [switch]$PresentationOnly, [switch]$LoadingOnly, [switch]$MinimalEditor, [switch]$CompactGameplayOnly, [switch]$TilemapAndRollingOnly, [switch]$DesignOnly)
 $ErrorActionPreference = 'Stop'
 $taskRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 if (!$UnityPath) {
@@ -54,6 +54,7 @@ if ($PresentationOnly) { $taskUnityArguments += '-bpgPresentationOnly' }
 if ($TilemapAndRollingOnly) { $taskUnityArguments += '-bpgTilemapAndRollingOnly' }
 if ($CompactGameplayOnly) { $taskUnityArguments += '-bpgCompactGameplayOnly' }
 if ($LoadingOnly) { $taskUnityArguments += '-bpgLoadingOnly' }
+if ($DesignOnly) { $taskUnityArguments += '-bpgDesignOnly' }
 $taskProcess = Start-Process -FilePath $UnityPath -ArgumentList $taskUnityArguments -WindowStyle Hidden -Wait -PassThru
 $taskMarker = Join-Path $taskProject 'play-checks.done'
 if ($taskProcess.ExitCode -ne 0 -or !(Test-Path -LiteralPath $taskMarker) -or

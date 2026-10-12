@@ -9,8 +9,8 @@ public sealed class MenuButtonStyle : ScriptableObject
     public TMP_FontAsset font;
     public Color buttonColor = Color.white;
     public Color textColor = new Color32(50, 50, 50, 255);
-    public Color highlightedColor = new Color32(245, 245, 245, 255);
-    public Color pressedColor = new Color32(200, 200, 200, 255);
+    public Color highlightedColor = new Color32(255, 225, 176, 255);
+    public Color pressedColor = new Color32(235, 201, 153, 255);
     public Color disabledColor = new Color32(200, 200, 200, 128);
 
     private static MenuButtonStyle defaultStyle;
@@ -47,6 +47,19 @@ public sealed class MenuButtonStyle : ScriptableObject
             text.color = textColor;
             text.fontStyle = FontStyles.Bold;
         }
+    }
+
+    // Only the interaction colors are shared; card art and slider handles keep their own styling.
+    public void ApplyFocus(Selectable control)
+    {
+        if (control == null) return;
+        ColorBlock colors = control.colors;
+        colors.highlightedColor = highlightedColor;
+        colors.selectedColor = highlightedColor;
+        colors.pressedColor = pressedColor;
+        colors.fadeDuration = 0.1f;
+        control.colors = colors;
+        control.transition = Selectable.Transition.ColorTint;
     }
 
 }

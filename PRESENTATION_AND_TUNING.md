@@ -8,6 +8,8 @@
 
 ## Две картинки обучения
 
+Картинки уже назначены: `Assets/UI/Tutorial/Pull.png` («Натяни - ») и `Shoot.png` («- и стреляй!»). Настройки покачивания, эффектов способностей и предложения для интерфейса описаны в [DESIGN_AND_FEEDBACK.md](DESIGN_AND_FEEDBACK.md).
+
 Откройте `Assets/Scenes/Gameplay.unity`:
 
 - `FirstLevelGuideCanvas → GuideOverlay → GuidePanel → FirstImageFrame → FirstIllustration`: назначьте первую картинку в `Image → Source Image`.
