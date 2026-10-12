@@ -63,6 +63,10 @@ public static class SceneUiValidation
                         "scoreHintText", "completionOverlay", "defeatOverlay",
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
                     ValidateCompletionMenuButton(session);
+                    // Уровень заканчивается победой, когда убита последняя обязательная мышь,
+                    // поэтому хотя бы одна включённая мышь на карте должна считать за победу.
+                    Require(Find<MouseEnemy>().Any(enemy => enemy.CountsForVictory && enemy.gameObject.activeInHierarchy),
+                        scene.name + ": нет обязательных мышей — уровень не закончится по мышам");
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
                     ValidatePauseHierarchy(Find<PauseMenuController>().Single());

@@ -357,7 +357,7 @@ public sealed class ValidationRunner : MonoBehaviour
             var blockerTarget = blocker.AddComponent<LevelTarget>();
             Set(session, "targets", ((LevelTarget[])Get(session, "targets")).Concat(new[] { blockerTarget }).ToArray());
             Set(session, "targetBodies", ((Rigidbody2D[])Get(session, "targetBodies")).Concat(new[] { blockerBody }).ToArray());
-            int ammo = Mathf.Min(level.Id + 1, 5);
+            int ammo = session.MaxProjectiles;
             CheckCats(ammo);
             yield return CheckCameraButtons();
             if (level.Id == 1 || level.Id == 5)
@@ -419,6 +419,42 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return Scene("MainMenu");
             Pass(level.SceneName + ": real menu/pause clicks, all " + ammo + " cat launches, two poses, queue movement, pause during loading, exhaustion and restart passed");
         }
+    }
+
+    // Победа по мышам: убив всех обязательных мышей, уровень заканчивается, даже если
+    // постройка стоит целой и в очереди остались коты.
+    private IEnumerator MouseVictoryChecks()
+    {
+        LevelProgress.SelectLevel(1);
+        SceneTransition.Load("Gameplay");
+        yield return Scene("Gameplay");
+        yield return new WaitForSecondsRealtime(0.4f);
+        var session = Find<LevelSession>();
+        var mice = All<MouseEnemy>().Where(enemy => enemy.CountsForVictory).ToArray();
+        var standing = All<LevelTarget>().Where(target => target.CountsForVictory && !target.IsCleared).ToArray();
+        Require(mice.Length > 0, "Gameplay should have required mice for the mouse-victory check");
+        Require(standing.Length > 0, "Gameplay should keep intact boxes with CountsForVictory for the mouse-victory check");
+        Require(session.RemainingShots > 0, "Gameplay should start with cats in the queue");
+
+        foreach (var mouse in mice)
+            Set(mouse, "<IsDead>k__BackingField", true);
+
+        yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf,
+            "victory after the last required mouse", 30f);
+        var overlay = (Image[])Get(Find<LevelSession>(), "completionStars");
+        var starOn = (Sprite)Get(Find<LevelSession>(), "starOnSprite");
+        Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf,
+            "Killing every required mouse must win the level");
+        Require(overlay.Count(image => image.sprite == starOn) == 3,
+            "Killing every required mouse must award three stars");
+        Require(Find<LevelSession>().RemainingShots > 0,
+            "Cats left in the queue must not keep the level running");
+        Require(All<LevelTarget>().Any(target => target.CountsForVictory && !target.IsCleared),
+            "Boxes must stop being a victory requirement");
+        yield return Capture("mouse-victory");
+        Pass("Killing every required mouse ends the level with three stars while boxes stand and cats remain");
+        SceneTransition.Load("MainMenu");
+        yield return Scene("MainMenu");
     }
 
     private IEnumerator PauseReturnChecks()
@@ -693,13 +729,13 @@ public sealed class ValidationRunner : MonoBehaviour
                     "Camera moved during flight");
                 yield return null;
             }
-            Require(impacts == 1 && slingshot.WaitingCatCount == Mathf.Min(level.Id + 1, 5) - 2,
+            Require(impacts == 1 && slingshot.WaitingCatCount == validationSession.MaxProjectiles - 2,
                 "Impact / queue count incorrect");
             Require(Quaternion.Angle(rest, slingshot.rotatingPart.localRotation) < 0.01f
                 && Mathf.Abs(((Rigidbody2D)Get(slingshot, "projectile")).rotation) < 0.01f,
                 "Next cat is rotated or arm did not reset");
             if (level.Id == 1) yield return MouseContactChecks(camera);
-            int ammo = Mathf.Min(level.Id + 1, 5);
+            int ammo = validationSession.MaxProjectiles;
             for (int shot = 2; shot <= ammo; shot++)
             {
                 var fired = (Rigidbody2D)Get(slingshot, "projectile");
@@ -735,7 +771,7 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(Camera.main.orthographicSize == pausedIntro, "Intro zoom moved during pause");
             Find<PauseMenuController>().ResumeGame();
             Require(Find<SlingshotController>().ShotsFired == 0
-                && Find<SlingshotController>().WaitingCatCount == Mathf.Min(level.Id + 1, 5) - 1,
+                && Find<SlingshotController>().WaitingCatCount == Find<LevelSession>().MaxProjectiles - 1,
                 "Restart did not restore the queue");
             yield return Until(() => !Find<GameplayCameraController>().IsBusy, "restart intro");
         }
@@ -1103,7 +1139,8 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.4f);
         yield return Capture("gameplay");
         yield return CheckCameraButtons();
-        CheckCats(2);
+        // Боезапас берётся из сцены, чтобы проверка не устаревала при балансировке уровня.
+        CheckCats(Find<LevelSession>().MaxProjectiles);
         int particleSystems = All<ParticleSystem>().Length;
         int gameObjects = All<Transform>().Length;
         var material = Find<SlingshotController>().projectilePrefab.GetComponent<ProjectileComicEffects>();
@@ -1185,16 +1222,18 @@ public sealed class ValidationRunner : MonoBehaviour
         Set(slingshot, "<ShotsFired>k__BackingField", ammo);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
         var firstLevelMice = All<MouseEnemy>().Where(enemy => enemy.CountsForVictory).ToArray();
-        Require(firstLevelMice.Length == 2, "Gameplay should have two required mice for the star-rating check");
-        Set(firstLevelMice[0], "<IsDead>k__BackingField", true);
+        Require(firstLevelMice.Length >= 2, "Gameplay should have at least two required mice for the star-rating check");
+        // Оставляем одну мышь живой: частичный результат по убитым должен дать две звезды.
+        for (int mouse = 0; mouse < firstLevelMice.Length - 1; mouse++)
+            Set(firstLevelMice[mouse], "<IsDead>k__BackingField", true);
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf,
             "two-star partial victory after the last shot", 30f);
         var firstLevelStars = (Image[])Get(Find<LevelSession>(), "completionStars");
         Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf
             && LevelProgress.IsCompleted(1) && LevelProgress.GetStars(1) == 2
             && firstLevelStars.Count(image => image.sprite == (Sprite)Get(Find<LevelSession>(), "starOnSprite")) == 2,
-            "Killing half the required mice should complete level 1 with two stars");
-        Pass("After the last cat, killing half of the two required mice earns two stars and unlocks the next level");
+            "Killing every required mouse but one should complete level 1 with two stars");
+        Pass("After the last cat, killing all required mice but one earns two stars and unlocks the next level");
         yield return Capture("victory");
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("Level2");
@@ -1252,6 +1291,7 @@ public sealed class ValidationRunner : MonoBehaviour
         Pass("Continue after the last implemented level returns to MainMenu");
         yield return PauseReturnChecks();
         yield return CatQueueChecks();
+        yield return MouseVictoryChecks();
         Require(errors.Count == 0, "Runtime produced errors");
     }
 }
