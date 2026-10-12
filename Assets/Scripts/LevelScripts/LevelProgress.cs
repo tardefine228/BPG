@@ -25,15 +25,15 @@ public static class LevelProgress
             GameplaySceneName,
             "LevelPreviews/level_1",
             true,
-            1,
-            2),
+            2,
+            3),
         new LevelDefinition(
             2,
             "УРОВЕНЬ 2",
             SecondLevelSceneName,
             "LevelPreviews/level_2",
             true,
-            6,
+            3,
             9),
         new LevelDefinition(
             3,
@@ -41,7 +41,7 @@ public static class LevelProgress
             ThirdLevelSceneName,
             "LevelPreviews/level_3",
             true,
-            12,
+            4,
             16),
         new LevelDefinition(
             4,
@@ -49,7 +49,7 @@ public static class LevelProgress
             FourthLevelSceneName,
             "LevelPreviews/level_4",
             true,
-            13,
+            5,
             17),
         new LevelDefinition(
             5,
@@ -57,7 +57,7 @@ public static class LevelProgress
             FifthLevelSceneName,
             "LevelPreviews/level_5",
             true,
-            15,
+            5,
             19)
     };
 

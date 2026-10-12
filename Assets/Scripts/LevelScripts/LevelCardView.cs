@@ -18,7 +18,7 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
     [SerializeField] private Outline hoverOutline;
 
     [Header("Рамка при наведении")]
-    [SerializeField] private Color hoverFrameColor = new Color(1f, 0.84f, 0.36f, 1f);
+    [SerializeField] private Color hoverFrameColor = new Color32(235, 150, 70, 255);
     [SerializeField, Min(1f)] private float hoverFrameWidth = 7f;
 
     public int LevelId => levelId;
@@ -30,6 +30,10 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
     private void Awake()
     {
         if (hoverOutline != null) hoverOutline.enabled = false;
+        currentHighlight.SetActive(false);
+        // Цвет всей карточки не зависит от состояния Button или доступности уровня.
+        button.transition = Selectable.Transition.None;
+        if (button.targetGraphic != null) button.targetGraphic.color = Color.white;
         CreateHoverFrame();
     }
 
@@ -76,11 +80,11 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
         bool unlocked = LevelProgress.IsUnlocked(levelId);
         button.interactable = unlocked;
         preview.color = unlocked ? Color.white : (Color)new Color32(140, 140, 140, 255);
-        currentHighlight.SetActive(levelId == LevelProgress.CurrentLevelId);
+        currentHighlight.SetActive(false);
         lockOverlay.SetActive(!unlocked);
         soonOverlay.SetActive(unlocked && !level.CanLoad);
         parHint.text = unlocked ? "3 ЗВЕЗДЫ — ДО " + level.ThreeStarShots
-            + (level.ThreeStarShots == 1 ? " ВЫСТРЕЛА" : " ВЫСТРЕЛОВ") : string.Empty;
+            + " ВЫСТРЕЛОВ" : string.Empty;
         int earned = LevelProgress.GetStars(levelId);
         for (int i = 0; i < stars.Length; i++)
             if (stars[i] != null) stars[i].sprite = i < earned ? starOn : starOff;
