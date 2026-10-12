@@ -506,7 +506,7 @@ public sealed class LevelSession : MonoBehaviour
         completionScoreText.color = awardedScore ? new Color32(230, 155, 82, 255)
             : new Color32(200, 200, 200, 255);
         completionShotsText.text = totalMice > 0
-            ? "УБИТО МЫШЕЙ: " + defeatedMice + " / " + totalMice + "      ВЫСТРЕЛОВ: " + shots
+            ? "ПОБЕЖДЕНО МЫШЕЙ: " + defeatedMice + " / " + totalMice + "      ВЫСТРЕЛОВ: " + shots
             : "ВЫСТРЕЛОВ: " + shots;
         for (int i = 0; i < completionStars.Length; i++)
             completionStars[i].sprite = i < stars ? starOnSprite : starOffSprite;

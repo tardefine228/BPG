@@ -29,7 +29,7 @@ Transform:
   m_GameObject: {fileID: 1531888680519501042}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 52.32, y: -1.14, z: 0}
+  m_LocalPosition: {x: 52.68, y: -1.26, z: 0}
   m_LocalScale: {x: 5.605444, y: 5.5946016, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -176,8 +176,10 @@ MonoBehaviour:
   damageMultiplier: 2
   hitCooldown: 0.15
   fallY: -6
-  deathDelay: 0.4
-  dieOnFallDamage: 1
-  fallDamageHeight: 3
-  instakillOnFall: 1
-  fallDamagePerUnit: 50
+  deathSprite: {fileID: 0}
+  deathDuration: 0.85
+  deathHopSpeed: 10
+  deathSidewaysSpeed: 5
+  deathGravity: 28
+  deathSpinSpeed: 420
+  floor: {fileID: 0}

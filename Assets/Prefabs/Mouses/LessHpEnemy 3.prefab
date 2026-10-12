@@ -29,8 +29,8 @@ Transform:
   m_GameObject: {fileID: 1531888680519501042}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 52.32, y: -1.14, z: 0}
-  m_LocalScale: {x: 5.605444, y: 5.5946016, z: 1}
+  m_LocalPosition: {x: 52.0197, y: -1.0027, z: 0}
+  m_LocalScale: {x: 6.2007647, y: 6.495559, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -129,8 +129,8 @@ CircleCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.155
+  m_Offset: {x: 0, y: 0.0109880855}
+  m_Radius: 0.1440119
 --- !u!50 &6483162539553246126
 Rigidbody2D:
   serializedVersion: 5
@@ -176,8 +176,10 @@ MonoBehaviour:
   damageMultiplier: 2
   hitCooldown: 0.15
   fallY: -6
-  deathDelay: 0.4
-  dieOnFallDamage: 1
-  fallDamageHeight: 2
-  instakillOnFall: 1
-  fallDamagePerUnit: 90
+  deathSprite: {fileID: 0}
+  deathDuration: 0.85
+  deathHopSpeed: 10
+  deathSidewaysSpeed: 5
+  deathGravity: 28
+  deathSpinSpeed: 420
+  floor: {fileID: 0}
