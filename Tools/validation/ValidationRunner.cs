@@ -135,53 +135,24 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return null;
     }
 
-    private void CheckCameraSelection(GameplayCameraController camera, string selectedField)
-    {
-        foreach (string field in new[] { "launcherButton", "overviewButton", "targetButton" })
-        {
-            var button = (Button)Get(camera, field);
-            Color original = (Color)Get(camera, field + "Color");
-            Color expected = original * (field == selectedField ? (Color)Get(camera, "selectedViewTint") : Color.white);
-            Require(button.targetGraphic.color == expected, field + ": incorrect camera selection highlight");
-            Require(button.targetGraphic.canvasRenderer.GetColor().a > 0.99f,
-                field + ": disabled button became translucent");
-        }
-    }
+
 
     private IEnumerator CheckCameraButtons()
     {
         var camera = Find<GameplayCameraController>();
-        CheckCameraSelection(camera, "overviewButton");
-        yield return Click(Action("FocusLauncher"));
-        yield return Until(() => !camera.IsBusy, "launcher focus");
-        CheckCameraSelection(camera, "launcherButton");
-        yield return Click(Action("FocusTarget"));
-        yield return Until(() => !camera.IsBusy, "target focus");
-        CheckCameraSelection(camera, "targetButton");
+        yield return Until(() => !camera.IsBusy, "intro zoom completed");
+        Require(All<Transform>().All(item => item.name != "GameplayCameraCanvas"), "Camera controls still exist");
+        Vector3 position = camera.transform.position;
+        float size = Camera.main.orthographicSize;
         yield return Click(Action("OpenPauseMenu"));
         yield return new WaitForSecondsRealtime(0.3f);
-        Require(Time.timeScale == 0f && ((GameObject)Get(camera, "controlsCanvas")).activeInHierarchy,
-            "Camera buttons disappeared on pause");
-        var pause = Find<PauseMenuController>();
-        var overlay = (PanelFade)Get(pause, "overlayFade");
-        Require(overlay.gameObject.activeInHierarchy && overlay.GetComponent<CanvasGroup>().alpha == 1f
-            && ((GameObject)Get(pause, "pausePage")).activeInHierarchy, "Pause panel is invisible");
-        foreach (string field in new[] { "launcherButton", "overviewButton", "targetButton" })
-            Require(!((Button)Get(camera, field)).IsInteractable(), field + ": usable while paused");
-        CheckCameraSelection(camera, "targetButton");
-        yield return Capture("camera-selection-paused");
-        // Даже вызов обработчика напрямую не должен менять камеру на паузе.
-        camera.FocusLauncher();
-        yield return null;
-        CheckCameraSelection(camera, "targetButton");
+        Require(Time.timeScale == 0f && camera.transform.position == position
+            && Camera.main.orthographicSize == size, "Pause changed the fixed camera");
         yield return Click(Action("ResumeGame"));
-        yield return new WaitForSecondsRealtime(0.3f);
-        yield return Click(Action("ShowOverview"));
-        yield return Until(() => !camera.IsBusy, "overview focus");
-        CheckCameraSelection(camera, "overviewButton");
-        Require(All<Transform>().All(transform => transform.name != "AimHint"), "Removed camera hint returned");
-        Pass(SceneManager.GetActiveScene().name + ": camera selection survives pause; buttons remain visible, opaque and blocked; hint absent");
+        yield return new WaitForSecondsRealtime(0.35f);
+        Pass(SceneManager.GetActiveScene().name + ": fixed camera, no view controls, pause works");
     }
+
 
     private IEnumerator Click(Button button)
     {
@@ -268,11 +239,7 @@ public sealed class ValidationRunner : MonoBehaviour
             CheckCats(ammo);
             yield return CheckCameraButtons();
             if (level.Id == 1 || level.Id == 5)
-            {
-                yield return Click(Action("FocusLauncher"));
-                yield return Until(() => !Find<GameplayCameraController>().IsBusy, "cat queue close-up");
                 yield return Capture("cats-level-" + level.Id);
-            }
             var slingshot = Find<SlingshotController>();
             slingshot.gameplayCamera = null;
             slingshot.spawnDelay = 0.02f;
@@ -328,7 +295,7 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return new WaitForSecondsRealtime(0.3f);
             yield return Click(Action("ReturnToMainMenu"));
             yield return Scene("MainMenu");
-            Pass(level.SceneName + ": real menu/pause/camera clicks, all " + ammo + " cat launches, two poses, queue movement, pause during loading, exhaustion and restart passed");
+            Pass(level.SceneName + ": real menu/pause clicks, all " + ammo + " cat launches, two poses, queue movement, pause during loading, exhaustion and restart passed");
         }
     }
 
@@ -398,8 +365,7 @@ public sealed class ValidationRunner : MonoBehaviour
             slingshot = Find<SlingshotController>();
             Require(Time.timeScale == 1f && slingshot.ShotsFired == 0 && slingshot.WaitingCatCount == ammo - 1,
                 "Pause restart did not reset the cats/time on " + level.SceneName);
-            yield return Click(Action("FocusLauncher"));
-            yield return Until(() => !Find<GameplayCameraController>().IsBusy, "launcher camera");
+            yield return Until(() => !Find<GameplayCameraController>().IsBusy, "intro completed");
             if (level.Id == 2) yield return Capture("new-hud");
 
             var fired = (Rigidbody2D)Get(slingshot, "projectile");
@@ -463,12 +429,6 @@ public sealed class ValidationRunner : MonoBehaviour
                 yield return Until(() => !slingshot.IsShotInProgress && !slingshot.gameplayCamera.IsBusy,
                     "first shot finished before exhaustion check");
                 slingshot.spawnDelay = 0.05f;
-                var camera = slingshot.gameplayCamera;
-                camera.transitionDuration = 0.05f;
-                camera.preShotHold = 0.05f;
-                camera.buildingHold = camera.groundHold = 0.05f;
-                camera.impactTransitionDuration = 0.1f;
-                camera.returnDuration = 0.05f;
                 var lastCat = (Rigidbody2D)Get(slingshot, "projectile");
                 Set(slingshot, "launchVelocity", new Vector2(14f, 8f));
                 slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
@@ -574,143 +534,246 @@ public sealed class ValidationRunner : MonoBehaviour
 
     private IEnumerator PresentationChecks()
     {
-        var splash = Find<StartupController>();
-        Require(splash != null && SceneTransition.StartupVisible, "No company splash in Boot");
-        var branding = (CanvasGroup)Get(splash, "brandingGroup");
-        var screen = (CanvasGroup)Get(splash, "screenGroup");
-        float configuredHold = ((StartupSplashSettings)Get(splash, "settings")).holdDuration;
-        yield return Until(() => branding.alpha == 1f, "splash fade in");
-        float holdStarted = Time.realtimeSinceStartup;
-        Require(screen.alpha == 1f && screen.blocksRaycasts
-            && !((CanvasGroup)Get(Find<SceneTransition>(), "group")).gameObject.activeSelf,
-            "Boot shows the ordinary loading overlay");
-        yield return Capture("company-splash");
-        while (Time.realtimeSinceStartup - holdStarted < Mathf.Max(0f, configuredHold - 0.3f)) yield return null;
-        Require(splash != null && branding.alpha == 1f, "Company splash did not hold for the configured duration");
-        yield return Scene("MainMenu");
-        Require(splash == null && !SceneTransition.StartupVisible, "Splash leaked into MainMenu");
-        Pass("Boot: company splash fades in, holds " + configuredHold + " s, fades out and reveals MainMenu; regular loading overlay hidden");
+        yield return CompactGameplayChecks();
+    }
 
-        LevelProgress.SelectLevel(1);
-        SceneTransition.Load("Gameplay");
-        yield return Scene("Gameplay");
-        yield return Until(() => FirstLevelGuide.IsOpen, "first-visit guide");
-        yield return new WaitForSecondsRealtime(0.35f);
-        var guide = Find<FirstLevelGuide>();
-        var slingshot = Find<SlingshotController>();
-        var camera = Find<GameplayCameraController>();
-        Vector3 before = camera.transform.position;
-        Find<PauseMenuController>().OpenPauseMenu();
-        camera.FocusLauncher();
-        yield return null;
-        Require(Time.timeScale == 0f && !slingshot.enabled && camera.transform.position == before
-            && !((GameObject)Get(Find<PauseMenuController>(), "pausePage")).activeInHierarchy,
-            "Guide allows gameplay, camera navigation or pause");
-        yield return Capture("first-level-guide");
-        yield return Click(Action("StartPlaying"));
-        yield return Until(() => !FirstLevelGuide.IsOpen, "guide closes");
-        Require(FirstLevelGuide.HasBeenCompleted && Time.timeScale == 1f && slingshot.CanAim,
-            "Guide did not persist acceptance / restore gameplay");
-        SceneTransition.Load("Gameplay");
-        yield return Until(() => guide == null, "reload guide scene");
-        yield return Scene("Gameplay");
-        yield return new WaitForSecondsRealtime(0.35f);
-        Require(!FirstLevelGuide.IsOpen && Time.timeScale == 1f, "Accepted guide reopened on restart");
-        SceneTransition.Load("MainMenu");
-        yield return Scene("MainMenu");
-        Pass("Gameplay: guide blocks play/pause/camera, Start restores controls and persists across scene reload");
 
+    private IEnumerator CompactGameplayChecks()
+    {
+        yield return Scene("MainMenu");
         foreach (var level in LevelProgress.Levels)
         {
             LevelProgress.SelectLevel(level.Id);
             SceneTransition.Load(level.SceneName);
             yield return Scene(level.SceneName);
-            yield return new WaitForSecondsRealtime(0.6f);
-            slingshot = Find<SlingshotController>();
-            camera = Find<GameplayCameraController>();
-            Pass(level.SceneName + ": overview center " + camera.transform.position
-                + ", size " + Camera.main.orthographicSize + ", ground top " + camera.ground.bounds.max.y);
-            yield return Capture(level.SceneName + "-compact-overview");
-            yield return CheckCameraButtons();
-            yield return Click(Action("FocusLauncher"));
-            yield return Until(() => !camera.IsBusy, "compact launcher view");
-            if (level.Id == 1) yield return Capture("compact-launcher");
-            slingshot.rotatingPart.rotation = Quaternion.Euler(0f, 0f, 35f);
-            var fired = (Rigidbody2D)Get(slingshot, "projectile");
-            fired.position = slingshot.launchPoint.position;
-            fired.rotation = 35f;
-            Vector2 velocity = new Vector2(Mathf.Cos(35f * Mathf.Deg2Rad), Mathf.Sin(35f * Mathf.Deg2Rad))
-                * slingshot.maxPullDistance * slingshot.launchPower;
-            Physics2D.SyncTransforms();
-            bool predicted = slingshot.TryPredictImpact(fired.position, velocity, fired.gravityScale,
-                out Vector2 point, out float predictedTime, out Collider2D collider);
-            Require(predicted && predictedTime >= 1.15f && predictedTime <= 1.85f,
-                level.SceneName + ": full 35-degree shot duration " + predictedTime);
-            Require(collider.transform.IsChildOf(camera.targetFocus), level.SceneName + ": reference shot misses the structure; hit " + collider.name);
+            var slingshot = Find<SlingshotController>();
+            var camera = Find<GameplayCameraController>();
+            float firstSize = Camera.main.orthographicSize;
+            yield return Until(() => !camera.IsBusy, "intro zoom");
+            Require(Camera.main.orthographicSize < firstSize, "Intro did not zoom in");
+            Vector3 fixedPosition = camera.transform.position;
+            float fixedSize = Camera.main.orthographicSize;
             Find<LevelSession>().enabled = false;
-            float launchTime = 0f;
-            float impactTime = 0f;
-            slingshot.ShotLaunched += body => launchTime = Time.time;
-            slingshot.ProjectileImpacted += hit => impactTime = Time.time;
-            Set(slingshot, "launchVelocity", velocity);
-            slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
-            yield return Until(() => launchTime > 0f, "reference launch");
-            float maxCatOffset = 0f;
-            float maxGroundFraction = 0f;
-            bool captured = false;
-            while (impactTime == 0f)
+            Require(All<Transform>().All(item => item.name != "GameplayCameraCanvas"), "Removed camera UI returned");
+            foreach (var renderer in All<CatProjectile>().Select(cat => cat.GetComponent<SpriteRenderer>())
+                .Concat(All<LevelTarget>().Select(target => target.GetComponent<SpriteRenderer>())).Where(item => item != null))
             {
-                Vector3 viewport = Camera.main.WorldToViewportPoint(fired.position);
-                maxCatOffset = Mathf.Max(maxCatOffset, Mathf.Abs(viewport.x - 0.5f), Mathf.Abs(viewport.y - 0.5f));
-                maxGroundFraction = Mathf.Max(maxGroundFraction, Camera.main.WorldToViewportPoint(
-                    new Vector3(camera.transform.position.x, camera.ground.bounds.max.y, 0f)).y);
-                if (!captured && level.Id == 1 && Time.time - launchTime > 0.7f)
+                Vector3 low = Camera.main.WorldToViewportPoint(renderer.bounds.min);
+                Vector3 high = Camera.main.WorldToViewportPoint(renderer.bounds.max);
+                Require(low.x >= 0f && low.y >= 0f && high.x <= 1f && high.y <= 1f,
+                    level.SceneName + ": object outside the fixed frame: " + renderer.name);
+            }
+            var loaded = (Rigidbody2D)Get(slingshot, "projectile");
+            var waiting = (List<Rigidbody2D>)Get(slingshot, "waitingCats");
+            Require(loaded.GetComponent<SpriteRenderer>().sprite == (Sprite)Get(loaded.GetComponent<CatProjectile>(), "launchSprite"),
+                "Loaded cat does not use the new launch sprite");
+            Require(loaded.GetComponent<CircleCollider2D>().bounds.extents.x < 1.5f, "Cat collider still uses old placeholder dimensions");
+            for (int i = 0; i < waiting.Count; i++)
+            {
+                Bounds b = waiting[i].GetComponent<SpriteRenderer>().bounds;
+                Require(Mathf.Abs(b.min.y - camera.ground.bounds.max.y) < 0.03f, "Queue cat does not stand on the ground");
+                Require(Mathf.Abs(waiting[i].rotation) < 0.01f, "Queue cat is rotated");
+                if (i > 0) Require(b.max.x < waiting[i - 1].GetComponent<SpriteRenderer>().bounds.min.x,
+                    "Queue sprites overlap");
+            }
+            Camera.main.aspect = 4f / 3f;
+            yield return null;
+            foreach (var cat in All<CatProjectile>())
+            {
+                Vector3 viewport = Camera.main.WorldToViewportPoint(cat.transform.position);
+                Require(viewport.x > 0f && viewport.x < 1f && viewport.y > 0f && viewport.y < 1f,
+                    "Cat outside 4:3 frame");
+            }
+            Camera.main.aspect = 16f / 9f;
+            yield return null;
+            yield return CheckCameraButtons();
+            yield return Capture(level.SceneName + "-fixed-map");
+            Vector2 origin = new Vector2(960f, 540f);
+            Set(slingshot, "dragStartScreen", origin);
+            float fullPull = Camera.main.pixelHeight * slingshot.fullPullScreenFraction;
+            Vector2 direction = new Vector2(Mathf.Cos(35f * Mathf.Deg2Rad), Mathf.Sin(35f * Mathf.Deg2Rad));
+            var aim = typeof(SlingshotController).GetMethod("Aim", Flags);
+            Quaternion rest = slingshot.rotatingPart.localRotation;
+            aim.Invoke(slingshot, new object[] { origin - direction * fullPull });
+            Require(Mathf.Abs(Mathf.DeltaAngle(rest.eulerAngles.z, slingshot.rotatingPart.localEulerAngles.z) - 35f) < 0.02f,
+                "Catapult does not tilt from its saved pose");
+            yield return null;
+            Require(Vector3.Distance(loaded.transform.position, slingshot.launchPoint.position) < 0.01f,
+                "Loaded cat sprite lags behind the rotating bowl");
+            var dots = (List<SpriteRenderer>)Get(slingshot, "dots");
+            var visible = dots.Where(dot => dot.gameObject.activeSelf).ToArray();
+            Require(visible.Length > 3, "No dotted trajectory");
+            foreach (var dot in visible)
+            {
+                var shadow = dot.transform.GetChild(0).GetComponent<SpriteRenderer>();
+                Vector3 delta = Camera.main.WorldToScreenPoint(shadow.transform.position) - Camera.main.WorldToScreenPoint(dot.transform.position);
+                Require(Mathf.Abs(delta.x + 2f) < 0.02f && Mathf.Abs(delta.y + 2f) < 0.02f
+                    && shadow.sortingOrder < dot.sortingOrder && shadow.color.a > 0f,
+                    "Trajectory shadow is not below-left: " + delta + " alpha " + shadow.color.a + " order " + shadow.sortingOrder + "/" + dot.sortingOrder);
+                Require(dot.color.r > 0.6f && dot.color.g > 0.6f && dot.color.b > 0.5f, "Trajectory colors are too dark");
+            }
+            Vector2 velocity = (Vector2)Get(slingshot, "launchVelocity");
+            Collider2D hit = null;
+            bool structureHit = false;
+            foreach (float referenceAngle in new[] { 35f, 30f, 25f, 40f, 45f, 20f, 15f })
+            {
+                direction = new Vector2(Mathf.Cos(referenceAngle * Mathf.Deg2Rad), Mathf.Sin(referenceAngle * Mathf.Deg2Rad));
+                aim.Invoke(slingshot, new object[] { origin - direction * fullPull });
+                velocity = (Vector2)Get(slingshot, "launchVelocity");
+                Physics2D.SyncTransforms();
+                structureHit = slingshot.TryPredictImpact(loaded.transform.position, velocity, loaded.gravityScale,
+                    out _, out _, out hit) && (hit.GetComponentInParent<LevelTarget>() != null || hit.GetComponentInParent<MouseEnemy>() != null);
+                if (structureHit) break;
+            }
+            Require(structureHit, level.SceneName + ": no reference shot reaches the structure");
+            // Дальность до последней мыши без увеличения Launch Power.
+            float rightmost = All<MouseEnemy>().Max(enemy => enemy.transform.position.x);
+            float reach = float.NegativeInfinity;
+            for (float angle = 20f; angle <= 65f; angle += 5f)
+            {
+                Vector2 v = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad))
+                    * slingshot.launchPower * slingshot.maxPullDistance;
+                Vector2 pullDirection = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
+                aim.Invoke(slingshot, new object[] { origin - pullDirection * fullPull });
+                Vector2 point = slingshot.launchPoint.position;
+                for (int i = 0; i < 500 && point.y > camera.ground.bounds.max.y; i++)
                 {
-                    captured = true;
-                    yield return Capture("compact-cat-flight");
+                    v = (v + Physics2D.gravity * loaded.gravityScale * Time.fixedDeltaTime)
+                        / (1f + slingshot.airResistance * Time.fixedDeltaTime);
+                    point += v * Time.fixedDeltaTime;
                 }
-                Require(Time.time - launchTime < 3f, "Reference shot did not collide");
+                reach = Mathf.Max(reach, point.x);
+            }
+            Require(reach >= rightmost + 1f, "Maximum range cannot reach the last mouse: " + reach + "/" + rightmost);
+            aim.Invoke(slingshot, new object[] { origin - direction * fullPull });
+            if (level.Id == 1) yield return Capture("pastel-trajectory");
+            aim.Invoke(slingshot, new object[] { origin + Vector2.right * fullPull });
+            Require(((Vector2)Get(slingshot, "launchVelocity")).sqrMagnitude == 0f
+                && Quaternion.Angle(rest, slingshot.rotatingPart.localRotation) < 0.01f,
+                "Backward drag turns the catapult / launches backwards");
+            aim.Invoke(slingshot, new object[] { origin - Vector2.down * fullPull - Vector2.right * 0.1f });
+            Require(Quaternion.Angle(rest, slingshot.rotatingPart.localRotation) <= slingshot.maxArmTilt + 0.01f,
+                "Catapult exceeds its tilt limit");
+            slingshot.CancelInput();
+            Require(Quaternion.Angle(rest, slingshot.rotatingPart.localRotation) < 0.01f
+                && Mathf.Abs(loaded.rotation) < 0.01f, "Cancel did not restore catapult and cat");
+            aim.Invoke(slingshot, new object[] { origin - direction * fullPull });
+            int impacts = 0;
+            slingshot.ProjectileImpacted += point => impacts++;
+            slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+            yield return Until(() => slingshot.ShotsFired == 1, "shot launched");
+            while (slingshot.IsShotInProgress)
+            {
+                Require(camera.transform.position == fixedPosition && Camera.main.orthographicSize == fixedSize,
+                    "Camera moved during flight");
                 yield return null;
             }
-            float actualTime = impactTime - launchTime;
-            Pass(level.SceneName + ": reference flight " + actualTime.ToString("F2") + " s; predicted "
-                + predictedTime.ToString("F2") + " s; max cat offset " + maxCatOffset.ToString("F2")
-                + "; ground fraction " + maxGroundFraction.ToString("F2"));
-            Require(Mathf.Abs(actualTime - predictedTime) < 0.16f, "Prediction differs from physics");
-            Require(maxCatOffset < 0.49f && maxGroundFraction < 0.5f, "Camera leaves the cat / flies into the ground");
-            yield return Until(() => !camera.IsBusy, "camera returns after reference flight");
-            Require(Mathf.Abs(camera.transform.position.x - (camera.mapMin.x + camera.mapMax.x) * 0.5f) < 0.05f,
-                "Camera did not return to overview");
-            yield return Until(() => slingshot.CanAim, "next cat ready");
-            // Низкий выстрел раньше опускал центр камеры под поверхность поля.
-            slingshot.rotatingPart.rotation = Quaternion.Euler(0f, 0f, -20f);
-            fired = (Rigidbody2D)Get(slingshot, "projectile");
-            fired.position = slingshot.launchPoint.position;
-            launchTime = impactTime = 0f;
-            captured = false;
-            Set(slingshot, "launchVelocity", new Vector2(Mathf.Cos(-20f * Mathf.Deg2Rad),
-                Mathf.Sin(-20f * Mathf.Deg2Rad)) * slingshot.maxPullDistance * slingshot.launchPower);
-            slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
-            yield return Until(() => launchTime > 0f, "downward launch");
-            while (camera.IsBusy)
+            Require(impacts == 1 && slingshot.WaitingCatCount == Mathf.Min(level.Id + 1, 5) - 2,
+                "Impact / queue count incorrect");
+            Require(Quaternion.Angle(rest, slingshot.rotatingPart.localRotation) < 0.01f
+                && Mathf.Abs(((Rigidbody2D)Get(slingshot, "projectile")).rotation) < 0.01f,
+                "Next cat is rotated or arm did not reset");
+            if (level.Id == 1) yield return MouseContactChecks(camera);
+            int ammo = Mathf.Min(level.Id + 1, 5);
+            for (int shot = 2; shot <= ammo; shot++)
             {
-                Require(Camera.main.WorldToViewportPoint(new Vector3(camera.transform.position.x,
-                    camera.ground.bounds.max.y, 0f)).y <= 0.34f, "Downward shot pulled the camera underground");
-                Require(Time.time - launchTime < 7f, "Downward shot camera did not return");
-                if (level.Id == 1 && impactTime > 0f && !captured)
+                var fired = (Rigidbody2D)Get(slingshot, "projectile");
+                Sprite sprite = fired.GetComponent<SpriteRenderer>().sprite;
+                Rigidbody2D next = waiting.Count > 0 ? waiting[0] : null;
+                aim.Invoke(slingshot, new object[] { origin - direction * fullPull });
+                slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+                Require(fired.simulated && fired.GetComponent<SpriteRenderer>().sprite == sprite
+                    && (Rigidbody2D)Get(slingshot, "projectile") == next, "Cat identity / texture lost on launch");
+                if (next != null && shot == 2)
                 {
-                    captured = true;
-                    yield return Capture("downward-shot-camera");
+                    yield return Click(Action("OpenPauseMenu"));
+                    Vector3 frozen = next.transform.position;
+                    yield return new WaitForSecondsRealtime(0.2f);
+                    Require(next.transform.position == frozen, "Queue moved during pause");
+                    yield return Click(Action("ResumeGame"));
                 }
-                yield return null;
+                yield return Until(() => !slingshot.IsShotInProgress, "remaining queue shot", 20f);
+                Require(slingshot.ShotsFired == shot && slingshot.WaitingCatCount == Mathf.Max(0, ammo - shot - 1)
+                    && camera.transform.position == fixedPosition && Camera.main.orthographicSize == fixedSize,
+                    "Queue count / fixed camera changed");
             }
-            Pass(level.SceneName + ": low -20-degree shot keeps the camera above the ground and returns to overview");
+            Require(!slingshot.CanAim && (Rigidbody2D)Get(slingshot, "projectile") == null, "Extra cat remains after queue exhaustion");
+            Pass(level.SceneName + ": intro, map fit, actual atlas cats, queue, limited arm, shadows, predicted/physical hit, fixed flight camera");
+            var oldSession = Find<LevelSession>();
+            oldSession.RestartLevel();
+            yield return Until(() => oldSession == null, "restart unload");
+            yield return Scene(level.SceneName);
+            var restartedCamera = Find<GameplayCameraController>();
+            Find<PauseMenuController>().OpenPauseMenu();
+            float pausedIntro = Camera.main.orthographicSize;
+            yield return new WaitForSecondsRealtime(0.2f);
+            Require(Camera.main.orthographicSize == pausedIntro, "Intro zoom moved during pause");
+            Find<PauseMenuController>().ResumeGame();
+            Require(Find<SlingshotController>().ShotsFired == 0
+                && Find<SlingshotController>().WaitingCatCount == Mathf.Min(level.Id + 1, 5) - 1,
+                "Restart did not restore the queue");
+            yield return Until(() => !Find<GameplayCameraController>().IsBusy, "restart intro");
         }
-        Require(errors.Count == 0, "Presentation produced runtime errors");
+        Require(errors.Count == 0, "Compact gameplay has runtime errors");
+    }
+
+    private IEnumerator MouseContactChecks(GameplayCameraController camera)
+    {
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MouseEnemy.prefab");
+        var falling = Instantiate(prefab, new Vector3(0f, 0f, 0f), Quaternion.identity).GetComponent<MouseEnemy>();
+        int deaths = 0;
+        falling.Died += enemy => deaths++;
+        float radius = falling.GetComponent<Collider2D>().bounds.extents.y;
+        falling.transform.position = new Vector3(0f, camera.ground.bounds.max.y + radius + 0.03f, 0f);
+        yield return Until(() => falling.IsDead, "gentle floor contact kills mouse", 3f);
+        falling.TakeDamage(1000f);
+        Require(falling.IsDeathAnimating && !falling.GetComponent<Rigidbody2D>().simulated
+            && !falling.GetComponent<Collider2D>().enabled, "Floor contact did not disable physics immediately");
+        yield return new WaitForSeconds(0.12f);
+        Require(falling.GetComponent<SpriteRenderer>().sprite == (Sprite)Get(falling, "deathSprite"),
+            "Mouse death pose not applied");
+        yield return Capture("mouse-death-flight");
+        yield return Click(Action("OpenPauseMenu"));
+        Vector3 deathPosition = falling.transform.position;
+        Color deathColor = falling.GetComponent<SpriteRenderer>().color;
+        yield return new WaitForSecondsRealtime(0.2f);
+        Require(falling.transform.position == deathPosition && falling.GetComponent<SpriteRenderer>().color == deathColor,
+            "Mouse death animation moved while paused");
+        yield return Click(Action("ResumeGame"));
+        yield return Until(() => !falling.IsDeathAnimating, "mouse death animation completes", 3f);
+        Require(deaths == 1 && !falling.GetComponent<Rigidbody2D>().simulated
+            && !falling.GetComponent<SpriteRenderer>().enabled, "Floor death duplicated or mouse keeps rolling");
+        var support = new GameObject("MouseTestSupport");
+        support.transform.position = new Vector3(0f, 9f, 0f);
+        support.AddComponent<BoxCollider2D>().size = new Vector2(5f, 1f);
+        var target = Instantiate(prefab, new Vector3(0f, 9.5f + radius + 0.02f, 0f), Quaternion.identity).GetComponent<MouseEnemy>();
+        yield return new WaitForSeconds(0.5f);
+        Require(!target.IsDead, "Mouse died from contact with its platform");
+        int damageEvents = 0;
+        int killEvents = 0;
+        target.Damaged += (enemy, damage) => damageEvents++;
+        target.Died += enemy => killEvents++;
+        var catPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<Rigidbody2D>("Assets/Prefabs/Cats/Cat1.prefab");
+        var cat = Instantiate(catPrefab, target.transform.position + Vector3.left * 3f + Vector3.up * 0.6f, Quaternion.identity);
+        cat.gravityScale = 0f;
+        cat.linearVelocity = Vector2.right;
+        int reportedImpacts = 0;
+        cat.GetComponent<ProjectileImpactReporter>().Arm(point => reportedImpacts++);
+        yield return Until(() => target.IsDead, "slow projectile contact kills mouse", 4f);
+        target.TakeDamage(1000f);
+        Require(target.Health == 0f && killEvents == 1 && damageEvents == 1 && reportedImpacts == 1,
+            "Direct hit did not kill once / award one damage event");
+        Destroy(cat.gameObject); Destroy(target.gameObject); Destroy(falling.gameObject); Destroy(support);
+        Pass("Mouse: gentle floor touch kills, platforms do not, slow cat hit kills once, instant physics stop, death pose/hop/fade, pause and cleanup");
     }
 
     private IEnumerator Checks()
     {
+        if (Environment.GetCommandLineArgs().Contains("-bpgCompactGameplayOnly"))
+        {
+            yield return CompactGameplayChecks();
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Contains("-bpgLoadingOnly"))
         {
             yield return LoadingChecks();
@@ -789,15 +852,12 @@ public sealed class ValidationRunner : MonoBehaviour
         Pass("106 impacts reuse the same 12 bursts / 36 particle systems without new GameObjects");
 
         var camera = Find<GameplayCameraController>();
-        camera.transitionDuration = 0.02f; camera.preShotHold = 0.01f;
-        yield return camera.PrepareForShot();
-        float size = Camera.main.orthographicSize;
-        camera.FollowShot((Rigidbody2D)Get(Find<SlingshotController>(), "projectile"));
-        camera.RecordImpact(new Vector2(20f, 0f), null);
+        yield return Until(() => !camera.IsBusy, "intro completed");
+        Vector3 fixedPosition = camera.transform.position;
+        float fixedSize = Camera.main.orthographicSize;
         yield return new WaitForSeconds(0.2f);
-        Require(Mathf.Abs(Camera.main.orthographicSize - size) < 0.001f, "Impact added zoom");
-        yield return Until(() => !camera.IsBusy, "camera return");
-        Pass("Camera impact transition retains the flight zoom and returns to overview");
+        Require(camera.transform.position == fixedPosition && Camera.main.orthographicSize == fixedSize,
+            "Camera moved after intro");
 
         ids = new HashSet<Button>(All<Button>());
         var pause = Find<PauseMenuController>();

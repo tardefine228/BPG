@@ -219,7 +219,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -6.87, y: 2.58, z: -1}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 8, y: 8, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7256622079184324602}
@@ -347,7 +347,7 @@ CircleCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_Radius: 0.5
+  m_Radius: 0.1104
 --- !u!114 &180000000001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -358,7 +358,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: def73d5cf2d74aed88839fc6029f1bd9, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileSurfaceFriction
   groundDeceleration: 60
   rollingDeceleration: 720
@@ -372,7 +372,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1e239b279a5f2cf4cb402ea1199cc411, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileComicEffects
   comicMaterial: {fileID: 2100000, guid: cb3726d0797fd724c931e8651bff0c6c, type: 2}
   trailLifetime: 0.12
@@ -409,8 +409,49 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c635e23c05154e619d361b3593f3da5a, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileImpactReporter
+--- !u!114 &4100000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eabcce4b483e4332af8256b50980f867, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::CatProjectile
+  queueSprite: {fileID: 7964350370419538568, guid: d6402a99d197e4e40acaf3fbe972a567, type: 3}
+  launchSprite: {fileID: -3683056966378814444, guid: d6402a99d197e4e40acaf3fbe972a567, type: 3}
+  spriteRenderer: {fileID: 922329019325786677}
+--- !u!114 &4400000000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 404e6f41507d48398c432204fc9dbddd, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::CatFlightEffects
+  furPrefab: {fileID: 4300000002, guid: a709ee8c2f1b476e93e199bd5dd6732a, type: 3}
+  furColor: {r: 1, g: 1, b: 1, a: 1}
+  furPerSecond: 28
+  furLifetime: 0.85
+  furSize: 0.5
+  hopSpeed: 12
+  sidewaysSpeed: 4
+  fallGravity: 45
+  foregroundScale: 1.35
+  approachDuration: 0.18
+  spinSpeed: 180
+  foregroundSortingOrder: 30000
+  cleanupMargin: 4
+  maxExitDuration: 4
 --- !u!1 &5474453461093134296
 GameObject:
   m_ObjectHideFlags: 0
@@ -713,44 +754,3 @@ TrailRenderer:
   m_Autodestruct: 0
   m_Emitting: 0
   m_ApplyActiveColorSpace: 1
---- !u!114 &4100000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3624985365212622481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eabcce4b483e4332af8256b50980f867, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CatProjectile
-  queueSprite: {fileID: 0}
-  launchSprite: {fileID: 0}
-  spriteRenderer: {fileID: 922329019325786677}
---- !u!114 &4400000000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3624985365212622481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 404e6f41507d48398c432204fc9dbddd, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::CatFlightEffects
-  furPrefab: {fileID: 4300000002, guid: a709ee8c2f1b476e93e199bd5dd6732a, type: 3}
-  furColor: {r: 1, g: 1, b: 1, a: 1}
-  furPerSecond: 28
-  furLifetime: 0.85
-  furSize: 0.3
-  hopSpeed: 12
-  sidewaysSpeed: 4
-  fallGravity: 45
-  foregroundScale: 1.35
-  approachDuration: 0.18
-  spinSpeed: 180
-  foregroundSortingOrder: 30000
-  cleanupMargin: 4
-  maxExitDuration: 4
