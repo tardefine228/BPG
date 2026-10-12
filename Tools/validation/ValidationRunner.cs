@@ -207,7 +207,11 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(cat.GetComponent<SpriteRenderer>().sprite == (i == 0 ? launchSprite : queueSprite),
                 "Cat pose sprite incorrect");
             Require(!cats[i].simulated && cat.IsQueued == (i > 0), "Waiting cat participates in physics");
-            if (i > 1)
+            var slots = (Transform[])Get(slingshot, "queueSlots");
+            if (i > 0 && slots != null && i - 1 < slots.Length)
+                Require(Mathf.Abs(cats[i].position.x - slots[i - 1].position.x) < 0.01f,
+                    "Cat queue ignores authored positions");
+            else if (i > 1)
                 Require(cats[i].position.x < cats[i - 1].position.x, "Cat queue does not extend behind launcher");
         }
         slingshot.Reload();
@@ -337,115 +341,9 @@ public sealed class ValidationRunner : MonoBehaviour
 
     private IEnumerator CatFlightChecks()
     {
-        yield return Scene("MainMenu");
-        foreach (var level in LevelProgress.Levels)
-        {
-            LevelProgress.SelectLevel(level.Id);
-            SceneTransition.Load(level.SceneName);
-            yield return Scene(level.SceneName);
-            yield return new WaitForSecondsRealtime(0.9f);
-            var session = Find<LevelSession>();
-            var slingshot = Find<SlingshotController>();
-            int ammo = Mathf.Min(level.Id + 1, 5);
-            Require(slingshot.WaitingCatCount == ammo - 1 && All<CatProjectile>().Length == ammo,
-                "Initial cat inventory incorrect on " + level.SceneName);
-            Require(All<ParticleSystem>().All(particles => particles.name != "FurTrail(Clone)"),
-                "Queued cats shed fur before launch");
-
-            yield return Click(Action("OpenPauseMenu"));
-            yield return new WaitForSecondsRealtime(0.3f);
-            var restart = All<Button>().Single(button => button.transform.parent.name == "PausePage"
-                && Enumerable.Range(0, button.onClick.GetPersistentEventCount())
-                    .Any(index => button.onClick.GetPersistentMethodName(index) == "RestartLevel"));
-            if (level.Id == 2) yield return Capture("new-pause");
-            yield return Click(restart);
-            yield return Until(() => session == null, "pause restart unloaded the old level");
-            yield return Scene(level.SceneName);
-            yield return new WaitForSecondsRealtime(0.9f);
-            slingshot = Find<SlingshotController>();
-            Require(Time.timeScale == 1f && slingshot.ShotsFired == 0 && slingshot.WaitingCatCount == ammo - 1,
-                "Pause restart did not reset the cats/time on " + level.SceneName);
-            yield return Until(() => !Find<GameplayCameraController>().IsBusy, "intro completed");
-            if (level.Id == 2) yield return Capture("new-hud");
-
-            var fired = (Rigidbody2D)Get(slingshot, "projectile");
-            var effects = fired.GetComponent<CatFlightEffects>();
-            var sprite = fired.GetComponent<SpriteRenderer>();
-            Sprite originalSprite = sprite.sprite;
-            Color originalColor = sprite.color;
-            Color furColor = new Color(0.2f, 0.85f, 1f, 1f);
-            Set(effects, "furColor", furColor);
-            var targetObject = new GameObject("CatFlightCheckTarget");
-            float targetTime = 7f / 14f;
-            targetObject.transform.position = slingshot.launchPoint.position
-                + new Vector3(7f, 22f * targetTime + 0.5f * Physics2D.gravity.y
-                    * slingshot.projectileGravityScale * targetTime * targetTime, 0f);
-            targetObject.AddComponent<BoxCollider2D>().size = Vector2.one * 2f;
-            targetObject.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
-            var target = targetObject.AddComponent<LevelTarget>();
-            int impactEvents = 0;
-            slingshot.ProjectileImpacted += point => impactEvents++;
-            slingshot.projectileLifetime = 8f;
-            Set(slingshot, "launchVelocity", new Vector2(14f, 22f));
-            slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
-            yield return Until(() => slingshot.ShotsFired == 1, "flight start");
-            yield return new WaitForSeconds(0.15f);
-            var fur = (ParticleSystem)Get(effects, "fur");
-            Require(fur != null && fur.particleCount > 0 && !effects.IsExiting
-                && fur.main.simulationSpace == ParticleSystemSimulationSpace.World,
-                "Flight does not emit world-space fur");
-            var particles = new ParticleSystem.Particle[128];
-            int count = fur.GetParticles(particles);
-            Require(count > 0 && particles[0].startColor.Equals((Color32)furColor)
-                && sprite.color == originalColor && sprite.sprite == originalSprite,
-                "Per-cat fur color changed the sprite or was not applied");
-            if (level.Id == 2) yield return Capture("cat-fur-flight");
-
-            yield return Until(() => effects.IsExiting, "first collision starts exit");
-            Require(target.HitsTaken == 1 && target.IsCleared && impactEvents == 1,
-                "Cat exit suppressed target damage or duplicated impact");
-            Require(!fired.simulated && fired.GetComponentsInChildren<Collider2D>().All(collider => !collider.enabled),
-                "Exiting cat still collides with the field");
-            Require(slingshot.HasMovingProjectiles && sprite.sortingOrder >= 30000,
-                "Exit does not stay on the foreground / block premature defeat");
-            float hitY = fired.transform.position.y;
-            yield return new WaitForSeconds(0.12f);
-            Require(fired.transform.position.y > hitY && fired.transform.localScale.x > 1f,
-                "Cat did not hop upward and approach the screen");
-            if (level.Id == 2) yield return Capture("cat-foreground-hop");
-            yield return Click(Action("OpenPauseMenu"));
-            Vector3 pausedPosition = fired.transform.position;
-            Vector3 pausedScale = fired.transform.localScale;
-            yield return new WaitForSecondsRealtime(0.2f);
-            Require(Time.timeScale == 0f && fired.transform.position == pausedPosition
-                && fired.transform.localScale == pausedScale, "Exit moved while paused");
-            yield return Click(Action("ResumeGame"));
-            yield return Until(() => fired == null, "cat fell below field and disappeared", 5f);
-            Require(impactEvents == 1 && target.HitsTaken == 1, "Exiting cat hit a target again");
-            Require(All<ParticleSystem>().All(item => item.name != "FurTrail(Clone)"), "Fur system leaked after cat removal");
-            Pass(level.SceneName + ": pause restart, colored fur, target damage, foreground hop, pause and cleanup work");
-            if (level.Id == 1)
-            {
-                yield return Until(() => !slingshot.IsShotInProgress && !slingshot.gameplayCamera.IsBusy,
-                    "first shot finished before exhaustion check");
-                slingshot.spawnDelay = 0.05f;
-                var lastCat = (Rigidbody2D)Get(slingshot, "projectile");
-                Set(slingshot, "launchVelocity", new Vector2(14f, 8f));
-                slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
-                yield return Until(() => lastCat.GetComponent<CatFlightEffects>().IsExiting, "last cat exiting");
-                yield return new WaitForSeconds(0.2f);
-                Require(Time.timeScale == 1f && !(bool)Get(Find<LevelSession>(), "failed"),
-                    "Defeat froze the last cat before cleanup");
-                yield return Until(() => lastCat == null, "last cat removed before defeat");
-                yield return Until(() => (bool)Get(Find<LevelSession>(), "failed"), "defeat after visual cleanup");
-                Require(Time.timeScale == 0f && All<CatProjectile>().Length == 0
-                    && All<ParticleSystem>().All(item => item.name != "FurTrail(Clone)"),
-                    "Defeat leaves cats/particles on the field");
-                Pass("Last shot finishes the exit before defeat pauses the game; no cats or fur remain");
-            }
-        }
-        Require(errors.Count == 0, "Cat flight produced runtime errors");
+        yield return TilemapAndRollingChecks();
     }
+
 
     private static void CheckLoadingLayout(SceneTransition transition)
     {
@@ -540,6 +438,12 @@ public sealed class ValidationRunner : MonoBehaviour
 
     private IEnumerator CompactGameplayChecks()
     {
+        yield return Scene("MainMenu");
+        if (UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/Tilemap/Tilemap.prefab") != null)
+        {
+            yield return TilemapAndRollingChecks();
+            yield break;
+        }
         yield return Scene("MainMenu");
         foreach (var level in LevelProgress.Levels)
         {
@@ -719,7 +623,7 @@ public sealed class ValidationRunner : MonoBehaviour
 
     private IEnumerator MouseContactChecks(GameplayCameraController camera)
     {
-        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MouseEnemy.prefab");
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
         var falling = Instantiate(prefab, new Vector3(0f, 0f, 0f), Quaternion.identity).GetComponent<MouseEnemy>();
         int deaths = 0;
         falling.Died += enemy => deaths++;
@@ -767,8 +671,249 @@ public sealed class ValidationRunner : MonoBehaviour
         Pass("Mouse: gentle floor touch kills, platforms do not, slow cat hit kills once, instant physics stop, death pose/hop/fade, pause and cleanup");
     }
 
+    private IEnumerator TilemapAndRollingChecks()
+    {
+        yield return Scene("MainMenu");
+        foreach (string name in new[] { "Gameplay", "Level2" })
+        {
+            LevelProgress.SelectLevel(name == "Gameplay" ? 1 : 2);
+            SceneTransition.Load(name);
+            yield return Scene(name);
+            var camera = Find<GameplayCameraController>();
+            yield return Until(() => !camera.IsBusy, "intro");
+            var session = Find<LevelSession>();
+            session.enabled = false;
+            var slingshot = Find<SlingshotController>();
+            Require(All<Transform>().All(item => item.name != "FlatGround"), "Deleted floor remains");
+            Require(camera.TerrainCollider is UnityEngine.Tilemaps.TilemapCollider2D
+                && camera.TerrainCollider.name == "Layer1"
+                && camera.TerrainCollider.attachedRigidbody.bodyType == RigidbodyType2D.Static,
+                "Wrong terrain collider / moving terrain");
+            var waiting = (List<Rigidbody2D>)Get(slingshot, "waitingCats");
+            var slots = (Transform[])Get(slingshot, "queueSlots");
+            Require(slots.Length == 2 && waiting.Count == session.MaxProjectiles - 1, "Wrong compact queue");
+            for (int i = 0; i < waiting.Count; i++)
+            {
+                Bounds bounds = waiting[i].GetComponent<SpriteRenderer>().bounds;
+                Require(camera.TryGetSurfaceHeight(waiting[i].position.x, out float surface)
+                    && bounds.min.y >= surface && bounds.min.y - surface < 0.08f,
+                    "Queued cat is below / above tilemap surface");
+                Require(Mathf.Abs(waiting[i].position.x - slots[i].position.x) < 0.01f,
+                    "Queue ignores its individual positions");
+                Require(!waiting[i].simulated, "Queued cat participates in physics");
+            }
+            if (waiting.Count == 2)
+                Require(waiting[0].position.x < slingshot.pivotPoint.position.x
+                    && waiting[1].position.x > slingshot.pivotPoint.position.x,
+                    "Cats are not on both sides of the catapult");
+            yield return Capture(name + "-tilemap-queue");
+            yield return TilemapMouseChecks(camera, slots[0].position.x);
+            if (name == "Gameplay")
+                yield return PersistentCollisionChecks(camera, slingshot, slots[0].position.x);
+
+            int ammo = session.MaxProjectiles;
+            slingshot.spawnDelay = 0.15f;
+            Vector2 origin = new Vector2(960f, 540f);
+            float pullPixels = Camera.main.pixelHeight * slingshot.fullPullScreenFraction;
+            var aim = typeof(SlingshotController).GetMethod("Aim", Flags);
+            for (int shot = 1; shot <= ammo; shot++)
+            {
+                var fired = (Rigidbody2D)Get(slingshot, "projectile");
+                var next = waiting.Count > 0 ? waiting[0] : null;
+                Set(slingshot, "dragStartScreen", origin);
+                aim.Invoke(slingshot, new object[] { origin - new Vector2(0.87f, 0.5f) * pullPixels });
+                slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+                Require((Rigidbody2D)Get(slingshot, "projectile") == next, "Loading replaced the next cat");
+                if (next != null)
+                {
+                    yield return Click(Action("OpenPauseMenu"));
+                    Vector3 frozen = next.transform.position;
+                    yield return new WaitForSecondsRealtime(0.15f);
+                    Require(next.transform.position == frozen, "Loading moves on pause");
+                    yield return Click(Action("ResumeGame"));
+                }
+                yield return Until(() => !slingshot.IsShotInProgress, "queue shot", 20f);
+                Require(slingshot.ShotsFired == shot && slingshot.WaitingCatCount == Mathf.Max(0, ammo - shot - 1),
+                    "Compact queue does not advance / deplete");
+                if (waiting.Count > 0)
+                {
+                    var cat = waiting[0];
+                    Require(camera.TryGetSurfaceHeight(cat.position.x, out float surface)
+                        && cat.GetComponent<SpriteRenderer>().bounds.min.y >= surface,
+                        "Advanced queue went underground");
+                }
+                if (fired != null && !fired.GetComponent<CatFlightEffects>().IsExiting)
+                    Require(fired.simulated, "Shot physics disabled after collision");
+                if (shot == ammo)
+                {
+                    var objective = new GameObject("UnclearedDefeatCheck");
+                    objective.transform.position = new Vector3(80f, 40f, 0f);
+                    objective.AddComponent<BoxCollider2D>();
+                    var body = objective.AddComponent<Rigidbody2D>();
+                    body.bodyType = RigidbodyType2D.Static;
+                    var target = objective.AddComponent<LevelTarget>();
+                    Set(session, "targets", ((LevelTarget[])Get(session, "targets")).Concat(new[] { target }).ToArray());
+                    Set(session, "targetBodies", ((Rigidbody2D[])Get(session, "targetBodies")).Concat(new[] { body }).ToArray());
+                    session.enabled = true;
+                    if (fired != null && fired.GetComponent<CatFlightEffects>().HasImpacted && fired.simulated)
+                    {
+                        fired.linearVelocity = Vector2.zero;
+                        fired.angularVelocity = 0f;
+                        fired.Sleep();
+                    }
+                    float deadline = Time.realtimeSinceStartup + 15f;
+                    while (slingshot.HasMovingProjectiles)
+                    {
+                        Require(Time.timeScale > 0f && !(bool)Get(session, "failed"),
+                            "Defeat froze a cat before its physical lifetime / fade completed");
+                        Require(Time.realtimeSinceStartup < deadline, "Cat cleanup never finishes");
+                        yield return null;
+                    }
+                    yield return Until(() => (bool)Get(session, "failed"), "defeat after cleanup", 5f);
+                    Destroy(objective);
+                    Pass(name + ": last shot can settle and fade before defeat freezes the level");
+                }
+            }
+            yield return Until(() => !slingshot.HasMovingProjectiles, "all cats finish physical life and fade", 15f);
+            Require(All<ParticleSystem>().All(item => item.name != "FurTrail(Clone)"), "Cat fur leaked");
+            session.enabled = true;
+            yield return Until(() => session.IsEnding, "level resolves after shots", 5f);
+            var oldSession = session;
+            session.RestartLevel();
+            yield return Until(() => oldSession == null, "restart unload");
+            yield return Scene(name);
+            Require(Find<SlingshotController>().ShotsFired == 0
+                && Find<SlingshotController>().WaitingCatCount == ammo - 1, "Restart lost the compact queue");
+            Pass(name + ": Layer1 terrain, floor removed, cats above tiles and around catapult, all shots, loading pause, cleanup and restart");
+        }
+        // Прежние уровни продолжают использовать свою землю.
+        foreach (var level in LevelProgress.Levels.Where(item => item.Id >= 3))
+        {
+            LevelProgress.SelectLevel(level.Id);
+            SceneTransition.Load(level.SceneName);
+            yield return Scene(level.SceneName);
+            yield return Until(() => !Find<GameplayCameraController>().IsBusy, "legacy intro");
+            var camera = Find<GameplayCameraController>();
+            Require(camera.TerrainCollider != null && camera.ground != null, "Legacy ground fallback lost");
+            foreach (var cat in All<CatProjectile>().Where(item => item.IsQueued))
+                Require(camera.TryGetSurfaceHeight(cat.transform.position.x, out float y)
+                    && cat.GetComponent<SpriteRenderer>().bounds.min.y >= y, "Legacy queue below its floor");
+            Pass(level.SceneName + ": legacy ground and queue preserved");
+        }
+        const string prototypePath = "Assets/Scenes/Gameplay_MainPrototype.unity";
+        if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEditor.SceneAsset>(prototypePath) != null)
+        {
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(prototypePath,
+                new LoadSceneParameters(LoadSceneMode.Single));
+            yield return null;
+            Find<LevelSession>().enabled = false;
+            yield return Until(() => !SceneTransition.IsLoading && !Find<GameplayCameraController>().IsBusy,
+                "recovered main prototype opens");
+            Require(All<LevelTarget>().Length >= 15 && All<MouseEnemy>().Length >= 5,
+                "Recovered main prototype lost its objects");
+            yield return Capture("main-prototype-recovered");
+            Pass("Separate main prototype: recovered complete construction, enemies and current UI load without runtime errors");
+        }
+    }
+
+    private IEnumerator TilemapMouseChecks(GameplayCameraController camera, float x)
+    {
+        Require(camera.TryGetSurfaceHeight(x, out float y), "No tile surface for mouse check");
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
+        var mouse = Instantiate(prefab, new Vector3(x, y + 2f, 0f), Quaternion.identity).GetComponent<MouseEnemy>();
+        Bounds bounds = mouse.GetComponent<Collider2D>().bounds;
+        mouse.transform.position += Vector3.up * (y + 0.05f - bounds.min.y);
+        int deaths = 0;
+        mouse.Died += item => deaths++;
+        yield return Until(() => mouse.IsDead, "mouse touches Layer1", 3f);
+        Require(deaths == 1 && mouse.IsDeathAnimating && !mouse.GetComponent<Rigidbody2D>().simulated,
+            "Tile contact does not immediately kill / animate mouse");
+        yield return Until(() => !mouse.IsDeathAnimating, "mouse death completes", 3f);
+        Destroy(mouse.gameObject);
+        Pass("Mouse dies once on dense Layer1 contact, plays its death animation and disables physics immediately");
+    }
+
+    private IEnumerator PersistentCollisionChecks(GameplayCameraController camera, SlingshotController slingshot, float x)
+    {
+        var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<Rigidbody2D>("Assets/Prefabs/Cats/Cat1.prefab");
+        // Первая преграда, затем отдельная коробка и мышь: один кот должен сохранить урон.
+        var cat = Instantiate(prefab, new Vector3(-10f, 26f, 0f), Quaternion.identity);
+        cat.GetComponent<CatProjectile>().ShowLoaded();
+        cat.gravityScale = 0f;
+        cat.linearVelocity = Vector2.right * 15f;
+        var effects = cat.GetComponent<CatFlightEffects>();
+        int impacts = 0;
+        cat.GetComponent<ProjectileImpactReporter>().Arm(point => impacts++);
+        cat.GetComponent<ProjectileComicEffects>().BeginFlight();
+        effects.BeginFlight(camera.mapMin.y);
+        var obstacle = new GameObject("FirstCollisionCheck");
+        obstacle.transform.position = new Vector3(-6f, 26f, 0f);
+        obstacle.AddComponent<BoxCollider2D>();
+        yield return Until(() => effects.HasImpacted, "first physical contact", 3f);
+        Require(cat.simulated && cat.GetComponent<Collider2D>().enabled && !effects.IsExiting,
+            "Cat became decorative after its first collision");
+        Destroy(obstacle);
+        yield return null;
+        var box = new GameObject("SecondCollisionCheck");
+        box.transform.position = cat.transform.position + Vector3.right * 4f;
+        box.AddComponent<BoxCollider2D>();
+        box.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+        var target = box.AddComponent<LevelTarget>();
+        Set(target, "countsForVictory", false);
+        cat.linearVelocity = Vector2.right * 15f;
+        yield return Until(() => target.IsCleared, "second collision damages a target", 3f);
+        Destroy(box);
+        yield return null;
+        var mousePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Mouses/EasyEnemy.prefab");
+        var mouse = Instantiate(mousePrefab, cat.transform.position + Vector3.right * 3f, Quaternion.identity).GetComponent<MouseEnemy>();
+        mouse.GetComponent<Rigidbody2D>().gravityScale = 0f;
+        cat.linearVelocity = Vector2.right * 12f;
+        yield return Until(() => mouse.IsDead, "later collision kills a mouse", 3f);
+        Require(impacts == 1 && effects.HasImpacted && cat.simulated,
+            "First impact was duplicated / later damage disabled");
+        Destroy(cat.gameObject); Destroy(mouse.gameObject);
+        yield return null;
+
+        Require(camera.TryGetSurfaceHeight(x, out float y), "No rolling surface");
+        cat = Instantiate(prefab, new Vector3(x, y + 2f, 0f), Quaternion.identity);
+        cat.GetComponent<CatProjectile>().ShowLoaded();
+        cat.gravityScale = 1f;
+        cat.linearVelocity = new Vector2(7f, -2f);
+        effects = cat.GetComponent<CatFlightEffects>();
+        cat.GetComponent<ProjectileComicEffects>().BeginFlight();
+        effects.BeginFlight(camera.mapMin.y);
+        yield return Until(() => effects.HasImpacted, "cat lands on Tilemap", 3f);
+        float impactedAt = Time.time;
+        float hitX = cat.position.x;
+        yield return new WaitForSeconds(0.35f);
+        Require(cat.simulated && cat.GetComponent<Collider2D>().enabled && cat.position.x > hitX + 0.25f,
+            "Cat cannot roll along the ground after impact");
+        var fur = (ParticleSystem)Get(effects, "fur");
+        Require(fur != null && !fur.isEmitting, "Fur still emits after landing");
+        yield return Capture("cat-rolling-on-layer1");
+        yield return Click(Action("OpenPauseMenu"));
+        Vector3 paused = cat.transform.position;
+        yield return new WaitForSecondsRealtime(0.2f);
+        Require(cat.transform.position == paused && cat.simulated, "Rolling moved on pause / physics removed");
+        yield return Click(Action("ResumeGame"));
+        cat.linearVelocity = Vector2.zero;
+        cat.angularVelocity = 0f;
+        cat.Sleep();
+        Require(effects.HasPendingCleanup, "Stopped cat does not delay defeat");
+        yield return Until(() => effects.IsExiting, "settled cat starts fading", 10f);
+        Require(Time.time - impactedAt >= 2.95f && !cat.simulated, "Cat disappears too soon after impact");
+        yield return Until(() => cat == null, "cat fades and disappears", 3f);
+        Require(All<ParticleSystem>().All(item => item.name != "FurTrail(Clone)"), "Rolling cat leaked fur");
+        Pass("Cat keeps physics after first impact, damages a second box and a mouse, rolls, pauses, settles for minimum lifetime and fades cleanly");
+    }
+
     private IEnumerator Checks()
     {
+        if (Environment.GetCommandLineArgs().Contains("-bpgTilemapAndRollingOnly"))
+        {
+            yield return TilemapAndRollingChecks();
+            yield break;
+        }
         if (Environment.GetCommandLineArgs().Contains("-bpgCompactGameplayOnly"))
         {
             yield return CompactGameplayChecks();

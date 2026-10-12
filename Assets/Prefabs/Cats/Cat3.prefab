@@ -361,8 +361,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: def73d5cf2d74aed88839fc6029f1bd9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileSurfaceFriction
-  groundDeceleration: 60
-  rollingDeceleration: 720
+  groundDeceleration: 3
+  rollingDeceleration: 90
 --- !u!114 &-1192857117097735967
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -443,35 +443,14 @@ MonoBehaviour:
   furColor: {r: 1, g: 1, b: 1, a: 1}
   furPerSecond: 28
   furLifetime: 0.85
-  furSize: 0.5
-  hopSpeed: 12
-  sidewaysSpeed: 4
-  fallGravity: 45
-  foregroundScale: 1.35
-  approachDuration: 0.18
-  spinSpeed: 180
-  foregroundSortingOrder: 30000
+  furSize: 0.7
+  minimumPostImpactLifetime: 2
+  maximumPostImpactLifetime: 5
+  settleSpeed: 0.3
+  settleAngularSpeed: 20
+  settleDuration: 1
+  fadeDuration: 0.45
   cleanupMargin: 4
-  maxExitDuration: 4
---- !u!114 &248286827164570703
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3624985365212622481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bbcd7448f7d746d98a562197b4b3b6d8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MultiplyCatAbility
-  totalCats: 3
-  fanAngle: 40.6
-  forwardImpulse: 5
-  copyLifetime: 2.5
-  solidLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
 --- !u!1 &5474453461093134296
 GameObject:
   m_ObjectHideFlags: 0

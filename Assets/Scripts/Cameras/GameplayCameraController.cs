@@ -7,6 +7,8 @@ public sealed class GameplayCameraController : MonoBehaviour
 {
     [Header("Вся карта в одном кадре")]
     public SpriteRenderer ground;
+    [Tooltip("Коллайдер плотных блоков карты (Grid / Tilemap / Layer1). Используется для очереди и гибели мышей.")]
+    public Collider2D terrain;
     public SpriteRenderer background;
     public Vector2 mapMin = new Vector2(-39f, -7.5f);
     public Vector2 mapMax = new Vector2(39f, 29f);
@@ -18,6 +20,9 @@ public sealed class GameplayCameraController : MonoBehaviour
     [Range(0.2f, 3f)] public float introDuration = 1.2f;
 
     public bool IsBusy => introPlaying;
+    public Collider2D TerrainCollider => terrain != null ? terrain
+        : (ground != null ? ground.GetComponent<Collider2D>() : null);
+    private readonly RaycastHit2D[] surfaceHits = new RaycastHit2D[64];
     private Camera view;
     private float introProgress;
     private bool introPlaying;
@@ -100,6 +105,26 @@ public sealed class GameplayCameraController : MonoBehaviour
         transform.position = new Vector3(center.x, center.y, transform.position.z);
         view.orthographicSize = Mathf.Max(0.1f, GameplaySize)
             * Mathf.Lerp(1f + introZoom, 1f, Mathf.SmoothStep(0f, 1f, introProgress));
+    }
+
+    public bool TryGetSurfaceHeight(float worldX, out float surfaceY)
+    {
+        surfaceY = 0f;
+        Collider2D surface = TerrainCollider;
+        if (surface == null || !surface.enabled || !surface.gameObject.activeInHierarchy)
+            return false;
+        float top = Mathf.Max(mapMax.y, surface.bounds.max.y) + 4f;
+        var filter = new ContactFilter2D { useTriggers = false };
+        filter.SetLayerMask(1 << surface.gameObject.layer);
+        int count = Physics2D.Raycast(new Vector2(worldX, top), Vector2.down,
+            filter, surfaceHits, top - surface.bounds.min.y + 8f);
+        for (int i = 0; i < count; i++)
+            if (surfaceHits[i].collider == surface && surfaceHits[i].normal.y > 0.1f)
+            {
+                surfaceY = surfaceHits[i].point.y;
+                return true;
+            }
+        return false;
     }
 
     private void FitBackdrop()

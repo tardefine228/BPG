@@ -36,7 +36,7 @@ public sealed class MouseEnemy : MonoBehaviour
     public bool IsDeathAnimating { get; private set; }
 
     [Header("Контакт с полом и снарядом")]
-    [Tooltip("Основной пол уровня. При касании мышь погибает независимо от скорости.")]
+    [Tooltip("Коллайдер земли (плотный Layer1 у Tilemap). Пустое поле берёт Terrain Collider камеры.")]
     [SerializeField] private Collider2D floor;
 
     public float Health { get; private set; }
@@ -58,14 +58,18 @@ public sealed class MouseEnemy : MonoBehaviour
         if (floor == null && Camera.main != null)
         {
             var camera = Camera.main.GetComponent<GameplayCameraController>();
-            if (camera != null && camera.ground != null)
-                floor = camera.ground.GetComponent<Collider2D>();
+            if (camera != null)
+                floor = camera.TerrainCollider;
         }
     }
 
     private void Update()
     {
-        if (!IsDead && transform.position.y <= fallY)
+        // У ступенчатой карты бывают площадки ниже старой отметки -6.
+        // Падение за карту считается только ниже всех плотных блоков Tilemap.
+        float cutoff = floor is UnityEngine.Tilemaps.TilemapCollider2D
+            ? Mathf.Min(fallY, floor.bounds.min.y - 4f) : fallY;
+        if (!IsDead && transform.position.y <= cutoff)
             Kill();
     }
 
