@@ -771,3 +771,6 @@ MonoBehaviour:
   fanAngle: 20
   forwardImpulse: 4
   copyLifetime: 2.5
+  solidLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
