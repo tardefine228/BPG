@@ -1,7 +1,8 @@
 using UnityEngine;
 
 // Умножение: по ЛКМ в полёте кот разлетается на несколько копий.
-// Копии летят веером в текущем направлении, каждая бьёт как обычный снаряд.
+// Оригинал продолжает лететь с прежней скоростью; копии разлетаются
+// симметричным веером, каждая летит как обычный снаряд.
 public sealed class MultiplyCatAbility : CatAbility
 {
     [SerializeField, Min(1)] private int totalCats = 3;
@@ -12,6 +13,7 @@ public sealed class MultiplyCatAbility : CatAbility
 
     protected override void Activate()
     {
+        // Скорость читаем ДО любых Instantiate — она не должна измениться.
         Vector2 velocity = Body.linearVelocity;
         Vector2 direction = velocity.sqrMagnitude > 0.01f
             ? velocity.normalized : (Vector2)transform.right;
@@ -56,10 +58,8 @@ public sealed class MultiplyCatAbility : CatAbility
             // и нормально сталкиваются со всем окружением.
             copyBody.linearVelocity = spread * speed;
 
-            // Способность одноразовая: копия не должна умножаться повторно.
-            CatAbility copyAbility = copy.GetComponent<CatAbility>();
-            if (copyAbility != null)
-                Destroy(copyAbility);
+            // Спрайт копии — как у кота в полёте.
+            copyGo.GetComponent<CatProjectile>()?.ShowLoaded();
 
             // Копии стартуют сразу в позе полёта (клон мог родиться с
             // «очередным» спрайтом).
