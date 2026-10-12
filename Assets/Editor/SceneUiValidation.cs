@@ -16,6 +16,7 @@ public static class SceneUiValidation
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
         ValidateMouseStarRules();
         ValidateStarUnlockRules();
+        ValidateLevelTaglines();
         var setup = EditorSceneManager.GetSceneManagerSetup();
         try
         {
@@ -289,6 +290,17 @@ public static class SceneUiValidation
             "Доступ к уровням: пятый уровень ждёт ровно 12 звёзд");
         Require(LevelProgress.IsUnlockedByRules(3, 5, false) && LevelProgress.IsUnlockedByRules(5, 12, false),
             "Доступ к уровням: порог звёзд не должен требовать ещё и пройденного предыдущего уровня");
+    }
+
+    // Названия уровней под звёздами карточки: непустые, короткие и без повторов.
+    private static void ValidateLevelTaglines()
+    {
+        var taglines = LevelProgress.Levels.Select(level => level.Tagline).ToArray();
+        foreach (string tagline in taglines)
+            Require(!string.IsNullOrWhiteSpace(tagline) && tagline.Length <= 18,
+                "Название уровня на карточке должно быть непустым и коротким (до 18 символов): «" + tagline + "»");
+        Require(taglines.Distinct().Count() == taglines.Length,
+            "Названия уровней на карточках не должны повторяться: " + string.Join(" / ", taglines));
     }
 
     private static void Require(bool condition, string message)

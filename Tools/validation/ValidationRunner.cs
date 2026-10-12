@@ -234,6 +234,12 @@ public sealed class ValidationRunner : MonoBehaviour
             savedCompleted[id] = LevelProgress.IsCompleted(id);
         }
 
+        var taglines = LevelProgress.Levels.Select(level => level.Tagline).ToArray();
+        Require(taglines.All(text => !string.IsNullOrWhiteSpace(text) && text.Length <= 18),
+            "Every level should carry a short card title: " + string.Join(" / ", taglines));
+        Require(taglines.Distinct().Count() == taglines.Length,
+            "Level card titles should not repeat: " + string.Join(" / ", taglines));
+
         LevelProgress.UnlockAllLevels = false;
         try
         {
@@ -247,13 +253,13 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(LevelProgress.IsUnlocked(2) == LevelProgress.IsCompleted(1),
                 "The second level must keep following the first one instead of the star threshold");
             Require(!Card(3).GetComponent<Button>().interactable && LockText(Card(3)) == "НУЖНО 5 ЗВЁЗД"
-                && HintText(Card(3)) == "СОБРАНО ЗВЁЗД: 0 ИЗ 5",
+                && HintText(Card(3)) == Tagline(3),
                 "The third card should ask for five stars");
 
             SetLevelStars(2, 2, 0, 0, 0);
             RefreshLevelCards(select);
             Require(LevelProgress.TotalStars == 4 && !LevelProgress.IsUnlocked(3)
-                && LockText(Card(3)) == "НУЖНО 5 ЗВЁЗД" && HintText(Card(3)) == "СОБРАНО ЗВЁЗД: 4 ИЗ 5",
+                && LockText(Card(3)) == "НУЖНО 5 ЗВЁЗД" && HintText(Card(3)) == Tagline(3),
                 "Four stars must not open the third level");
             int selectedBeforeClick = LevelProgress.CurrentLevelId;
             select.OnLevelClicked(3);
@@ -268,7 +274,7 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(LevelProgress.TotalStars == 5 && LevelProgress.IsUnlocked(3)
                 && Card(3).GetComponent<Button>().interactable
                 && !(((GameObject)Get(Card(3), "lockOverlay")).activeSelf)
-                && HintText(Card(3)) == "ЗВЁЗДЫ ЗА УБИТЫХ МЫШЕЙ",
+                && HintText(Card(3)) == Tagline(3),
                 "Five stars should open the third level");
             Require(!LevelProgress.IsUnlocked(4) && LockText(Card(4)) == "НУЖНО 8 ЗВЁЗД",
                 "The fourth level should wait for eight stars");
@@ -276,7 +282,7 @@ public sealed class ValidationRunner : MonoBehaviour
             SetLevelStars(2, 3, 3, 0, 0);
             RefreshLevelCards(select);
             Require(LevelProgress.TotalStars == 8 && LevelProgress.IsUnlocked(4) && !LevelProgress.IsUnlocked(5)
-                && LockText(Card(5)) == "НУЖНО 12 ЗВЁЗД" && HintText(Card(5)) == "СОБРАНО ЗВЁЗД: 8 ИЗ 12",
+                && LockText(Card(5)) == "НУЖНО 12 ЗВЁЗД" && HintText(Card(5)) == Tagline(5),
                 "Eight stars should open the fourth level and leave the fifth one closed");
 
             SetLevelStars(2, 3, 3, 3, 0);
@@ -326,6 +332,9 @@ public sealed class ValidationRunner : MonoBehaviour
     private static string LockText(LevelCardView card) => ((TMPro.TMP_Text)Get(card, "lockLabel")).text;
 
     private static string HintText(LevelCardView card) => ((TMPro.TMP_Text)Get(card, "parHint")).text;
+
+    // Короткое название уровня, которое карточка показывает под звёздами.
+    private static string Tagline(int levelId) => LevelProgress.GetLevel(levelId).Tagline;
 
     private IEnumerator CatQueueChecks()
     {

@@ -18,13 +18,17 @@ public static class LevelProgress
     private const string TotalScoreKey = "bpg_total_score";
     private const string CurrentLevelKey = "bpg_current_level_id";
 
-    // Шестое поле каждой строки — порог звёзд. Ноль означает, что уровень
-    // открывается после предыдущего; 5, 8 и 12 звёзд нужны для третьего, четвёртого и пятого.
+    // Поля каждой строки: номер, надпись на карточке, короткое название уровня,
+    // сцена, картинка-превью, готовность, порог звёзд и резервные пороги выстрелов.
+    // Короткое название видно под звёздами карточки; порог звёзд 0 означает,
+    // что уровень открывается после предыдущего, а 5, 8 и 12 звёзд нужны
+    // для третьего, четвёртого и пятого.
     public static readonly LevelDefinition[] Levels =
     {
         new LevelDefinition(
             1,
             "УРОВЕНЬ 1",
+            "СОЛНЕЧНЫЙ ДВОР",
             GameplaySceneName,
             "LevelPreviews/level_1",
             true,
@@ -34,6 +38,7 @@ public static class LevelProgress
         new LevelDefinition(
             2,
             "УРОВЕНЬ 2",
+            "АЛЫЙ ЗАКАТ",
             SecondLevelSceneName,
             "LevelPreviews/level_2",
             true,
@@ -43,6 +48,7 @@ public static class LevelProgress
         new LevelDefinition(
             3,
             "УРОВЕНЬ 3",
+            "ЗВЁЗДНАЯ НОЧЬ",
             ThirdLevelSceneName,
             "LevelPreviews/level_3",
             true,
@@ -52,6 +58,7 @@ public static class LevelProgress
         new LevelDefinition(
             4,
             "УРОВЕНЬ 4",
+            "ПЕСЧАНЫЙ КАНЬОН",
             FourthLevelSceneName,
             "LevelPreviews/level_4",
             true,
@@ -61,6 +68,7 @@ public static class LevelProgress
         new LevelDefinition(
             5,
             "УРОВЕНЬ 5",
+            "МЫШИНАЯ КРЕПОСТЬ",
             FifthLevelSceneName,
             "LevelPreviews/level_5",
             true,
@@ -322,6 +330,10 @@ public readonly struct LevelDefinition
 {
     public readonly int Id;
     public readonly string DisplayName;
+
+    // Короткое название уровня: «СОЛНЕЧНЫЙ ДВОР», «ЗВЁЗДНАЯ НОЧЬ». Видно под
+    // звёздами карточки в меню выбора уровня.
+    public readonly string Tagline;
     public readonly string SceneName;
     public readonly string PreviewResourcePath;
     public readonly bool IsImplemented;
@@ -336,6 +348,7 @@ public readonly struct LevelDefinition
     public LevelDefinition(
         int id,
         string displayName,
+        string tagline,
         string sceneName,
         string previewResourcePath,
         bool isImplemented,
@@ -345,6 +358,7 @@ public readonly struct LevelDefinition
     {
         Id = id;
         DisplayName = displayName;
+        Tagline = tagline;
         SceneName = sceneName;
         PreviewResourcePath = previewResourcePath;
         IsImplemented = isImplemented;

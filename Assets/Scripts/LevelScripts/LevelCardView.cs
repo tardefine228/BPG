@@ -88,27 +88,13 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
         // На закрытом уровне подпись прямо говорит, сколько звёзд для него нужно.
         if (lockLabel != null)
             lockLabel.text = requiredStars > 0 ? "НУЖНО " + requiredStars + " ЗВЁЗД" : "ЗАКРЫТО";
-        parHint.text = HintText(unlocked, requiredStars);
+        // Под звёздами стоит короткое название уровня, а не подсказка про звёзды
+        // за мышей: сама оценка видна по закрашенным звёздам.
+        parHint.text = level.Tagline;
         int earned = LevelProgress.GetStars(levelId);
         for (int i = 0; i < stars.Length; i++)
             if (stars[i] != null) stars[i].sprite = i < earned ? starOn : starOff;
         ApplyHoverState();
-    }
-
-    // Подсказка под звёздами: у уровней с порогом виден текущий запас звёзд.
-    private static string HintText(bool unlocked, int requiredStars)
-    {
-        if (unlocked)
-        {
-            return "ЗВЁЗДЫ ЗА УБИТЫХ МЫШЕЙ";
-        }
-
-        if (requiredStars > 0)
-        {
-            return "СОБРАНО ЗВЁЗД: " + LevelProgress.TotalStars + " ИЗ " + requiredStars;
-        }
-
-        return string.Empty;
     }
 
     public void OnPointerEnter(PointerEventData eventData)
