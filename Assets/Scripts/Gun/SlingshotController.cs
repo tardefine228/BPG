@@ -55,10 +55,11 @@ public class SlingshotController : MonoBehaviour
     public float grabRadiusPixels = 24f;
     [Range(0.05f, 0.5f)] public float fullPullScreenFraction = 0.2f;
 
-    [Header("Звуки кота (громкость эффектов)")]
-    [SerializeField] private AudioClip grabMeow;
+    [Header("Звук натяжения катапульты и кота (громкость эффектов)")]
+    [Tooltip("Однократно проигрывается, когда игрок начинает натягивать катапульту.")]
+    [SerializeField] private AudioClip pullSound;
     [SerializeField] private AudioClip flightMeow;
-    [SerializeField, Range(0f, 1f)] private float grabMeowVolume = 0.7f;
+    [SerializeField, Range(0f, 1f)] private float pullSoundVolume = 0.7f;
     [SerializeField, Range(0f, 1f)] private float flightMeowVolume = 0.9f;
 
     [Header("Перезарядка")]
@@ -122,8 +123,6 @@ public class SlingshotController : MonoBehaviour
     {
         levelSession = GetComponent<LevelSession>();
         restingArmRotation = rotatingPart.localRotation;
-        if (grabMeow == null)
-            grabMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowShort");
         if (flightMeow == null)
             flightMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowLong");
     }
@@ -273,7 +272,7 @@ public class SlingshotController : MonoBehaviour
             if (Vector2.Distance(pointer, shellScreen) <= Mathf.Max(grabRadiusPixels, visibleRadius))
             {
                 isDragging = true;
-                AudioManager.Instance?.PlaySfx(grabMeow, grabMeowVolume);
+                AudioManager.Instance?.PlaySfx(pullSound, pullSoundVolume);
                 dragStartScreen = pointer;
             }
         }

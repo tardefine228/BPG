@@ -24,8 +24,8 @@ public sealed class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip uiOpenSound;
     [SerializeField] private AudioClip uiCloseSound;
 
-    [Header("Звук выстрела (задаётся в сцене уровня, громкость эффектов)")]
-    [Tooltip("Перетащите звук выстрела сюда на AudioManager в сцене уровня. Пустое поле оставляет выстрел без звука.")]
+    [Header("Звук выстрела рогатки (задаётся в сцене уровня, громкость эффектов)")]
+    [Tooltip("Перетащите звук выстрела рогатки сюда на AudioManager в сцене уровня. Пустое поле оставляет выстрел без звука.")]
     [SerializeField] private AudioClip shotSound;
     [SerializeField, Range(0f, 1f)] private float shotSoundVolume = 1f;
 
