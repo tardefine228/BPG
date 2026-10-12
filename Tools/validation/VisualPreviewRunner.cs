@@ -151,7 +151,7 @@ public static class VisualPreviewRunner
                 Invoke(gun, "LateUpdate");
             });
         }
-        // Preview the common button tint and squeeze on the actual menu, without invoking onClick.
+        // Preview the focus frame and squeeze on the actual menu, without invoking onClick.
         EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
         camera = Camera.main;
         camera.aspect = 16f / 9f;
@@ -195,6 +195,7 @@ public static class VisualPreviewRunner
         var slider = Object.FindObjectsByType<Slider>(FindObjectsInactive.Exclude).First();
         var sliderFeedback = slider.GetComponent<MenuControlFeedback>();
         Invoke(sliderFeedback, "Awake");
+        sliderFeedback.OnPointerEnter(pointer);
         slider.targetGraphic.canvasRenderer.SetColor(slider.colors.highlightedColor);
         Capture(camera, "slider-focus");
     }

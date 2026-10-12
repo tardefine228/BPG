@@ -5,13 +5,14 @@ using UnityEngine.UI;
 // Общий фокус, звуки и лёгкая анимация существующих контролов меню.
 [DisallowMultipleComponent]
 public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler,
-    IPointerDownHandler, IPointerUpHandler
+    IPointerDownHandler, IPointerUpHandler, ISelectHandler, IDeselectHandler
 {
-    [Header("Нажатие и общий цвет фокуса")]
+    [Header("Нажатие и общая рамка фокуса")]
     [SerializeField] private bool pressCompression = true;
     [SerializeField, Range(0f, 0.1f)] private float pressAmount = 0.02f;
     [SerializeField, Min(0.01f)] private float pressReturnDuration = 0.1f;
     [SerializeField] private bool sharedFocusColor = true;
+    [SerializeField] private MenuButtonStyle.Plate plate = MenuButtonStyle.Plate.Primary;
 
     [Header("Лёгкое покачивание кнопки")]
     [SerializeField] private bool idleSway;
@@ -36,6 +37,11 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
     private float pressMultiplier = 1f;
     private float releaseFrom;
     private float releaseElapsed;
+    private GameObject focusFrame;
+    private bool pointerInside;
+    private bool selected;
+
+    public MenuButtonStyle.Plate PlateStyle => plate;
 
     private void Awake()
     {
@@ -44,7 +50,18 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
         toggle = control as Toggle;
         rect = transform as RectTransform;
         if (sharedFocusColor && GetComponent<LevelCardView>() == null)
+        {
             MenuButtonStyle.Default?.ApplyFocus(control);
+            if (control != null && rect != null)
+            {
+                var style = MenuButtonStyle.Default;
+                RectTransform frameRect = control is Slider && control.targetGraphic != null
+                    ? control.targetGraphic.rectTransform : rect;
+                focusFrame = PixelFocusFrame.Create(frameRect,
+                    style != null ? style.highlightedColor : (Color)new Color32(235, 150, 70, 255),
+                    style != null ? style.focusFrameWidth : 3f);
+            }
+        }
         // Разные фазы не дают соседним кнопкам двигаться строем.
         swayPhase = Mathf.Repeat((GetEntityId().GetHashCode() & 1023) * 0.618034f, 1f) * Mathf.PI * 2f;
     }
@@ -57,7 +74,7 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
         Button target = GetComponent<Button>();
         if (target == null || MenuButtonStyle.Default == null) return;
         UnityEditor.Undo.RegisterFullObjectHierarchyUndo(gameObject, "Применить стиль кнопки");
-        MenuButtonStyle.Default.Apply(target);
+        MenuButtonStyle.Default.Apply(target, plate);
     }
 #endif
 
@@ -73,12 +90,16 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
             button.onClick.AddListener(PlayClick);
         if (toggle != null)
             toggle.onValueChanged.AddListener(OnToggleChanged);
+        selected = EventSystem.current != null && EventSystem.current.currentSelectedGameObject == gameObject;
+        UpdateFocus();
     }
 
     private void OnDisable()
     {
         RestorePose();
         RestoreCompression();
+        pointerInside = selected = false;
+        UpdateFocus();
         if (button != null)
             button.onClick.RemoveListener(PlayClick);
         if (toggle != null)
@@ -87,6 +108,7 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
 
     private void LateUpdate()
     {
+        UpdateFocus();
         if (!idleSway || button == null || rect == null)
         {
             RestorePose();
@@ -139,6 +161,8 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
 
     public void OnPointerEnter(PointerEventData eventData)
     {
+        pointerInside = true;
+        UpdateFocus();
         if (control != null && control.IsInteractable())
             AudioManager.Instance?.PlayUiHover();
     }
@@ -159,7 +183,31 @@ public sealed class MenuControlFeedback : MonoBehaviour, IPointerEnterHandler, I
         if (eventData.button == PointerEventData.InputButton.Left) ReleasePress();
     }
 
-    public void OnPointerExit(PointerEventData eventData) => ReleasePress();
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        pointerInside = false;
+        UpdateFocus();
+        ReleasePress();
+    }
+
+    public void OnSelect(BaseEventData eventData)
+    {
+        selected = true;
+        UpdateFocus();
+    }
+
+    public void OnDeselect(BaseEventData eventData)
+    {
+        selected = false;
+        UpdateFocus();
+    }
+
+    private void UpdateFocus()
+    {
+        if (focusFrame != null)
+            focusFrame.SetActive(sharedFocusColor && isActiveAndEnabled && control != null
+                && control.IsInteractable() && (pointerInside || selected));
+    }
 
     private void Compress()
     {

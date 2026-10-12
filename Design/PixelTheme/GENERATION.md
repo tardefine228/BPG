@@ -1,0 +1,11 @@
+# UI artwork generation
+
+Created with the built-in imagegen tool. Final atlas: `GeneratedAtlas.png`. The earlier wood designs were discarded following the user's correction and are not used in the project. Separate Unity sprites are exported from the final atlas; type examples use actual font assets rendered by Unity.
+
+Final prompt, verbatim:
+
+```text
+Use case: ui-mockup. Create a NEW Unity game-ready UI sprite atlas on actual transparent background, 1536x1024 landscape. SIX empty flat CARTOON PIXEL ART geometric interface plates in 3 columns x 2 rows, evenly spaced with generous clear gutters. Do not use the earlier wood-based design. NO WOOD AT ALL, NO BOARDS, NO PLANKS, NO GRAIN, NO BROWN FRAMES, NO MATERIAL TEXTURE. Design language: friendly illustrated pixel-art cat-and-mouse game, simple 2D comic outlines and clipped/stepped pixel corners. Very limited palette, each face a perfectly uniform solid fill, one dark ink contour and one simple narrow flat highlight/shadow bevel. Top row, centered in each 512x512 cell: 3 wide buttons about 400x120: left muted soft lilac primary, center deep blue-purple/graphite secondary, right flat light cream tertiary. Bottom row centered in cells: left a 440x300 dark blue-purple dialog panel; center a 440x300 flat light cream text-and-image panel; right a compact 170x170 muted lilac square icon button. Each item's centre absolutely empty to place real typography over later. Blackish-purple outer outline consistent. Borders thin and scalable for nine-slice, no flourishes or decoration. Crisp nearest-neighbor PIXEL edges, geometric cartoon aesthetic, NOT realistic, no texture, NO GRADIENTS. Fully OPAQUE interiors with alpha255. Everywhere outside the six silhouettes alpha ZERO. No drop shadow, glow, bloom, haze, vignette, background, checkerboard, text, numbers, icons, characters or watermark. Hover orange outline is added by code later; NO ORANGE FILL.
+```
+
+`Tools/design/prepare_pixel_theme.py` exports the six atlas cells and static font instances. `Tools/design/verify_theme_authoring.py` verifies/retains original non-UI scene data when transferring authoring from an isolated project. `Tools/validation/PixelThemePreviewRunner.cs` performs authoring and static renders only in the isolated BPGChecks project; it does not run the game.

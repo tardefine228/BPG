@@ -203,6 +203,7 @@ GameObject:
   - component: {fileID: 4100000002}
   - component: {fileID: 4400000000}
   - component: {fileID: 216583524643665288}
+  - component: {fileID: 1057905251028670660}
   m_Layer: 0
   m_Name: Cat4
   m_TagString: Untagged
@@ -451,6 +452,44 @@ MonoBehaviour:
   settleDuration: 1
   fadeDuration: 0.45
   cleanupMargin: 4
+--- !u!114 &216583524643665288
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bdf8acae30f4c84d84741b4a66ffd91, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlastCatAbility
+  radius: 4
+  enemyDamage: 60
+  blockHitStrength: 10
+  explosionImpulse: 14
+  affectedLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &1057905251028670660
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3624985365212622481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f25049c3b2ca343408198ade5a447d40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IdleSpriteAnimation
+  frames: []
+  framesPerSecond: 6
+  pingPong: 0
+  variedStart: 1
+  onlyWhenStill: 1
+  stillSpeed: 0.2
+  stillAngularSpeed: 8
 --- !u!1 &5474453461093134296
 GameObject:
   m_ObjectHideFlags: 0
@@ -753,22 +792,3 @@ TrailRenderer:
   m_Autodestruct: 0
   m_Emitting: 0
   m_ApplyActiveColorSpace: 1
---- !u!114 &216583524643665288
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3624985365212622481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6bdf8acae30f4c84d84741b4a66ffd91, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlastCatAbility
-  radius: 4
-  enemyDamage: 60
-  blockHitStrength: 10
-  explosionImpulse: 14
-  affectedLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295

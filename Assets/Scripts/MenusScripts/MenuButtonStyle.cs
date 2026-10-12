@@ -5,12 +5,20 @@ using UnityEngine.UI;
 [CreateAssetMenu(menuName = "UI/Menu Button Style")]
 public sealed class MenuButtonStyle : ScriptableObject
 {
+    public enum Plate { Primary, Secondary, Light, Icon }
     public Sprite buttonSprite;
+    public Sprite secondaryButtonSprite;
+    public Sprite lightButtonSprite;
+    public Sprite iconButtonSprite;
+    public Sprite panelSprite;
+    public Sprite illustrationPanelSprite;
     public TMP_FontAsset font;
     public Color buttonColor = Color.white;
-    public Color textColor = new Color32(50, 50, 50, 255);
-    public Color highlightedColor = new Color32(255, 225, 176, 255);
-    public Color pressedColor = new Color32(235, 201, 153, 255);
+    public Color textColor = new Color32(244, 235, 221, 255);
+    public Color darkTextColor = new Color32(34, 27, 49, 255);
+    [Tooltip("Цвет только рамки фокуса; заливка при наведении остаётся прежней.")]
+    public Color highlightedColor = new Color32(235, 150, 70, 255);
+    [Min(1f)] public float focusFrameWidth = 3f;
     public Color disabledColor = new Color32(200, 200, 200, 128);
 
     private static MenuButtonStyle defaultStyle;
@@ -26,37 +34,48 @@ public sealed class MenuButtonStyle : ScriptableObject
 
     public ColorBlock Colors => new ColorBlock
     {
-        normalColor = Color.white, highlightedColor = highlightedColor,
-        selectedColor = highlightedColor, pressedColor = pressedColor,
+        normalColor = Color.white, highlightedColor = Color.white,
+        selectedColor = Color.white, pressedColor = Color.white,
         disabledColor = disabledColor, colorMultiplier = 1f, fadeDuration = 0.1f
     };
 
-    public void Apply(Button button)
+    public void Apply(Button button, Plate plate = Plate.Primary)
     {
         button.transition = Selectable.Transition.ColorTint;
         button.colors = Colors;
         if (button.targetGraphic is Image image)
         {
-            image.sprite = buttonSprite;
+            image.sprite = GetSprite(plate);
             image.type = Image.Type.Sliced;
             image.color = buttonColor;
         }
         foreach (TMP_Text text in button.GetComponentsInChildren<TMP_Text>(true))
         {
-            text.font = font;
-            text.color = textColor;
-            text.fontStyle = FontStyles.Bold;
+            ApplyFont(text);
+            text.color = plate == Plate.Light || plate == Plate.Primary || plate == Plate.Icon
+                ? darkTextColor : textColor;
         }
     }
 
-    // Only the interaction colors are shared; card art and slider handles keep their own styling.
+    public Sprite GetSprite(Plate plate) => plate == Plate.Secondary ? secondaryButtonSprite
+        : plate == Plate.Light ? lightButtonSprite : plate == Plate.Icon ? iconButtonSprite : buttonSprite;
+
+    public void ApplyFont(TMP_Text text)
+    {
+        if (text == null || font == null) return;
+        text.font = font;
+        text.fontSharedMaterial = font.material;
+        text.fontStyle = FontStyles.Normal;
+    }
+
+    // Focus is a separate frame. No warm tint is applied to buttons or slider handles.
     public void ApplyFocus(Selectable control)
     {
         if (control == null) return;
         ColorBlock colors = control.colors;
-        colors.highlightedColor = highlightedColor;
-        colors.selectedColor = highlightedColor;
-        colors.pressedColor = pressedColor;
+        colors.highlightedColor = colors.normalColor;
+        colors.selectedColor = colors.normalColor;
+        colors.pressedColor = colors.normalColor;
         colors.fadeDuration = 0.1f;
         control.colors = colors;
         control.transition = Selectable.Transition.ColorTint;

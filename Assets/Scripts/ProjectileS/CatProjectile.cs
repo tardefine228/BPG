@@ -32,5 +32,6 @@ public sealed class CatProjectile : MonoBehaviour
         Sprite pose = queued ? queueSprite : launchSprite;
         // Пока художник не назначил текстуры, виден спрайт-заглушка из prefab.
         spriteRenderer.sprite = pose != null ? pose : placeholderSprite;
+        GetComponent<IdleSpriteAnimation>()?.SetRestPose(spriteRenderer.sprite);
     }
 }

@@ -22,7 +22,7 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
     [Header("Рамка при наведении")]
     [SerializeField] private bool sharedFocusColor = true;
     [SerializeField] private Color hoverFrameColor = new Color32(235, 150, 70, 255);
-    [SerializeField, Min(1f)] private float hoverFrameWidth = 7f;
+    [SerializeField, Min(1f)] private float hoverFrameWidth = 3f;
 
     public int LevelId => levelId;
     public int PageIndex => pageIndex;
@@ -45,39 +45,7 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
 
     private void CreateHoverFrame()
     {
-        hoverFrame = new GameObject("HoverFrame", typeof(RectTransform));
-        hoverFrame.transform.SetParent(transform, false);
-        var root = (RectTransform)hoverFrame.transform;
-        root.anchorMin = Vector2.zero;
-        root.anchorMax = Vector2.one;
-        root.offsetMin = Vector2.zero;
-        root.offsetMax = Vector2.zero;
-        root.SetAsLastSibling();
-
-        CreateSide(root, "Top", new Vector2(0, 1), new Vector2(1, 1),
-            new Vector2(0, -hoverFrameWidth), Vector2.zero);
-        CreateSide(root, "Bottom", Vector2.zero, new Vector2(1, 0),
-            Vector2.zero, new Vector2(0, hoverFrameWidth));
-        CreateSide(root, "Left", Vector2.zero, new Vector2(0, 1),
-            Vector2.zero, new Vector2(hoverFrameWidth, 0));
-        CreateSide(root, "Right", new Vector2(1, 0), Vector2.one,
-            new Vector2(-hoverFrameWidth, 0), Vector2.zero);
-        hoverFrame.SetActive(false);
-    }
-
-    private void CreateSide(RectTransform parent, string name, Vector2 anchorMin,
-        Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
-    {
-        var side = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        side.transform.SetParent(parent, false);
-        var rect = (RectTransform)side.transform;
-        rect.anchorMin = anchorMin;
-        rect.anchorMax = anchorMax;
-        rect.offsetMin = offsetMin;
-        rect.offsetMax = offsetMax;
-        var image = side.GetComponent<Image>();
-        image.color = hoverFrameColor;
-        image.raycastTarget = false;
+        hoverFrame = PixelFocusFrame.Create((RectTransform)transform, hoverFrameColor, hoverFrameWidth);
     }
 
     public void Refresh(Sprite starOn, Sprite starOff)
