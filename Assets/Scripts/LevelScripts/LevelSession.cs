@@ -21,6 +21,11 @@ public sealed class LevelSession : MonoBehaviour
     [Tooltip("Победный бонус за каждого НЕ использованного кота. Во время выстрелов счёт НЕ меняет.")]
     [SerializeField, Min(0)] private int unusedCatVictoryBonus = 200;
 
+    [Header("Старт уровня")]
+    [Tooltip("Сколько игровых секунд с начала уровня очки не начисляются. Считается только время, " +
+             "когда игра идёт: пауза и обучение эту задержку не сокращают.")]
+    [SerializeField, Min(0f)] private float scoreGraceSeconds = 2f;
+
     [SerializeField] private SlingshotController gameplayController;
     [SerializeField] private float completeDelay = 1.1f;
 
@@ -73,6 +78,9 @@ public sealed class LevelSession : MonoBehaviour
     private Rigidbody2D[] enemyBodies;
     private int earnedScore;
     private int victoryBonus;
+    // Игровое время, прошедшее с начала уровня (масштабируется Time.timeScale,
+    // поэтому во время паузы и обучения не растёт).
+    private float playTimeElapsed;
     [SerializeField] private Sprite starOnSprite;
     [SerializeField] private Sprite starOffSprite;
     [SerializeField] private TMP_Text scoreValueText;
@@ -181,9 +189,12 @@ public sealed class LevelSession : MonoBehaviour
         AwardPoints(enemyKillPoints);
     }
 
+    // В первые секунды уровня попадания и падения не приносят очков.
+    private bool IsScoreGraceActive => playTimeElapsed < Mathf.Max(0f, scoreGraceSeconds);
+
     private void AwardPoints(int points)
     {
-        if (points <= 0 || completed || failed)
+        if (points <= 0 || completed || failed || IsScoreGraceActive)
             return;
         earnedScore += points;
         RefreshScoreHud();
@@ -192,7 +203,11 @@ public sealed class LevelSession : MonoBehaviour
     private void Update()
     {
         if (!completed && !failed)
+        {
+            if (IsScoreGraceActive)
+                playTimeElapsed += Time.deltaTime;
             RefreshScoreHud();
+        }
 
         if (IsEnding || !HasObjectives())
             return;
