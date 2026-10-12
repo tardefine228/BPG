@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -60,6 +61,7 @@ public static class SceneUiValidation
                     References(session, "gameplayController", "starOnSprite", "starOffSprite", "scoreValueText",
                         "scoreHintText", "completionOverlay", "defeatOverlay",
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
+                    ValidateCompletionMenuButton(session);
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
                     ValidatePauseHierarchy(Find<PauseMenuController>().Single());
@@ -145,6 +147,26 @@ public static class SceneUiValidation
     }
 
     private static T[] Find<T>() where T : Object => Object.FindObjectsByType<T>(FindObjectsInactive.Include);
+
+    private static void ValidateCompletionMenuButton(LevelSession session)
+    {
+        var serialized = new SerializedObject(session);
+        var completion = (GameObject)serialized.FindProperty("completionOverlay").objectReferenceValue;
+        var button = completion.GetComponentsInChildren<Button>(true)
+            .FirstOrDefault(item => item.name == "ToMenuButton");
+        string sceneName = session.gameObject.scene.name;
+        Require(button != null, sceneName + ": на экране прохождения нет кнопки ToMenuButton");
+        Require(button.gameObject.activeSelf, sceneName + ": кнопка МЕНЮ выключена в иерархии экрана прохождения");
+
+        var label = button.GetComponentInChildren<TMP_Text>(true);
+        Require(label != null && label.text.Trim() == "МЕНЮ",
+            sceneName + ": у кнопки выбора уровня должна быть подпись МЕНЮ");
+        bool returnsToLevelSelect = Enumerable.Range(0, button.onClick.GetPersistentEventCount())
+            .Any(index => button.onClick.GetPersistentTarget(index) == session
+                && button.onClick.GetPersistentMethodName(index) == nameof(LevelSession.ReturnToLevelSelect));
+        Require(returnsToLevelSelect,
+            sceneName + ": кнопка МЕНЮ должна возвращать к выбору уровней");
+    }
 
     private static void ValidateMainPrototype()
     {
