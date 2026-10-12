@@ -26,6 +26,9 @@ public class SlingshotController : MonoBehaviour
     [SerializeField] private Rigidbody2D[] catProjectilePrefabs;
     [Tooltip("Место первого ожидающего кота позади катапульты.")]
     [SerializeField] private Transform queueOrigin;
+    [Tooltip("Отдельные места вокруг катапульты. Высота подбирается по коллайдеру земли; пустой список использует линейную очередь.")]
+    [SerializeField] private Transform[] queueSlots;
+    [SerializeField, Min(0f)] private float queueSurfaceClearance = 0.04f;
     [SerializeField] private Vector2 queueSpacing = new Vector2(-1.4f, 0f);
     [SerializeField, Min(0f)] private float catLoadDuration = 0.35f;
 
@@ -90,7 +93,7 @@ public class SlingshotController : MonoBehaviour
                     launchedProjectiles.RemoveAt(i);
                     continue;
                 }
-                if (fired.GetComponent<CatFlightEffects>() is CatFlightEffects effects && effects.IsExiting)
+                if (fired.GetComponent<CatFlightEffects>() is CatFlightEffects effects && effects.HasPendingCleanup)
                     return true;
                 if (fired.simulated && !fired.IsSleeping()
                     && (fired.linearVelocity.sqrMagnitude > 0.0225f
@@ -131,6 +134,10 @@ public class SlingshotController : MonoBehaviour
         ShotsFired = 0;
         if (aimLine != null)
             aimLine.enabled = false;
+        // Геометрия Tilemap должна быть готова до расстановки котов.
+        if (gameplayCamera != null && gameplayCamera.TerrainCollider is UnityEngine.Tilemaps.TilemapCollider2D tileCollider)
+            tileCollider.ProcessTilemapChanges();
+        Physics2D.SyncTransforms();
         foreach (SpriteRenderer dot in dots)
         {
             var shadow = new GameObject("TrajectoryDotShadow").AddComponent<SpriteRenderer>();
@@ -172,12 +179,14 @@ public class SlingshotController : MonoBehaviour
     {
         Vector3 origin = queueOrigin != null ? queueOrigin.position :
             launchPoint.position + new Vector3(-3f, -1.5f, 0f);
-        Vector3 position = origin + (Vector3)(queueSpacing * index);
-        if (cat != null && gameplayCamera != null && gameplayCamera.ground != null)
+        Vector3 position = queueSlots != null && index < queueSlots.Length && queueSlots[index] != null
+            ? queueSlots[index].position : origin + (Vector3)(queueSpacing * index);
+        if (cat != null && gameplayCamera != null
+            && gameplayCamera.TryGetSurfaceHeight(position.x, out float surfaceY))
         {
             SpriteRenderer sprite = cat.GetComponent<SpriteRenderer>();
             if (sprite != null && sprite.sprite != null)
-                position.y = gameplayCamera.ground.bounds.max.y
+                position.y = surfaceY + queueSurfaceClearance
                     - sprite.sprite.bounds.min.y * Mathf.Abs(cat.transform.lossyScale.y);
         }
         return position;
@@ -471,12 +480,14 @@ public class SlingshotController : MonoBehaviour
         ShotsFired++;
         launchedProjectiles.Add(fired);
         fired.GetComponent<ProjectileComicEffects>()?.BeginFlight();
-        fired.GetComponent<CatFlightEffects>()?.BeginFlight(gameplayCamera != null ? gameplayCamera.mapMin.y : -15f);
+        var flightEffects = fired.GetComponent<CatFlightEffects>();
+        flightEffects?.BeginFlight(gameplayCamera != null ? gameplayCamera.mapMin.y : -15f, projectileLifetime);
         projectile = null;
         AudioManager.Instance?.PlayShotSound();
         AudioManager.Instance?.PlaySfx(flightMeow, flightMeowVolume);
         ShotLaunched?.Invoke(fired);
-        Destroy(fired.gameObject, projectileLifetime);
+        if (flightEffects == null)
+            Destroy(fired.gameObject, projectileLifetime);
 
         ResetArm();
         // Следующий кот занимает чашу, остальные сдвигаются вперёд.

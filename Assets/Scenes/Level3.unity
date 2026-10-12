@@ -8693,8 +8693,8 @@ Transform:
   m_GameObject: {fileID: 3000000001}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5, y: -42.61, z: 0}
-  m_LocalScale: {x: 210.22223, y: 80, z: 1}
+  m_LocalPosition: {x: 3.5253983, y: -42.61, z: 0}
+  m_LocalScale: {x: 245.63184, y: 80, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -8858,7 +8858,7 @@ Transform:
   m_GameObject: {fileID: 3000000006}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5, y: -19.744999, z: 10}
+  m_LocalPosition: {x: 3.5253983, y: -15.965, z: 10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -8918,7 +8918,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 1
-  m_Size: {x: 210.22223, y: 125.73}
+  m_Size: {x: 245.63184, y: 133.29001}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -9057,7 +9057,7 @@ Transform:
   m_GameObject: {fileID: 3000000012}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -27, y: -0.43, z: 0}
+  m_LocalPosition: {x: -36, y: -0.43, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -9481,7 +9481,7 @@ Transform:
   m_GameObject: {fileID: 3000000027}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 20, y: 0, z: 0}
+  m_LocalPosition: {x: 20.5, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10940,7 +10940,7 @@ Camera:
   far clip plane: 1000
   field of view: 34
   orthographic: 1
-  orthographic size: 22.875
+  orthographic size: 29.625
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -11022,8 +11022,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameplayCameraController
   ground: {fileID: 3000000003}
   background: {fileID: 3000000008}
-  mapMin: {x: -38, y: -10}
-  mapMax: {x: 38, y: 29}
+  mapMin: {x: -50, y: -10}
+  mapMax: {x: 50, y: 29}
   overviewPadding: 1.5
   introZoom: 0.12
   introDuration: 1.2

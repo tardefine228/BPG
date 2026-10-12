@@ -3,8 +3,8 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public sealed class ProjectileSurfaceFriction : MonoBehaviour
 {
-    [SerializeField, Min(0f)] private float groundDeceleration = 60f;
-    [SerializeField, Min(0f)] private float rollingDeceleration = 720f;
+    [SerializeField, Min(0f)] private float groundDeceleration = 3f;
+    [SerializeField, Min(0f)] private float rollingDeceleration = 90f;
     private Rigidbody2D body;
     private float groundedUntil = float.NegativeInfinity;
 
@@ -14,7 +14,7 @@ public sealed class ProjectileSurfaceFriction : MonoBehaviour
     {
         if (!body.simulated || body.bodyType != RigidbodyType2D.Dynamic || Time.fixedTime > groundedUntil)
             return;
-        // Дополнительное торможение останавливает качение круглого снаряда по земле.
+        // Мягко тормозит кота после приземления, сохраняя возможность докатиться до целей.
         Vector2 velocity = body.linearVelocity;
         velocity.x = Mathf.MoveTowards(velocity.x, 0f, groundDeceleration * Time.fixedDeltaTime);
         body.linearVelocity = velocity;

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Шерсть в полёте и декоративный отскок после первого физического попадания.
+// Шерсть в полёте; после удара кот продолжает отскакивать и катиться как физический снаряд.
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody2D), typeof(CatProjectile))]
 public sealed class CatFlightEffects : MonoBehaviour
@@ -13,30 +13,34 @@ public sealed class CatFlightEffects : MonoBehaviour
     [SerializeField, Min(0.05f)] private float furLifetime = 0.85f;
     [SerializeField, Min(0.01f)] private float furSize = 0.3f;
 
-    [Header("Отскок на передний план")]
-    [SerializeField, Min(0f)] private float hopSpeed = 12f;
-    [SerializeField, Min(0f)] private float sidewaysSpeed = 4f;
-    [SerializeField, Min(1f)] private float fallGravity = 45f;
-    [SerializeField, Min(1f)] private float foregroundScale = 1.35f;
-    [SerializeField, Min(0.01f)] private float approachDuration = 0.18f;
-    [SerializeField] private float spinSpeed = 180f;
-    [SerializeField] private int foregroundSortingOrder = 30000;
+    [Header("Жизнь после попадания")]
+    [Tooltip("Минимум секунд физики после первого удара, даже если кот уже остановился.")]
+    [SerializeField, Min(0f)] private float minimumPostImpactLifetime = 3f;
+    [Tooltip("Максимум секунд после первого удара перед исчезновением.")]
+    [SerializeField, Min(0.1f)] private float maximumPostImpactLifetime = 8f;
+    [SerializeField, Min(0f)] private float settleSpeed = 0.3f;
+    [SerializeField, Min(0f)] private float settleAngularSpeed = 20f;
+    [SerializeField, Min(0f)] private float settleDuration = 1f;
+    [SerializeField, Min(0.05f)] private float fadeDuration = 0.45f;
     [SerializeField, Min(0f)] private float cleanupMargin = 4f;
-    [SerializeField, Min(0.5f)] private float maxExitDuration = 4f;
 
+    public bool HasImpacted { get; private set; }
     public bool IsExiting { get; private set; }
+    public bool HasPendingCleanup => flying || IsExiting;
     private Rigidbody2D body;
     private SpriteRenderer sprite;
     private ParticleSystem fur;
     private Camera view;
     private bool flying;
-    private bool exitRequested;
     private Vector2 flightVelocity;
-    private Vector2 exitVelocity;
-    private Vector3 originalScale;
     private Vector3 previousFurPosition;
     private float particlesToEmit;
-    private float exitTime;
+    private float flightStartedAt;
+    private float flightLifetime;
+    private float impactElapsed;
+    private float settledFor;
+    private float fadeElapsed;
+    private Color originalColor;
     private float fieldBottom;
 
     private void Awake()
@@ -45,9 +49,13 @@ public sealed class CatFlightEffects : MonoBehaviour
         sprite = GetComponent<SpriteRenderer>();
     }
 
-    public void BeginFlight(float mapBottom)
+    public void BeginFlight(float mapBottom, float maximumFlightLifetime = 12f)
     {
         flying = true;
+        HasImpacted = false;
+        IsExiting = false;
+        flightStartedAt = Time.time;
+        flightLifetime = Mathf.Max(0.1f, maximumFlightLifetime);
         fieldBottom = mapBottom;
         view = Camera.main;
         flightVelocity = body.linearVelocity;
@@ -87,44 +95,63 @@ public sealed class CatFlightEffects : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (flying && !exitRequested)
+        if (flying && !HasImpacted)
             flightVelocity = body.linearVelocity;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (!flying || exitRequested || IsExiting)
+        if (!flying || HasImpacted)
             return;
-        exitRequested = true;
+        HasImpacted = true;
         if (fur != null)
             fur.Stop(true, ParticleSystemStopBehavior.StopEmitting);
-        // Физику отключаем после доставки всех обработчиков столкновения:
-        // ящик успевает получить удар, а камера — точку попадания.
+        GetComponent<ProjectileComicEffects>()?.EndFlight();
+        // Физика и коллайдеры остаются включёнными для следующих ударов.
     }
 
     private void LateUpdate()
     {
         if (Time.timeScale <= 0f)
             return;
-        if (exitRequested && !IsExiting)
-            BeginExit();
         if (IsExiting)
         {
-            float dt = Time.deltaTime;
-            exitTime += dt;
-            transform.position += (Vector3)(exitVelocity * dt + Vector2.down * (0.5f * fallGravity * dt * dt));
-            exitVelocity.y -= fallGravity * dt;
-            transform.Rotate(0f, 0f, -Mathf.Sign(exitVelocity.x) * spinSpeed * dt);
-            float approach = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(exitTime / approachDuration));
-            transform.localScale = originalScale * Mathf.Lerp(1f, foregroundScale, approach);
-            float bottom = fieldBottom - cleanupMargin;
-            if (view != null && view.orthographic)
-                bottom = Mathf.Min(bottom, view.transform.position.y - view.orthographicSize - cleanupMargin);
-            if ((exitVelocity.y < 0f && transform.position.y < bottom) || exitTime >= maxExitDuration)
+            fadeElapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(fadeElapsed / Mathf.Max(0.05f, fadeDuration));
+            sprite.color = new Color(originalColor.r, originalColor.g, originalColor.b,
+                originalColor.a * (1f - Mathf.SmoothStep(0f, 1f, t)));
+            if (t >= 1f)
                 Destroy(gameObject);
             return;
         }
-        if (!flying || fur == null)
+        if (!flying)
+            return;
+
+        float bottom = fieldBottom;
+        if (view != null && view.orthographic)
+            bottom = Mathf.Min(bottom, view.transform.position.y - view.orthographicSize);
+        if (transform.position.y < bottom - cleanupMargin)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        if (HasImpacted)
+        {
+            impactElapsed += Time.deltaTime;
+            bool settled = body.IsSleeping() || (body.linearVelocity.sqrMagnitude <= settleSpeed * settleSpeed
+                && Mathf.Abs(body.angularVelocity) <= settleAngularSpeed);
+            settledFor = settled ? settledFor + Time.deltaTime : 0f;
+            if (impactElapsed >= Mathf.Max(minimumPostImpactLifetime, maximumPostImpactLifetime)
+                || (impactElapsed >= minimumPostImpactLifetime && settledFor >= settleDuration))
+                BeginExit();
+            return;
+        }
+        if (Time.time - flightStartedAt >= flightLifetime)
+        {
+            BeginExit();
+            return;
+        }
+        if (fur == null)
             return;
         particlesToEmit += Mathf.Max(0f, furPerSecond) * Time.deltaTime;
         int count = Mathf.Min(8, Mathf.FloorToInt(particlesToEmit));
@@ -152,16 +179,12 @@ public sealed class CatFlightEffects : MonoBehaviour
     {
         flying = false;
         IsExiting = true;
-        originalScale = transform.localScale;
-        float direction = flightVelocity.x < 0f ? -1f : 1f;
-        exitVelocity = new Vector2(direction * sidewaysSpeed, hopSpeed);
+        originalColor = sprite.color;
+        if (fur != null)
+            fur.Stop(true, ParticleSystemStopBehavior.StopEmitting);
         body.simulated = false;
         foreach (var collider in GetComponentsInChildren<Collider2D>())
             collider.enabled = false;
         GetComponent<ProjectileComicEffects>()?.EndFlight();
-        var friction = GetComponent<ProjectileSurfaceFriction>();
-        if (friction != null)
-            friction.enabled = false;
-        sprite.sortingOrder = foregroundSortingOrder;
     }
 }

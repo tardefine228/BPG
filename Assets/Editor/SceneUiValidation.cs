@@ -59,7 +59,16 @@ public static class SceneUiValidation
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
                     ValidatePauseHierarchy(Find<PauseMenuController>().Single());
-                    References(Find<GameplayCameraController>().Single(), "ground", "background");
+                    References(Find<GameplayCameraController>().Single(), "background");
+                    Require(Find<GameplayCameraController>().Single().TerrainCollider != null,
+                        scene.name + ": не назначена земля для очереди и мышей");
+                    if (scene.name == "Gameplay" || scene.name == "Level2")
+                    {
+                        Require(!Find<Transform>().Any(item => item.name == "FlatGround"), "Прежний пол не удалён");
+                        Require(Find<GameplayCameraController>().Single().TerrainCollider is UnityEngine.Tilemaps.TilemapCollider2D
+                            && Find<GameplayCameraController>().Single().TerrainCollider.name == "Layer1",
+                            "Земля должна ссылаться на плотный Layer1");
+                    }
                     var preview = Find<GameplayCameraController>().Single();
                     Require(Vector2.Distance(preview.transform.position, (preview.mapMin + preview.mapMax) * 0.5f) < 0.01f,
                         scene.name + ": редакторская камера не совпадает с игровым кадром");

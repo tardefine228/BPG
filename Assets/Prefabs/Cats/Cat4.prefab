@@ -358,10 +358,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: def73d5cf2d74aed88839fc6029f1bd9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileSurfaceFriction
-  groundDeceleration: 60
-  rollingDeceleration: 720
+  groundDeceleration: 3
+  rollingDeceleration: 90
 --- !u!114 &-1192857117097735967
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -372,7 +372,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1e239b279a5f2cf4cb402ea1199cc411, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileComicEffects
   comicMaterial: {fileID: 2100000, guid: cb3726d0797fd724c931e8651bff0c6c, type: 2}
   trailLifetime: 0.12
@@ -409,7 +409,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c635e23c05154e619d361b3593f3da5a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileImpactReporter
 --- !u!114 &4100000002
 MonoBehaviour:
@@ -421,7 +421,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: eabcce4b483e4332af8256b50980f867, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CatProjectile
   queueSprite: {fileID: -4632345991487263602, guid: d6402a99d197e4e40acaf3fbe972a567, type: 3}
   launchSprite: {fileID: -3543807479429997787, guid: d6402a99d197e4e40acaf3fbe972a567, type: 3}
@@ -436,22 +436,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 404e6f41507d48398c432204fc9dbddd, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CatFlightEffects
   furPrefab: {fileID: 4300000002, guid: a709ee8c2f1b476e93e199bd5dd6732a, type: 3}
   furColor: {r: 1, g: 1, b: 1, a: 1}
   furPerSecond: 28
   furLifetime: 0.85
-  furSize: 0.5
-  hopSpeed: 12
-  sidewaysSpeed: 4
-  fallGravity: 45
-  foregroundScale: 1.35
-  approachDuration: 0.18
-  spinSpeed: 180
-  foregroundSortingOrder: 30000
+  furSize: 0.7
+  minimumPostImpactLifetime: 2
+  maximumPostImpactLifetime: 5
+  settleSpeed: 0.3
+  settleAngularSpeed: 20
+  settleDuration: 1
+  fadeDuration: 0.45
   cleanupMargin: 4
-  maxExitDuration: 4
 --- !u!1 &5474453461093134296
 GameObject:
   m_ObjectHideFlags: 0

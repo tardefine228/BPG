@@ -60,11 +60,11 @@ GameManager → SlingshotController:
 - Trajectory Shadow Offset Pixels — смещение тени в пикселях, по умолчанию (-2, -2), то есть слева снизу.
 - Trajectory Shadow Color — цвет и прозрачность тени.
 
-MouseEnemy на Assets/Prefabs/MouseEnemy.prefab отвечает за мышей. Floor можно назначить вручную; пустое поле берёт коллайдер земли из камеры уровня. Контакт с полом убивает мышь независимо от скорости и высоты падения. Прямое попадание CatProjectile / ProjectileImpactReporter снимает всё здоровье. Прочие столкновения и способности сохраняют систему урона. События смерти и начисления очков срабатывают один раз. Физика и коллайдеры отключаются в момент касания. Поза гибели, отлёт с вращением, облачко и затухание задаются в MouseEnemy → «Отлёт при гибели» (Death Sprite / Duration / Hop Speed / Sideways Speed / Gravity / Spin Speed). Пауза останавливает анимацию.
+MouseEnemy на Assets/Prefabs/MouseEnemy.prefab отвечает за мышей. Floor можно назначить вручную; пустое поле берёт Terrain Collider камеры уровня. На первых двух уровнях FlatGround удалён, а Main Camera → GameplayCameraController → Terrain ссылается на Grid / Tilemap / Layer1 → TilemapCollider2D. Layer2 с растениями и декором не считается землёй. Rigidbody2D на Layer1 сделан Static; рисунок карты и её масштаб сохранены. На остальных уровнях используется прежняя земля через поле Ground. Контакт с полом убивает мышь независимо от скорости и высоты падения. Прямое попадание CatProjectile / ProjectileImpactReporter снимает всё здоровье. Прочие столкновения и способности сохраняют систему урона. События смерти и начисления очков срабатывают один раз. Физика и коллайдеры отключаются в момент касания. Поза гибели, отлёт с вращением, облачко и затухание задаются в MouseEnemy → «Отлёт при гибели» (Death Sprite / Duration / Hop Speed / Sideways Speed / Gravity / Spin Speed). Пауза останавливает анимацию.
 
 Коллайдер мышей: откройте Assets/Prefabs/MouseEnemy.prefab, компонент Box Collider 2D. Edit Collider правит контур, Size — ширину и высоту, Offset — смещение. Круглый коллайдер заменён прямоугольным, а Rigidbody 2D → Constraints → Freeze Rotation Z удерживает мышь вертикально. Для другого типа сначала добавьте нужный Collider 2D, затем удалите Box Collider 2D; Cat1–Cat5 по-прежнему используют Circle Collider 2D для круглых котов.
 
-Проверка в отдельной копии проекта: `Tools/validation/run_play_checks.ps1 -CompactGameplayOnly -MinimalEditor`.
+Проверка в отдельной копии проекта: `Tools/validation/run_play_checks.ps1 -TilemapAndRollingOnly -MinimalEditor`.
 
 Текущий Projectile Gravity Scale по уровням: Gameplay — 2.772456; Level2 — 2.315277; Level3 — 1.887754; Level4 — 1.994785; Level5 — 2.055694. Сила запуска сохранена.
 
