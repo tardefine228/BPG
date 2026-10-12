@@ -115,7 +115,13 @@ public sealed class MouseEnemy : MonoBehaviour
 
     private void PlaySqueakSound()
     {
-        AudioClip clip = Resources.Load<AudioClip>("Audio/music for mouse/468442__breviceps__video-game-squeak");
+        string[] sounds = new string[] 
+        {
+            "Audio/music for mouse/468442__breviceps__video-game-squeak",
+            "Audio/music for mouse/800274__securesubset__mouse-rodent-squeak-whistle"
+        };
+        string selectedSound = sounds[UnityEngine.Random.Range(0, sounds.Length)];
+        AudioClip clip = Resources.Load<AudioClip>(selectedSound);
         if (clip != null && AudioManager.Instance != null)
         {
             AudioManager.Instance.PlaySfx(clip);

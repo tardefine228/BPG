@@ -144,7 +144,7 @@ public sealed class LevelTarget : MonoBehaviour
 
     private void PlayBoxSound()
     {
-        AudioClip clip = Resources.Load<AudioClip>("Audio/music for box/falling-boards");
+        AudioClip clip = Resources.Load<AudioClip>("Audio/music for box/falling-objects-with-a-crash");
         if (clip != null && AudioManager.Instance != null)
         {
             GameObject soundObj = new GameObject("BoxFallingSound");
@@ -152,7 +152,7 @@ public sealed class LevelTarget : MonoBehaviour
             source.clip = clip;
             source.volume = AudioManager.Instance.EffectsVolume;
             source.Play();
-            Destroy(soundObj, 1.0f);
+            Destroy(soundObj, clip.length);
         }
     }
 
