@@ -2,8 +2,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-// Мышь погибает от сильных столкновений с шаром, а также при падении с высоты
-// (или при провале за пределы уровня); при 0 HP считается уничтоженной.
+// Пол и выпущенный кот убивают мышь сразу; прочие столкновения наносят урон.
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
 public sealed class MouseEnemy : MonoBehaviour
@@ -27,21 +26,18 @@ public sealed class MouseEnemy : MonoBehaviour
     [Header("Смерть")]
     [Tooltip("Мышь погибает, если проваливается ниже этой высоты (за пределы уровня).")]
     [SerializeField] private float fallY = -6f;
-    [Tooltip("Задержка перед скрытием мыши; флаг IsDead ставится сразу.")]
-    [SerializeField, Min(0f)] private float deathDelay = 0.4f;
+    [Header("Отлёт при гибели")]
+    [SerializeField] private Sprite deathSprite;
+    [SerializeField, Range(0.2f, 2f)] private float deathDuration = 0.85f;
+    [SerializeField, Min(0f)] private float deathHopSpeed = 10f;
+    [SerializeField, Min(0f)] private float deathSidewaysSpeed = 5f;
+    [SerializeField, Min(0f)] private float deathGravity = 28f;
+    [SerializeField, Min(0f)] private float deathSpinSpeed = 420f;
+    public bool IsDeathAnimating { get; private set; }
 
-    [Header("Смерть от падения с высоты")]
-    [Tooltip("Если включено, мышь погибает (или получает урон), когда падает с высоты " +
-             "больше указанного порога: при приземлении либо сразу в полёте.")]
-    [SerializeField] private bool dieOnFallDamage = true;
-    [Tooltip("Минимальная высота падения (в блоках/юнитах), при которой приземление убивает " +
-             "(или ранит — см. «Мгновенная смерть при падении»).")]
-    [SerializeField, Min(0f)] private float fallDamageHeight = 2f;
-    [Tooltip("Мгновенно убивать мышь при таком падении. Если выключено — наносится урон, " +
-             "зависящий от высоты падения (см. «Множитель урона»).")]
-    [SerializeField] private bool instakillOnFall = true;
-    [Tooltip("Урон за каждый блок сверх порога высоты (используется, если мгновенная смерть выключена).")]
-    [SerializeField, Min(0f)] private float fallDamagePerUnit = 50f;
+    [Header("Контакт с полом и снарядом")]
+    [Tooltip("Основной пол уровня. При касании мышь погибает независимо от скорости.")]
+    [SerializeField] private Collider2D floor;
 
     public float Health { get; private set; }
     public bool IsDead { get; private set; }
@@ -52,125 +48,31 @@ public sealed class MouseEnemy : MonoBehaviour
 
     private float nextHitTime;
 
-    // Высота, с которой мышь начала свободное падение (0 — не падает).
-    private float fallStartY;
-
     private void Awake()
     {
         Health = Mathf.Max(1f, maxHealth);
     }
 
+    private void Start()
+    {
+        if (floor == null && Camera.main != null)
+        {
+            var camera = Camera.main.GetComponent<GameplayCameraController>();
+            if (camera != null && camera.ground != null)
+                floor = camera.ground.GetComponent<Collider2D>();
+        }
+    }
+
     private void Update()
     {
-        if (IsDead)
-            return;
-
-        // Глубокий провал за пределы уровня — смерть как и раньше.
-        if (transform.position.y <= fallY)
-        {
+        if (!IsDead && transform.position.y <= fallY)
             Kill();
-            return;
-        }
-
-        TrackFall();
     }
 
-    private void TrackFall()
+    private void OnCollisionStay2D(Collision2D collision)
     {
-        if (!dieOnFallDamage)
-            return;
-
-        Rigidbody2D body = GetComponent<Rigidbody2D>();
-        if (body == null)
-            return;
-
-        bool isFalling = !body.isKinematic
-                         && body.gravityScale > 0f
-                         && body.linearVelocity.y < -0.1f
-                         && Mathf.Abs(body.linearVelocity.x) < 0.5f
-                         && !IsGrounded();
-
-        if (isFalling)
-        {
-            // Запоминаем высоту начала падения (обновляем, пока падение продолжается).
-            fallStartY = fallStartY > 0f
-                ? Mathf.Max(fallStartY, transform.position.y)
-                : transform.position.y;
-
-            float drop = fallStartY - transform.position.y;
-
-            // Если мышь падает вниз без шанса приземлиться (за пределы уровня) —
-            // погибает сразу, не дожидаясь касания дна.
-            if (instakillOnFall && drop >= fallDamageHeight && WouldLeaveLevel(body))
-            {
-                Kill();
-                return;
-            }
-        }
-        else if (fallStartY > 0f)
-        {
-            // Падение прекратилось (приземлилась или остановилась) — считаем перепад высот.
-            float drop = fallStartY - transform.position.y;
-            fallStartY = 0f;
-
-            if (drop >= fallDamageHeight)
-                ApplyFallDamage(drop);
-        }
-    }
-
-    // Должна ли мышь по текущей траектории провалиться ниже kill-зоны уровня.
-    private bool WouldLeaveLevel(Rigidbody2D body)
-    {
-        float predictedY = transform.position.y + body.linearVelocity.y * 0.3f;
-        return predictedY <= fallY || transform.position.y <= fallY + 0.5f;
-    }
-
-    private void ApplyFallDamage(float dropHeight)
-    {
-        if (instakillOnFall)
-        {
+        if (!IsDead && collision.collider == floor)
             Kill();
-            return;
-        }
-
-        float damage = (dropHeight - fallDamageHeight) * fallDamagePerUnit;
-        if (damage <= 0f)
-            damage = fallDamagePerUnit; // падение ровно на порог тоже должно ранить
-
-        TakeDamage(damage);
-    }
-
-    // Проверяем, стоит ли мышь на чём-нибудь (чтобы не считать падением скольжение по земле).
-    private bool IsGrounded()
-    {
-        Collider2D self = GetComponent<Collider2D>();
-        if (self == null)
-            return false;
-
-        ContactFilter2D filter = new ContactFilter2D { useTriggers = false };
-        var results = UnityEngine.Pool.ListPool<Collider2D>.Get();
-        bool grounded = Physics2D.OverlapCollider(self, filter, results) != 0
-                        && HasContactBelow(results);
-        UnityEngine.Pool.ListPool<Collider2D>.Release(results);
-        return grounded;
-    }
-
-    private bool HasContactBelow(System.Collections.Generic.IList<Collider2D> overlaps)
-    {
-        float selfY = transform.position.y;
-        for (int i = 0; i < overlaps.Count; i++)
-        {
-            Collider2D other = overlaps[i];
-            if (other == null || other.isTrigger)
-                continue;
-
-            Bounds b = other.bounds;
-            // Контакт снизу: верх другого коллайдера не выше центра мыши.
-            if (b.max.y <= selfY + 0.1f)
-                return true;
-        }
-
-        return false;
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -178,17 +80,16 @@ public sealed class MouseEnemy : MonoBehaviour
         if (IsDead || collision == null)
             return;
 
-        // Столкновение с землёй/объектом во время падения засчитываем как приземление.
-        if (dieOnFallDamage && fallStartY > 0f)
+        if (collision.collider == floor)
         {
-            float drop = fallStartY - transform.position.y;
-            fallStartY = 0f;
-
-            if (drop >= fallDamageHeight)
-            {
-                ApplyFallDamage(drop);
-                return;
-            }
+            Kill();
+            return;
+        }
+        if (collision.collider.GetComponentInParent<CatProjectile>() != null
+            || collision.collider.GetComponentInParent<ProjectileImpactReporter>() != null)
+        {
+            TakeDamage(Health);
+            return;
         }
 
         if (Time.time < nextHitTime)
@@ -226,24 +127,60 @@ public sealed class MouseEnemy : MonoBehaviour
 
         IsDead = true;
         Health = 0f;
-        Died?.Invoke(this);
+        // Флаг, столкновения и новая поза меняются в тот же кадр касания.
         StartCoroutine(DeathRoutine());
+        Died?.Invoke(this);
     }
 
     private IEnumerator DeathRoutine()
     {
-        if (deathDelay > 0f)
-            yield return new WaitForSeconds(deathDelay);
-
-        // Не уничтожаем GameObject: LevelSession хранит на него ссылку.
+        IsDeathAnimating = true;
+        Rigidbody2D body = GetComponent<Rigidbody2D>();
+        float direction = body != null && Mathf.Abs(body.linearVelocity.x) > 0.1f
+            ? Mathf.Sign(body.linearVelocity.x) : (UnityEngine.Random.value < 0.5f ? -1f : 1f);
         foreach (Collider2D hitbox in GetComponentsInChildren<Collider2D>())
             hitbox.enabled = false;
-
-        foreach (SpriteRenderer sprite in GetComponentsInChildren<SpriteRenderer>())
-            sprite.enabled = false;
-
-        Rigidbody2D body = GetComponent<Rigidbody2D>();
         if (body != null)
             body.simulated = false;
+
+        SpriteRenderer sprite = GetComponent<SpriteRenderer>();
+        if (sprite != null)
+        {
+            if (deathSprite != null)
+                sprite.sprite = deathSprite;
+            sprite.sortingOrder = 1000;
+            if (ComicEffectsPool.Instance != null)
+                ComicEffectsPool.Instance.Next().Begin(transform.position, Vector2.up, false,
+                    new Color(0.94f, 0.9f, 0.82f, 0.8f), Color.clear,
+                    new Color(1f, 0.96f, 0.7f, 0.9f), 12, 0, 1f,
+                    sprite.sortingLayerID, sprite.sortingOrder + 1);
+        }
+        Vector3 start = transform.position;
+        Vector3 scale = transform.localScale;
+        Color color = sprite != null ? sprite.color : Color.white;
+        float elapsed = 0f;
+        while (elapsed < deathDuration)
+        {
+            if (Time.timeScale <= 0f)
+            {
+                yield return null;
+                continue;
+            }
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / Mathf.Max(0.2f, deathDuration));
+            transform.position = start + new Vector3(direction * deathSidewaysSpeed * elapsed,
+                deathHopSpeed * elapsed - 0.5f * deathGravity * elapsed * elapsed, 0f);
+            transform.Rotate(0f, 0f, direction * deathSpinSpeed * Time.deltaTime);
+            transform.localScale = scale * (1f + 0.18f * Mathf.Sin(t * Mathf.PI))
+                * Mathf.Lerp(1f, 0.65f, t * t);
+            if (sprite != null)
+                sprite.color = new Color(color.r, color.g, color.b,
+                    color.a * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 1f, t))));
+            yield return null;
+        }
+        foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>())
+            renderer.enabled = false;
+        IsDeathAnimating = false;
+        // Объект остаётся для ссылок LevelSession, физика уже выключена.
     }
 }

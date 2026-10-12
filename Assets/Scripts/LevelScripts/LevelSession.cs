@@ -313,7 +313,7 @@ public sealed class LevelSession : MonoBehaviour
     private IEnumerator CompleteAfterDelay()
     {
         yield return new WaitForSeconds(Mathf.Max(0.15f, completeDelay));
-        // Ожидает показа попадания и возвращения камеры перед итоговым окном.
+        // Не перекрывает стартовое приближение итоговым окном.
         while (gameplayController != null && gameplayController.gameplayCamera != null
             && gameplayController.gameplayCamera.IsBusy)
             yield return null;

@@ -84,7 +84,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -6032302585731541415, guid: 3cdd50f9a80e28640ba8f1255a9a54bf, type: 3}
+  m_Sprite: {fileID: 279096600405079359, guid: d6402a99d197e4e40acaf3fbe972a567, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -95,8 +95,8 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
   m_BlendShapeWeights: []
---- !u!58 &6474466875515893442
-CircleCollider2D:
+--- !u!61 &6474466875515893442
+BoxCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -129,8 +129,11 @@ CircleCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_Radius: 0.155
+  m_Offset: {x: 0, y: -0.015}
+  m_AutoTiling: 0
+  serializedVersion: 2
+  m_Size: {x: 0.24, y: 0.28}
+  m_EdgeRadius: 0.01
 --- !u!50 &6483162539553246126
 Rigidbody2D:
   serializedVersion: 5
@@ -157,7 +160,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!114 &7607989878650431466
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -176,8 +179,10 @@ MonoBehaviour:
   damageMultiplier: 2
   hitCooldown: 0.15
   fallY: -6
-  deathDelay: 0.4
-  dieOnFallDamage: 1
-  fallDamageHeight: 2
-  instakillOnFall: 1
-  fallDamagePerUnit: 50
+  deathSprite: {fileID: -8744335365584742836, guid: d6402a99d197e4e40acaf3fbe972a567, type: 3}
+  deathDuration: 0.85
+  deathHopSpeed: 10
+  deathSidewaysSpeed: 5
+  deathGravity: 28
+  deathSpinSpeed: 420
+  floor: {fileID: 0}

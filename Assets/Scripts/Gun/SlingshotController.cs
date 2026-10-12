@@ -15,6 +15,12 @@ public class SlingshotController : MonoBehaviour
     public Transform pivotPoint;
     public GameplayCameraController gameplayCamera;
 
+    [Header("Поворот катапульты")]
+    [Range(0f, 80f)] public float minLaunchAngle = 0f;
+    [Range(0f, 80f)] public float maxLaunchAngle = 65f;
+    [Tooltip("Наклон назад, в сторону очереди, от сохранённой центральной позы.")]
+    [Range(0f, 45f)] public float maxArmTilt = 35f;
+
     [Header("Коты в очереди")]
     [Tooltip("Пять видов котов. Порядок списка задаёт порядок выстрелов.")]
     [SerializeField] private Rigidbody2D[] catProjectilePrefabs;
@@ -26,7 +32,8 @@ public class SlingshotController : MonoBehaviour
     [Header("Физика выстрела")]
     public float maxPullDistance = 2.5f;
     public float launchPower = 22f;
-    public float projectileGravityScale = 2f;
+    [Tooltip("Уменьшайте для большей дальности без увеличения начальной скорости. Также поднимает дугу полёта.")]
+    [Min(0.1f)] public float projectileGravityScale = 2f;
     [Min(0f)] public float airResistance = 0.06f;
     public LayerMask impactLayers = ~0;
 
@@ -35,9 +42,11 @@ public class SlingshotController : MonoBehaviour
     public float timeStep = 0.04f;
     public float trajectoryDotPixels = 7f;
     public float dotTimeSpacing = 0.12f;
-    public Color weakPullColor = new Color(1f, 0.2f, 0.16f);
-    public Color mediumPullColor = new Color(1f, 0.77f, 0.12f);
-    public Color strongPullColor = new Color(0.23f, 0.8f, 0.35f);
+    public Color weakPullColor = new Color(1f, 0.64f, 0.60f);
+    public Color mediumPullColor = new Color(1f, 0.91f, 0.58f);
+    public Color strongPullColor = new Color(0.65f, 0.95f, 0.72f);
+    public Vector2 trajectoryShadowOffsetPixels = new Vector2(-2f, -2f);
+    public Color trajectoryShadowColor = new Color(0.16f, 0.12f, 0.10f, 0.28f);
 
     [Header("Прицеливание из общего вида")]
     public float grabRadiusPixels = 24f;
@@ -103,10 +112,13 @@ public class SlingshotController : MonoBehaviour
     private Vector2 dragStartScreen;
     private Color trajectoryColor;
     private int visibleDots;
+    private Quaternion restingArmRotation;
+    private readonly List<SpriteRenderer> dotShadows = new List<SpriteRenderer>();
 
     private void Awake()
     {
         levelSession = GetComponent<LevelSession>();
+        restingArmRotation = rotatingPart.localRotation;
         if (grabMeow == null)
             grabMeow = Resources.Load<AudioClip>("Audio/Slingshot/CatMeowShort");
         if (flightMeow == null)
@@ -119,6 +131,16 @@ public class SlingshotController : MonoBehaviour
         ShotsFired = 0;
         if (aimLine != null)
             aimLine.enabled = false;
+        foreach (SpriteRenderer dot in dots)
+        {
+            var shadow = new GameObject("TrajectoryDotShadow").AddComponent<SpriteRenderer>();
+            shadow.transform.SetParent(dot.transform, false);
+            shadow.sprite = dot.sprite;
+            shadow.sharedMaterial = dot.sharedMaterial;
+            shadow.sortingLayerID = dot.sortingLayerID;
+            shadow.sortingOrder = dot.sortingOrder - 1;
+            dotShadows.Add(shadow);
+        }
         CreateCats();
         LoadFirstCat();
     }
@@ -138,18 +160,27 @@ public class SlingshotController : MonoBehaviour
             cat.gravityScale = projectileGravityScale;
             cat.linearDamping = Mathf.Max(0f, airResistance);
             cat.linearVelocity = Vector2.zero;
-            cat.interpolation = RigidbodyInterpolation2D.Interpolate;
+            cat.interpolation = RigidbodyInterpolation2D.None;
             cat.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             cat.GetComponent<CatProjectile>()?.ShowQueued();
+            cat.transform.position = QueuePosition(Mathf.Max(0, i - 1), cat);
             waitingCats.Add(cat);
         }
     }
 
-    private Vector3 QueuePosition(int index)
+    private Vector3 QueuePosition(int index, Rigidbody2D cat = null)
     {
         Vector3 origin = queueOrigin != null ? queueOrigin.position :
             launchPoint.position + new Vector3(-3f, -1.5f, 0f);
-        return origin + (Vector3)(queueSpacing * index);
+        Vector3 position = origin + (Vector3)(queueSpacing * index);
+        if (cat != null && gameplayCamera != null && gameplayCamera.ground != null)
+        {
+            SpriteRenderer sprite = cat.GetComponent<SpriteRenderer>();
+            if (sprite != null && sprite.sprite != null)
+                position.y = gameplayCamera.ground.bounds.max.y
+                    - sprite.sprite.bounds.min.y * Mathf.Abs(cat.transform.lossyScale.y);
+        }
+        return position;
     }
 
     private void LoadFirstCat()
@@ -159,9 +190,10 @@ public class SlingshotController : MonoBehaviour
         projectile = waitingCats[0];
         waitingCats.RemoveAt(0);
         SetLoadedPose();
-        projectile.transform.SetPositionAndRotation(launchPoint.position, rotatingPart.rotation);
+        ResetArm();
+        SetLoadedTransform(launchPoint.position, Quaternion.identity);
         for (int i = 0; i < waitingCats.Count; i++)
-            waitingCats[i].transform.position = QueuePosition(i);
+            waitingCats[i].transform.position = QueuePosition(i, waitingCats[i]);
         isDragging = false;
         shotInProgress = false;
         launchVelocity = Vector2.zero;
@@ -171,6 +203,9 @@ public class SlingshotController : MonoBehaviour
     private void SetLoadedPose()
     {
         projectile.GetComponent<CatProjectile>()?.ShowLoaded();
+        // Ковш — настоящий родитель кота до выстрела, поэтому спрайт следует
+        // за ним и между физическими шагами, и при изменении позы катапульты.
+        projectile.transform.SetParent(launchPoint, true);
         CircleCollider2D circle = projectile.GetComponent<CircleCollider2D>();
         if (circle != null)
             ProjectileRadius = circle.radius * Mathf.Max(
@@ -199,16 +234,16 @@ public class SlingshotController : MonoBehaviour
             }
             elapsed += Time.deltaTime;
             float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / catLoadDuration));
-            projectile.transform.SetPositionAndRotation(
+            SetLoadedTransform(
                 Vector3.Lerp(from, launchPoint.position, t) + Vector3.up * (Mathf.Sin(t * Mathf.PI) * 0.6f),
-                rotatingPart.rotation);
+                Quaternion.identity);
             for (int i = 0; i < queueFrom.Length; i++)
-                waitingCats[i].transform.position = Vector3.Lerp(queueFrom[i], QueuePosition(i), t);
+                waitingCats[i].transform.position = Vector3.Lerp(queueFrom[i], QueuePosition(i, waitingCats[i]), t);
             yield return null;
         }
-        projectile.transform.SetPositionAndRotation(launchPoint.position, rotatingPart.rotation);
+        SetLoadedTransform(launchPoint.position, Quaternion.identity);
         for (int i = 0; i < waitingCats.Count; i++)
-            waitingCats[i].transform.position = QueuePosition(i);
+            waitingCats[i].transform.position = QueuePosition(i, waitingCats[i]);
     }
 
     private void Update()
@@ -221,9 +256,9 @@ public class SlingshotController : MonoBehaviour
 
         Vector2 pointer = Mouse.current.position.ReadValue();
         if (Mouse.current.leftButton.wasPressedThisFrame
-            && (gameplayCamera == null || !gameplayCamera.IsPointerOverControls(pointer)))
+            && (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject()))
         {
-            Vector2 shellScreen = mainCamera.WorldToScreenPoint(projectile.position);
+            Vector2 shellScreen = mainCamera.WorldToScreenPoint(projectile.transform.position);
             float visibleRadius = ProjectileRadius * mainCamera.pixelHeight
                 / (2f * mainCamera.orthographicSize);
             if (Vector2.Distance(pointer, shellScreen) <= Mathf.Max(grabRadiusPixels, visibleRadius))
@@ -240,7 +275,7 @@ public class SlingshotController : MonoBehaviour
         {
             isDragging = false;
             if (launchVelocity.sqrMagnitude < 1f)
-                ClearTrajectory();
+                CancelInput();
             else
                 StartCoroutine(LaunchRoutine());
         }
@@ -262,8 +297,7 @@ public class SlingshotController : MonoBehaviour
         if (!space && click)
         {
             Vector2 pointer = Mouse.current.position.ReadValue();
-            if ((gameplayCamera != null && gameplayCamera.IsPointerOverControls(pointer))
-                || (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()))
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
                 return;
         }
 
@@ -276,25 +310,29 @@ public class SlingshotController : MonoBehaviour
         float fullPullPixels = Mathf.Max(1f, mainCamera.pixelHeight * fullPullScreenFraction);
         Vector2 pull = Vector2.ClampMagnitude(
             (dragStartScreen - pointer) * maxPullDistance / fullPullPixels, maxPullDistance);
-        if (pull.sqrMagnitude < 0.001f)
+        if (pull.sqrMagnitude < 0.001f || pull.x <= 0f)
         {
             launchVelocity = Vector2.zero;
+            ResetArm();
             ClearTrajectory();
             return;
         }
 
-        float angle = Mathf.Clamp(Mathf.Atan2(pull.y, pull.x) * Mathf.Rad2Deg, -20f, 70f);
-        rotatingPart.rotation = Quaternion.Euler(0f, 0f, angle);
+        float angle = Mathf.Clamp(Mathf.Atan2(pull.y, pull.x) * Mathf.Rad2Deg,
+            minLaunchAngle, Mathf.Max(minLaunchAngle, maxLaunchAngle));
+        rotatingPart.localRotation = restingArmRotation
+            * Quaternion.Euler(0f, 0f, Mathf.Min(angle, maxArmTilt));
         float radians = angle * Mathf.Deg2Rad;
         launchVelocity = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians))
             * pull.magnitude * launchPower;
-        projectile.position = launchPoint.position;
-        projectile.rotation = angle;
+        // Загруженный кот не участвует в физике: позиция Transform обновляет спрайт
+        // сразу, без задержки интерполяции Rigidbody2D при вращении чаши.
+        SetLoadedTransform(launchPoint.position, Quaternion.Euler(0f, 0f, angle));
         float strength = pull.magnitude / Mathf.Max(0.01f, maxPullDistance);
         trajectoryColor = strength < 0.5f
             ? Color.Lerp(weakPullColor, mediumPullColor, strength * 2f)
             : Color.Lerp(mediumPullColor, strongPullColor, (strength - 0.5f) * 2f);
-        PredictTrajectory(projectile.position, launchVelocity, projectile.gravityScale,
+        PredictTrajectory(projectile.transform.position, launchVelocity, projectile.gravityScale,
             true, out _, out _, out _);
     }
 
@@ -386,6 +424,16 @@ public class SlingshotController : MonoBehaviour
         color.a *= Mathf.Lerp(1f, 0.55f, Mathf.Clamp01(visibleDots * dotTimeSpacing
             / (trajectoryPoints * Mathf.Max(0.01f, timeStep))));
         renderer.color = color;
+        SpriteRenderer shadow = dotShadows[visibleDots - 1];
+        float unitsPerPixel = 2f * mainCamera.orthographicSize / Mathf.Max(1, mainCamera.pixelHeight);
+        float horizontalUnitsPerPixel = 2f * mainCamera.orthographicSize * mainCamera.aspect
+            / Mathf.Max(1, mainCamera.pixelWidth);
+        shadow.transform.position = renderer.transform.position
+            + new Vector3(trajectoryShadowOffsetPixels.x * horizontalUnitsPerPixel,
+                trajectoryShadowOffsetPixels.y * unitsPerPixel, 0f);
+        Color shade = trajectoryShadowColor;
+        shade.a *= color.a;
+        shadow.color = shade;
         renderer.gameObject.SetActive(true);
     }
 
@@ -401,8 +449,6 @@ public class SlingshotController : MonoBehaviour
             yield break;
         shotInProgress = true;
         ClearTrajectory();
-        if (gameplayCamera != null && gameplayCamera.isActiveAndEnabled)
-            yield return gameplayCamera.PrepareForShot();
 
         Rigidbody2D fired = projectile;
         fired.transform.SetParent(null, true);
@@ -411,9 +457,11 @@ public class SlingshotController : MonoBehaviour
         reporter.Arm(point =>
         {
             impacted = true;
-            gameplayCamera?.RecordImpact(point, reporter.HitCollider);
             ProjectileImpacted?.Invoke(point);
         });
+        fired.position = fired.transform.position;
+        fired.rotation = fired.transform.eulerAngles.z;
+        fired.interpolation = RigidbodyInterpolation2D.Interpolate;
         fired.bodyType = RigidbodyType2D.Dynamic;
         fired.simulated = true;
         fired.linearVelocity = launchVelocity;
@@ -427,20 +475,17 @@ public class SlingshotController : MonoBehaviour
         projectile = null;
         AudioManager.Instance?.PlayShotSound();
         AudioManager.Instance?.PlaySfx(flightMeow, flightMeowVolume);
-        gameplayCamera?.FollowShot(fired);
         ShotLaunched?.Invoke(fired);
         Destroy(fired.gameObject, projectileLifetime);
 
-        // Очередь убывает сразу после выстрела; следующий кот занимает катапульту,
-        // пока камера показывает полёт предыдущего. Прицел доступен после её возврата.
+        ResetArm();
+        // Следующий кот занимает чашу, остальные сдвигаются вперёд.
         yield return LoadNextCat();
 
         float flightDeadline = Time.time + Mathf.Min(projectileLifetime, 7f);
         while (fired != null && !impacted && Time.time < flightDeadline)
             yield return null;
         yield return new WaitForSeconds(spawnDelay);
-        while (gameplayCamera != null && gameplayCamera.IsBusy)
-            yield return null;
         shotInProgress = false;
         launchVelocity = Vector2.zero;
     }
@@ -456,9 +501,12 @@ public class SlingshotController : MonoBehaviour
     public void CancelInput()
     {
         isDragging = false;
-        // Пауза перед выстрелом сохраняет уже выбранную скорость запуска.
+        // Пауза во время выстрела сохраняет уже выбранную скорость запуска.
         if (!shotInProgress)
+        {
             launchVelocity = Vector2.zero;
+            ResetArm();
+        }
         ClearTrajectory();
     }
 
@@ -466,12 +514,26 @@ public class SlingshotController : MonoBehaviour
     {
         if (shotInProgress || !CanLoadProjectile || !isActiveAndEnabled)
             return;
-        // Возврат камеры к катапульте не меняет кота и не расходует боезапас.
         if (projectile != null)
         {
             CancelInput();
-            projectile.transform.SetPositionAndRotation(launchPoint.position, rotatingPart.rotation);
+            SetLoadedTransform(launchPoint.position, Quaternion.identity);
         }
+    }
+
+    private void SetLoadedTransform(Vector3 position, Quaternion rotation)
+    {
+        // Синхронизирует отключённый Rigidbody2D и видимый Transform.
+        projectile.position = position;
+        projectile.rotation = rotation.eulerAngles.z;
+        projectile.transform.SetPositionAndRotation(position, rotation);
+    }
+
+    private void ResetArm()
+    {
+        rotatingPart.localRotation = restingArmRotation;
+        if (projectile != null)
+            SetLoadedTransform(launchPoint.position, Quaternion.identity);
     }
 
     private void OnDestroy()

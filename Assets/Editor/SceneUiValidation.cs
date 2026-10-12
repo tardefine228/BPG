@@ -59,8 +59,12 @@ public static class SceneUiValidation
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
                     ValidatePauseHierarchy(Find<PauseMenuController>().Single());
-                    References(Find<GameplayCameraController>().Single(), "controlsCanvas", "controlsRect",
-                        "launcherButton", "overviewButton", "targetButton");
+                    References(Find<GameplayCameraController>().Single(), "ground", "background");
+                    var preview = Find<GameplayCameraController>().Single();
+                    Require(Vector2.Distance(preview.transform.position, (preview.mapMin + preview.mapMax) * 0.5f) < 0.01f,
+                        scene.name + ": редакторская камера не совпадает с игровым кадром");
+                    Require(!Find<Transform>().Any(item => item.name == "GameplayCameraCanvas"),
+                        scene.name + ": остались переключатели камеры");
                     References(Find<SlingshotController>().Single(), "dots");
                     var slingshot = Find<SlingshotController>().Single();
                     References(slingshot, "catProjectilePrefabs", "queueOrigin");
@@ -108,6 +112,10 @@ public static class SceneUiValidation
                 References(cat.GetComponent<CatFlightEffects>(), "furPrefab");
                 References(cat.GetComponent<ProjectileComicEffects>(), "comicMaterial", "trailRoot", "outline", "ribbon", "core");
             }
+            var mouse = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/MouseEnemy.prefab");
+            Require(mouse.GetComponent<BoxCollider2D>() != null && mouse.GetComponent<CircleCollider2D>() == null,
+                "Мышь должна использовать прямоугольный коллайдер");
+            References(mouse.GetComponent<MouseEnemy>(), "deathSprite");
             var fur = AssetDatabase.LoadAssetAtPath<ParticleSystem>("Assets/Prefabs/Cats/FurTrail.prefab");
             Require(fur != null && !fur.main.playOnAwake
                 && fur.main.simulationSpace == ParticleSystemSimulationSpace.World,
