@@ -487,7 +487,7 @@ public sealed class LevelSession : MonoBehaviour
         scoreValueText.text = displayedScore.ToString();
         if (scoreHintText != null)
         {
-            scoreHintText.text = scoreCounts ? "ПЕРВОЕ ПРОХОЖДЕНИЕ" : "ПОВТОР — ОЧКИ НЕ СОХРАНЯЮТСЯ";
+            scoreHintText.text = scoreCounts ? "ПЕРВОЕ ПРОХОЖДЕНИЕ" : string.Empty;
         }
     }
 
