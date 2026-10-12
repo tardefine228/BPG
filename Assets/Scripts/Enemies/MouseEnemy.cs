@@ -92,6 +92,7 @@ public sealed class MouseEnemy : MonoBehaviour
         if (collision.collider.GetComponentInParent<CatProjectile>() != null
             || collision.collider.GetComponentInParent<ProjectileImpactReporter>() != null)
         {
+            PlaySqueakSound();
             TakeDamage(Health);
             return;
         }
@@ -107,8 +108,18 @@ public sealed class MouseEnemy : MonoBehaviour
         if (damage <= 0f)
             return;
 
+        PlaySqueakSound();
         nextHitTime = Time.time + hitCooldown;
         TakeDamage(damage);
+    }
+
+    private void PlaySqueakSound()
+    {
+        AudioClip clip = Resources.Load<AudioClip>("Audio/music for mouse/468442__breviceps__video-game-squeak");
+        if (clip != null && AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySfx(clip);
+        }
     }
 
     public void TakeDamage(float damage)

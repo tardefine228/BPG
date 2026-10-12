@@ -137,7 +137,22 @@ public sealed class LevelTarget : MonoBehaviour
 
         if (transform.position.y <= fallY)
         {
+            PlayBoxSound();
             ClearTarget(Vector2.zero, false);
+        }
+    }
+
+    private void PlayBoxSound()
+    {
+        AudioClip clip = Resources.Load<AudioClip>("Audio/music for box/falling-boards");
+        if (clip != null && AudioManager.Instance != null)
+        {
+            GameObject soundObj = new GameObject("BoxFallingSound");
+            AudioSource source = soundObj.AddComponent<AudioSource>();
+            source.clip = clip;
+            source.volume = AudioManager.Instance.EffectsVolume;
+            source.Play();
+            Destroy(soundObj, 1.0f);
         }
     }
 
@@ -146,6 +161,11 @@ public sealed class LevelTarget : MonoBehaviour
         if (IsCleared || collision == null || collision.collider == null)
         {
             return;
+        }
+
+        if (collision.collider.GetComponentInParent<CatProjectile>() != null || collision.collider.GetComponentInParent<ProjectileImpactReporter>() != null)
+        {
+            PlayBoxSound();
         }
 
         if (Time.timeSinceLevelLoad < IgnoreCollisionsFor)
