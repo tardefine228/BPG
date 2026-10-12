@@ -67,15 +67,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: 0%
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
+  m_sharedMaterial: {fileID: -8719701163922677924, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.9019608, g: 0.60784316, b: 0.32156864, a: 1}
+  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -98,7 +98,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 13
   m_fontSizeMax: 20
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -395,15 +395,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u0421\u0422\u0423\u0414\u0418\u042F / \u0412\u0410\u0428 \u0421\u041B\u041E\u0413\u0410\u041D"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
+  m_sharedMaterial: {fileID: -8719701163922677924, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.9372549, b: 0.88235295, a: 0.65}
+  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -426,7 +426,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 16.9
   m_fontSizeMax: 26
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -608,15 +608,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u0417\u0410\u0413\u0420\u0423\u0417\u041A\u0410"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
+  m_sharedMaterial: {fileID: -8719701163922677924, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.9372549, b: 0.88235295, a: 1}
+  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -639,7 +639,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 14.299999
   m_fontSizeMax: 22
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -827,15 +827,15 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u041D\u0410\u0417\u0412\u0410\u041D\u0418\u0415 \u0418\u0413\u0420\u042B"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
+  m_sharedMaterial: {fileID: -8719701163922677924, guid: f22f3daa37ece474b8824c3ce1c73932, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.9372549, b: 0.88235295, a: 1}
+  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -858,7 +858,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 48.1
   m_fontSizeMax: 74
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -1097,8 +1097,4 @@ MonoBehaviour:
   progressFill: {fileID: 2458027271599039169}
   caption: {fileID: 8725301964935960665}
   percent: {fileID: 4328446369526769646}
-  logoImage: {fileID: 8286980099672712317}
-  titleText: {fileID: 3773708342787409328}
-  subtitleText: {fileID: 1544371003817908533}
   backgroundImage: {fileID: 1892767600567758162}
-  accentLine: {fileID: 8122238543875498049}

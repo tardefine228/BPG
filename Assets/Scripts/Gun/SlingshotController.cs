@@ -644,12 +644,16 @@ public class SlingshotController : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 0.5f;
         abilityBadge = CreateHintPlate("FirstAbilityHint", new Vector2(290f, 42f));
-        abilityBadge.GetComponent<Image>().color = new Color32(22, 24, 39, 235);
+        abilityBadge.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.96f);
         abilityBadgeLabel = CreateHintLabel(abilityBadge, "Input", 17f);
-        abilityBadgeLabel.color = new Color32(255, 232, 195, 255);
+        abilityBadgeLabel.color = new Color32(244, 235, 221, 255);
         abilityBadgeLabel.text = "ЛКМ / ПРОБЕЛ в полёте";
         cancelHint = CreateHintPlate("CancelPullHint", new Vector2(170f, 32f));
-        CreateHintLabel(cancelHint, "Input", 16f).text = "ПКМ — отменить";
+        if (MenuButtonStyle.Default != null)
+            cancelHint.GetComponent<Image>().sprite = MenuButtonStyle.Default.lightButtonSprite;
+        var cancelLabel = CreateHintLabel(cancelHint, "Input", 16f);
+        cancelLabel.text = "ПКМ — отменить";
+        cancelLabel.color = new Color32(34, 27, 49, 255);
         abilityBadge.gameObject.SetActive(false);
         cancelHint.gameObject.SetActive(false);
     }
@@ -662,9 +666,9 @@ public class SlingshotController : MonoBehaviour
         rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
         rect.sizeDelta = size;
         var image = plate.GetComponent<Image>();
-        image.sprite = MenuButtonStyle.Default != null ? MenuButtonStyle.Default.buttonSprite : null;
+        image.sprite = MenuButtonStyle.Default != null ? MenuButtonStyle.Default.secondaryButtonSprite : null;
         image.type = Image.Type.Sliced;
-        image.color = new Color32(255, 242, 219, 235);
+        image.color = new Color(1f, 1f, 1f, 0.96f);
         image.raycastTarget = false;
         return rect;
     }
@@ -676,7 +680,7 @@ public class SlingshotController : MonoBehaviour
         var text = label.GetComponent<TextMeshProUGUI>();
         text.font = MenuButtonStyle.Default != null ? MenuButtonStyle.Default.font : TMP_Settings.defaultFontAsset;
         text.fontSize = fontSize;
-        text.color = new Color32(66, 47, 30, 255);
+        text.color = new Color32(244, 235, 221, 255);
         text.alignment = TextAlignmentOptions.Center;
         text.textWrappingMode = TextWrappingModes.NoWrap;
         text.raycastTarget = false;

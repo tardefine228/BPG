@@ -117,7 +117,7 @@ public sealed class FirstLevelGuide : MonoBehaviour
         comicContinueText = caption.GetComponent<TextMeshProUGUI>();
         comicContinueText.font = MenuButtonStyle.Default != null ? MenuButtonStyle.Default.font : TMP_Settings.defaultFontAsset;
         comicContinueText.fontSize = 32f;
-        comicContinueText.fontStyle = FontStyles.Bold;
+        comicContinueText.fontStyle = FontStyles.Normal;
         comicContinueText.color = new Color32(242, 231, 212, 255);
         comicContinueText.text = "нажмите, чтобы продолжить";
         comicContinueText.alignment = TextAlignmentOptions.Center;
