@@ -16932,7 +16932,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 1
-  m_Size: {x: 133.976, y: 82.33189}
+  m_Size: {x: 133.97334, y: 82.36}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -17575,7 +17575,7 @@ Camera:
   far clip plane: 1000
   field of view: 34
   orthographic: 1
-  orthographic size: 29.61245
+  orthographic size: 29.625
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -17734,7 +17734,7 @@ MonoBehaviour:
   queueSurfaceClearance: 0.04
   queueSpacing: {x: -2.7, y: 0}
   catLoadDuration: 0.35
-  maxPullDistance: 2.8
+  maxPullDistance: 2.85
   launchPower: 13.096213
   projectileGravityScale: 1.887754
   airResistance: 0.06
