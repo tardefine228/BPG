@@ -421,11 +421,13 @@ public sealed class LevelSession : MonoBehaviour
         }
     }
 
-    public void ReturnToLobby()
+    // Из победного/проигрышного окна возвращает не в главное меню,
+    // а сразу в меню выбора уровней.
+    public void ReturnToLevelSelect()
     {
         AudioManager.Instance?.PlayUiClick();
         Time.timeScale = 1f;
-        SceneTransition.Load(LevelProgress.MainMenuSceneName);
+        MenuManager.ReturnToLevelSelect();
     }
 
     public void GoToNextLevel()
@@ -442,7 +444,7 @@ public sealed class LevelSession : MonoBehaviour
             SceneTransition.Load(level.SceneName);
             return;
         }
-        ReturnToLobby();
+        ReturnToLevelSelect();
     }
 
     // Итоговое окно уже находится в сцене; здесь меняются только значения.
