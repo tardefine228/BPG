@@ -9073,8 +9073,10 @@ MonoBehaviour:
   trajectoryShadowColor: {r: 0.122641504, g: 0.09680194, b: 0.08388216, a: 0.39215687}
   grabRadiusPixels: 32
   fullPullScreenFraction: 0.2
+  grabMeow: {fileID: 8300000, guid: 909b2de882f05fa74622578e6050227d, type: 3}
   pullSound: {fileID: 8300000, guid: ea8365ee12c3fc24daa9ae5d4cdc7a29, type: 3}
   flightMeow: {fileID: 8300000, guid: 0b8e44aef56f0a46338bca63134b9c53, type: 3}
+  grabMeowVolume: 0.7
   pullSoundVolume: 0.7
   flightMeowVolume: 0.9
   spawnDelay: 2.5
