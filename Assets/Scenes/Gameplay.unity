@@ -3776,15 +3776,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!222 &43475525
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3865,15 +3865,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &49294431
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4020,15 +4020,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 0
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &83808218
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4175,15 +4175,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &102404572
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4344,8 +4344,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -4704,6 +4704,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Box_0 (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Size.y
+      value: 0.3304202
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.0055153742
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -4832,15 +4840,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &234046770
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5232,7 +5240,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.6509804, g: 0.54901963, b: 0.8117647, a: 1}
+  m_Color: {r: 0.650980392, g: 0.549019608, b: 0.811764706, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -5323,8 +5331,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -5712,8 +5720,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4287401100
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -5841,8 +5849,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281150765
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -6117,8 +6125,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.13333334, g: 0.105882354, b: 0.19215687, a: 1}
+    rgba: 4281408290
+  m_fontColor: {r: 0.133333333, g: 0.105882353, b: 0.192156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -6628,8 +6636,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4283783775
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -6751,15 +6759,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &516740455
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6962,7 +6970,7 @@ Camera:
   far clip plane: 1000
   field of view: 34
   orthographic: 1
-  orthographic size: 30
+  orthographic size: 21
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -8510,8 +8518,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4290690750
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -8717,6 +8725,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Box_0 (5)
       objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Size.y
+      value: 0.33452198
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.0034644753
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -8779,15 +8795,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &819435089
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8979,8 +8995,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -9483,15 +9499,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
-  pressCompression: 1
-  pressAmount: 0.02
-  pressReturnDuration: 0.1
-  sharedFocusColor: 1
-  plate: 0
   idleSway: 0
   swayAngle: 0.45
   swayDistance: 0.7
   swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!224 &864322705
 RectTransform:
   m_ObjectHideFlags: 0
@@ -9906,7 +9921,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.6509804, g: 0.54901963, b: 0.8117647, a: 1}
+  m_Color: {r: 0.650980392, g: 0.549019608, b: 0.811764706, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -9997,8 +10012,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -10237,8 +10252,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -10573,15 +10588,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &1140584611
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11156,8 +11171,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281150765
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -11233,11 +11248,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 5.8199997
+      value: 5.789
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2.98
+      value: 2.961
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.z
@@ -11800,8 +11815,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4291348680
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -11961,8 +11976,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12098,8 +12113,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12235,8 +12250,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12377,8 +12392,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12466,11 +12481,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 5.83
+      value: 5.82
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.1399999
+      value: -1.1
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.z
@@ -12503,6 +12518,22 @@ PrefabInstance:
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: -0.329
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Size.x
+      value: 0.33945698
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Size.y
+      value: 0.33618748
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Offset.x
+      value: -0.00020080805
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.00006389618
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -12575,8 +12606,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.13333334, g: 0.105882354, b: 0.19215687, a: 1}
+    rgba: 4281408290
+  m_fontColor: {r: 0.133333333, g: 0.105882353, b: 0.192156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12712,8 +12743,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281150765
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12835,15 +12866,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 1
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &1729339609
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12964,7 +12995,7 @@ Transform:
   m_GameObject: {fileID: 1800000000}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 9.499999, z: 10}
+  m_LocalPosition: {x: 0, y: 9.5, z: 10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13024,7 +13055,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 1
-  m_Size: {x: 107.096, y: 67.21863}
+  m_Size: {x: 119.70393, y: 63.04}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -13209,8 +13240,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -13460,6 +13491,14 @@ PrefabInstance:
     - target: {fileID: 7599530381238705274, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
       propertyPath: m_Name
       value: Box_0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Size.y
+      value: 0.334522
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.0034644678
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -13840,15 +13879,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 0
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!114 &1941713049
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14009,8 +14048,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -14161,15 +14200,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
-  pressCompression: 1
-  pressAmount: 0.02
-  pressReturnDuration: 0.1
-  sharedFocusColor: 1
-  plate: 0
   idleSway: 0
   swayAngle: 0.45
   swayDistance: 0.7
   swayFrequency: 0.18
+  pressCompression: 1
+  pressAmount: 0.02
+  pressReturnDuration: 0.1
+  sharedFocusColor: 1
 --- !u!224 &2011121619
 RectTransform:
   m_ObjectHideFlags: 0
@@ -14262,8 +14300,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -14573,8 +14611,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15166,8 +15204,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4280690214
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15380,8 +15418,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4284900966
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15669,8 +15707,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4284900966
-  m_fontColor: {r: 0.95686275, g: 0.92156863, b: 0.8666667, a: 1}
+    rgba: 4292733940
+  m_fontColor: {r: 0.956862745, g: 0.921568627, b: 0.866666667, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -15953,15 +15991,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90524ff660ca43be81f3fab87e1e92ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MenuControlFeedback
+  idleSway: 0
+  swayAngle: 0.45
+  swayDistance: 0.7
+  swayFrequency: 0.18
   pressCompression: 1
   pressAmount: 0.02
   pressReturnDuration: 0.1
   sharedFocusColor: 1
   plate: 0
-  idleSway: 0
-  swayAngle: 0.45
-  swayDistance: 0.7
-  swayFrequency: 0.18
 --- !u!1 &4500000049
 GameObject:
   m_ObjectHideFlags: 0
@@ -16036,8 +16074,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4280690214
-  m_fontColor: {r: 0.13333334, g: 0.105882354, b: 0.19215687, a: 1}
+    rgba: 4281408290
+  m_fontColor: {r: 0.133333333, g: 0.105882353, b: 0.192156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -16182,41 +16220,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 272414283}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5700000000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 519420028}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 58c4f54b3e324a0498c764e774f37c16, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ForestAtmosphere
-  atmosphereMaterial: {fileID: 2100000, guid: a1e6026a17fc4e88b4e980f912560a9b, type: 2}
-  fogEnabled: 1
-  fogOpacity: 0.021
-  fogColor: {r: 0.91, g: 0.96, b: 0.9, a: 1}
-  fogWorldScale: 30
-  fogDensity: 0.718
-  fogHeight: 0.06
-  fogHeightFalloff: 0.199
-  fogDrift: {x: 0.58, y: 0.008}
-  lightEnabled: 1
-  sunlightColor: {r: 1, g: 0.94, b: 0.77, a: 1}
-  rayIntensity: 0.011
-  dappleIntensity: 0
-  lightWorldScale: 21
-  rayAngle: 28.9
-  rayWidth: 0.656
-  lightAnimationSpeed: 2
-  lightShimmer: 0.524
-  animationSpeed: 2.59
-  seed: 17
-  sortingOrder: 60
-  previewInEditMode: 1
-  animateInEditMode: 1
 --- !u!4 &4544419303269933720 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2854544651283481664, guid: 2e00b7f8e33fdff4d9b1032abbbd9f5c, type: 3}
@@ -16361,3 +16364,38 @@ SceneRoots:
   - {fileID: 974845801}
   - {fileID: 960835853}
   - {fileID: 1894714650}
+--- !u!114 &5700000000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 519420028}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58c4f54b3e324a0498c764e774f37c16, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ForestAtmosphere
+  atmosphereMaterial: {fileID: 2100000, guid: a1e6026a17fc4e88b4e980f912560a9b, type: 2}
+  fogEnabled: 1
+  fogOpacity: 0.021
+  fogColor: {r: 0.91, g: 0.96, b: 0.9, a: 1}
+  fogWorldScale: 30
+  fogDensity: 0.718
+  fogHeight: 0.06
+  fogHeightFalloff: 0.199
+  fogDrift: {x: 0.58, y: 0.008}
+  lightEnabled: 1
+  sunlightColor: {r: 1, g: 0.94, b: 0.77, a: 1}
+  rayIntensity: 0.011
+  dappleIntensity: 0
+  lightWorldScale: 21
+  rayAngle: 28.9
+  rayWidth: 0.656
+  lightAnimationSpeed: 2
+  lightShimmer: 0.524
+  animationSpeed: 2.59
+  seed: 17
+  sortingOrder: 60
+  previewInEditMode: 1
+  animateInEditMode: 1
