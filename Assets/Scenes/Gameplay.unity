@@ -4668,6 +4668,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Box_0 (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Size.y
+      value: 0.3304202
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.0055153742
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -6907,7 +6915,7 @@ Camera:
   far clip plane: 1000
   field of view: 34
   orthographic: 1
-  orthographic size: 22.865461
+  orthographic size: 21
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -8661,6 +8669,14 @@ PrefabInstance:
     - target: {fileID: 7599530381238705274, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
       propertyPath: m_Name
       value: Box_0 (5)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Size.y
+      value: 0.33452198
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.0034644753
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -11151,11 +11167,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 5.8199997
+      value: 5.789
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2.98
+      value: 2.961
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.z
@@ -12384,11 +12400,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 5.83
+      value: 5.82
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -1.1399999
+      value: -1.1
       objectReference: {fileID: 0}
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalPosition.z
@@ -12421,6 +12437,22 @@ PrefabInstance:
     - target: {fileID: 6773058806303473273, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: -0.329
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Size.x
+      value: 0.33945698
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Size.y
+      value: 0.33618748
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Offset.x
+      value: -0.00020080805
+      objectReference: {fileID: 0}
+    - target: {fileID: 9119490125794576967, guid: 4bca9fb7266bb8f46a66802492fae6e0, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.00006389618
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -12873,7 +12905,7 @@ Transform:
   m_GameObject: {fileID: 1800000000}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 9.499999, z: 10}
+  m_LocalPosition: {x: 0, y: 9.5, z: 10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -12933,7 +12965,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 1
-  m_Size: {x: 107.096, y: 67.21863}
+  m_Size: {x: 119.70393, y: 63.04}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -13369,6 +13401,14 @@ PrefabInstance:
     - target: {fileID: 7599530381238705274, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
       propertyPath: m_Name
       value: Box_0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Size.y
+      value: 0.334522
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305349234701313808, guid: d1b5d79d80e5c36499f48dc594b9ef78, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.0034644678
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
