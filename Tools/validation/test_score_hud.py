@@ -1,4 +1,4 @@
-"""Static score HUD regression checks; no Unity installation required.
+"""Static scene reference and score HUD checks; no Unity installation required.
 
 Run from the repository root:
     python3 -m unittest discover -s Tools/validation -p 'test_*.py' -v
@@ -123,6 +123,55 @@ class ScoreHudTests(unittest.TestCase):
                         self.assertIn(canvas_transform, self.active_ancestors(documents, text_owner))
                 title = self.game_object(documents, "ScoreTitle")
                 self.assertIn(canvas_transform, self.active_ancestors(documents, title))
+
+
+class SceneReferenceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        settings = (ROOT / "ProjectSettings/EditorBuildSettings.asset").read_text(encoding="utf-8")
+        cls.scenes = {Path(path).stem: read_documents(ROOT / path)
+                      for enabled, path in re.findall(r"  - enabled: ([01])\n    path: ([^\n]+)", settings)
+                      if enabled == "1"}
+        cls.atmosphere_assets = {}
+        for name, path, file_id, asset_type in (
+            ("m_Script", "Assets/Scripts/Cameras/ForestAtmosphere.cs", 11500000, 3),
+            ("atmosphereMaterial", "Assets/Materials/ForestAtmosphere.mat", 2100000, 2),
+        ):
+            meta = (ROOT / (path + ".meta")).read_text(encoding="utf-8")
+            guid = re.search(r"^guid: (\w+)$", meta, re.MULTILINE)[1]
+            cls.atmosphere_assets[name] = f"{{fileID: {file_id}, guid: {guid}, type: {asset_type}}}"
+
+    def test_all_local_references_resolve_in_enabled_scenes(self):
+        self.assertTrue(self.scenes, "No enabled scenes to validate")
+        for name, documents in self.scenes.items():
+            with self.subTest(scene=name):
+                for owner, (_, body) in documents.items():
+                    for match in re.finditer(r"\{fileID: (-?\d+)([^}]*)\}", body):
+                        target = int(match[1])
+                        if target == 0 or "guid:" in match[2]:
+                            continue  # Null or external asset reference, not a local scene object.
+                        self.assertTrue(target in documents,
+                                        f"{name}: document {owner} references missing local fileID {target}")
+
+    def test_gameplay_atmosphere_is_attached_to_main_camera(self):
+        for name, documents in self.scenes.items():
+            if not any(kind == 114 and "  m_EditorClassIdentifier: Assembly-CSharp::LevelSession\n" in body
+                       for kind, body in documents.values()):
+                continue
+            with self.subTest(scene=name):
+                cameras = [file_id for file_id, (kind, body) in documents.items()
+                           if kind == 1 and re.search(r"^  m_Name: Main Camera$", body, re.MULTILINE)]
+                self.assertEqual(len(cameras), 1, "Expected one Main Camera GameObject")
+                atmospheres = [(file_id, body) for file_id, (kind, body) in documents.items()
+                               if kind == 114 and "  m_EditorClassIdentifier: Assembly-CSharp::ForestAtmosphere\n" in body]
+                self.assertEqual(len(atmospheres), 1, "Expected one ForestAtmosphere component")
+                component_id, atmosphere = atmospheres[0]
+                self.assertEqual(reference(atmosphere, "m_GameObject"), cameras[0])
+                self.assertIn(f"- component: {{fileID: {component_id}}}", documents[cameras[0]][1],
+                              "Main Camera must list its ForestAtmosphere component")
+                for asset, expected_reference in self.atmosphere_assets.items():
+                    self.assertEqual(field(atmosphere, asset), expected_reference,
+                                     f"{name}: incorrect atmosphere asset reference {asset}")
 
 
 if __name__ == "__main__":

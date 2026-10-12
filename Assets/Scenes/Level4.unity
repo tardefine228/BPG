@@ -17936,6 +17936,41 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6900000206}
   m_CullTransparentMesh: 1
+--- !u!114 &5700000000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3000000064}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58c4f54b3e324a0498c764e774f37c16, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::ForestAtmosphere
+  atmosphereMaterial: {fileID: 2100000, guid: a1e6026a17fc4e88b4e980f912560a9b, type: 2}
+  fogEnabled: 1
+  fogOpacity: 0.014
+  fogColor: {r: 0.91, g: 0.96, b: 0.9, a: 1}
+  fogWorldScale: 30
+  fogDensity: 0.72
+  fogHeight: 0.075
+  fogHeightFalloff: 0.6
+  fogDrift: {x: 0.58, y: 0.008}
+  lightEnabled: 1
+  sunlightColor: {r: 1, g: 0.94, b: 0.77, a: 1}
+  rayIntensity: 0.021
+  dappleIntensity: 0
+  lightWorldScale: 21
+  rayAngle: 28.9
+  rayWidth: 0.656
+  lightAnimationSpeed: 2
+  lightShimmer: 0.524
+  animationSpeed: 2.65
+  seed: 17
+  sortingOrder: 60
+  previewInEditMode: 1
+  animateInEditMode: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
