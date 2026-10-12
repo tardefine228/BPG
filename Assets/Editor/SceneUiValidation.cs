@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -13,6 +14,9 @@ public static class SceneUiValidation
     public static void Validate()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+        ValidateMouseStarRules();
+        ValidateStarUnlockRules();
+        ValidateLevelTaglines();
         var setup = EditorSceneManager.GetSceneManagerSetup();
         try
         {
@@ -51,11 +55,19 @@ public static class SceneUiValidation
                 foreach (var audio in Find<AudioManager>()) References(audio, "musicSource", "effectsSource", "uiSource");
                 foreach (var session in Find<LevelSession>())
                 {
-                    Require(new SerializedObject(session).FindProperty("maxProjectiles").intValue >= 1,
+                    var sessionData = new SerializedObject(session);
+                    Require(sessionData.FindProperty("maxProjectiles").intValue >= 1,
                         scene.name + ": боезапас должен быть положительным");
+                    Require(sessionData.FindProperty("resultDelayAfterLastShot").floatValue >= 5f,
+                        scene.name + ": оценка результата должна ждать минимум пять секунд");
                     References(session, "gameplayController", "starOnSprite", "starOffSprite", "scoreValueText",
                         "scoreHintText", "completionOverlay", "defeatOverlay",
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
+                    ValidateCompletionMenuButton(session);
+                    // Уровень заканчивается победой, когда убита последняя обязательная мышь,
+                    // поэтому хотя бы одна включённая мышь на карте должна считать за победу.
+                    Require(Find<MouseEnemy>().Any(enemy => enemy.CountsForVictory && enemy.gameObject.activeInHierarchy),
+                        scene.name + ": нет обязательных мышей — уровень не закончится по мышам");
                     References(Find<PauseMenuController>().Single(), "pausePage", "settingsPage", "pauseButton",
                         "musicVolumeSlider", "effectsVolumeSlider", "overlayFade", "pauseFade", "settingsFade");
                     ValidatePauseHierarchy(Find<PauseMenuController>().Single());
@@ -105,7 +117,7 @@ public static class SceneUiValidation
                     References(select, "cards", "track", "pagingSurface", "starsSummary", "pageDots", "menuManager");
                 foreach (var card in Find<LevelCardView>())
                 {
-                    References(card, "button", "preview", "currentHighlight", "lockOverlay", "soonOverlay", "parHint", "stars");
+                    References(card, "button", "preview", "currentHighlight", "lockOverlay", "lockLabel", "soonOverlay", "parHint", "stars");
                     if (card.LevelId >= 1 && card.LevelId <= 5)
                         References(card, "hoverOutline");
                     var highlight = (GameObject)new SerializedObject(card).FindProperty("currentHighlight").objectReferenceValue;
@@ -148,6 +160,26 @@ public static class SceneUiValidation
     }
 
     private static T[] Find<T>() where T : Object => Object.FindObjectsByType<T>(FindObjectsInactive.Include);
+
+    private static void ValidateCompletionMenuButton(LevelSession session)
+    {
+        var serialized = new SerializedObject(session);
+        var completion = (GameObject)serialized.FindProperty("completionOverlay").objectReferenceValue;
+        var button = completion.GetComponentsInChildren<Button>(true)
+            .FirstOrDefault(item => item.name == "ToMenuButton");
+        string sceneName = session.gameObject.scene.name;
+        Require(button != null, sceneName + ": на экране прохождения нет кнопки ToMenuButton");
+        Require(button.gameObject.activeSelf, sceneName + ": кнопка МЕНЮ выключена в иерархии экрана прохождения");
+
+        var label = button.GetComponentInChildren<TMP_Text>(true);
+        Require(label != null && label.text.Trim() == "МЕНЮ",
+            sceneName + ": у кнопки выбора уровня должна быть подпись МЕНЮ");
+        bool returnsToLevelSelect = Enumerable.Range(0, button.onClick.GetPersistentEventCount())
+            .Any(index => button.onClick.GetPersistentTarget(index) == session
+                && button.onClick.GetPersistentMethodName(index) == nameof(LevelSession.ReturnToLevelSelect));
+        Require(returnsToLevelSelect,
+            sceneName + ": кнопка МЕНЮ должна возвращать к выбору уровней");
+    }
 
     private static void ValidateMainPrototype()
     {
@@ -211,6 +243,71 @@ public static class SceneUiValidation
             }
             else Require(property.objectReferenceValue != null, owner.name + ": пустая ссылка " + field);
         }
+    }
+
+    private static void ValidateMouseStarRules()
+    {
+        Require(LevelProgress.StarsForDefeatedMice(0, 8) == 0,
+            "Звёзды за мышей: без убийств должен быть нулевой результат");
+        Require(LevelProgress.StarsForDefeatedMice(1, 2) == 2,
+            "Звёзды за мышей: половина из двух мышей должна давать две звезды");
+        Require(LevelProgress.StarsForDefeatedMice(1, 4) == 1
+            && LevelProgress.StarsForDefeatedMice(2, 4) == 2,
+            "Звёзды за мышей: округление доли убийств работает неверно");
+        Require(LevelProgress.StarsForDefeatedMice(3, 4) == 2
+            && LevelProgress.StarsForDefeatedMice(6, 7) == 2,
+            "Звёзды за мышей: неполное прохождение не должно давать три звезды");
+        Require(LevelProgress.StarsForDefeatedMice(1, 7) == 1
+            && LevelProgress.StarsForDefeatedMice(1, 8) == 1,
+            "Звёзды за мышей: одно убийство не должно округляться до нуля");
+        Require(LevelProgress.StarsForDefeatedMice(7, 8) == 2
+            && LevelProgress.StarsForDefeatedMice(7, 7) == 3
+            && LevelProgress.StarsForDefeatedMice(8, 8) == 3,
+            "Звёзды за мышей: три звезды требуют уничтожить всех обязательных мышей");
+        Require(LevelProgress.StarsForDefeatedMice(9, 8) == 3
+            && LevelProgress.StarsForDefeatedMice(-1, 8) == 0
+            && LevelProgress.StarsForDefeatedMice(0, 0) == 0,
+            "Звёзды за мышей: некорректные границы количества не обработаны");
+    }
+
+    // Доступ к уровням: первые два открываются последовательно, третий, четвёртый
+    // и пятый ждут 5, 8 и 12 собранных звёзд.
+    private static void ValidateStarUnlockRules()
+    {
+        Require(LevelProgress.RequiredStarsFor(1) == 0 && LevelProgress.RequiredStarsFor(2) == 0,
+            "Доступ к уровням: у первых двух уровней порога звёзд быть не должно");
+        Require(LevelProgress.RequiredStarsFor(3) == 5,
+            "Доступ к уровням: третий уровень открывается за 5 звёзд");
+        Require(LevelProgress.RequiredStarsFor(4) == 8,
+            "Доступ к уровням: четвёртый уровень открывается за 8 звёзд");
+        Require(LevelProgress.RequiredStarsFor(5) == 12,
+            "Доступ к уровням: пятый уровень открывается за 12 звёзд");
+        Require(LevelProgress.Levels.Length * LevelProgress.MaxStars >= LevelProgress.RequiredStarsFor(5),
+            "Доступ к уровням: всех уровней должно хватать на порог пятого");
+
+        Require(LevelProgress.IsUnlockedByRules(1, 0, false),
+            "Доступ к уровням: первый уровень открыт всегда");
+        Require(LevelProgress.IsUnlockedByRules(2, 0, true) && !LevelProgress.IsUnlockedByRules(2, 0, false),
+            "Доступ к уровням: второй уровень открывается после первого");
+        Require(!LevelProgress.IsUnlockedByRules(3, 4, true) && LevelProgress.IsUnlockedByRules(3, 5, true),
+            "Доступ к уровням: третий уровень ждёт ровно 5 звёзд");
+        Require(!LevelProgress.IsUnlockedByRules(4, 7, true) && LevelProgress.IsUnlockedByRules(4, 8, true),
+            "Доступ к уровням: четвёртый уровень ждёт ровно 8 звёзд");
+        Require(!LevelProgress.IsUnlockedByRules(5, 11, true) && LevelProgress.IsUnlockedByRules(5, 12, true),
+            "Доступ к уровням: пятый уровень ждёт ровно 12 звёзд");
+        Require(LevelProgress.IsUnlockedByRules(3, 5, false) && LevelProgress.IsUnlockedByRules(5, 12, false),
+            "Доступ к уровням: порог звёзд не должен требовать ещё и пройденного предыдущего уровня");
+    }
+
+    // Названия уровней под звёздами карточки: непустые, короткие и без повторов.
+    private static void ValidateLevelTaglines()
+    {
+        var taglines = LevelProgress.Levels.Select(level => level.Tagline).ToArray();
+        foreach (string tagline in taglines)
+            Require(!string.IsNullOrWhiteSpace(tagline) && tagline.Length <= 18,
+                "Название уровня на карточке должно быть непустым и коротким (до 18 символов): «" + tagline + "»");
+        Require(taglines.Distinct().Count() == taglines.Length,
+            "Названия уровней на карточках не должны повторяться: " + string.Join(" / ", taglines));
     }
 
     private static void Require(bool condition, string message)

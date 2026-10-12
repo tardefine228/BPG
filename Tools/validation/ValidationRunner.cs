@@ -227,6 +227,121 @@ public sealed class ValidationRunner : MonoBehaviour
             "Loaded cat is outside the catapult");
     }
 
+    // Порог звёзд: сохранения, подписи карточек и попытка открыть закрытый уровень.
+    private IEnumerator StarGateChecks(LevelSelectController select)
+    {
+        LevelCardView Card(int levelId) => All<LevelCardView>().First(card => card.LevelId == levelId);
+        var savedStars = new int[LevelProgress.Levels.Length + 1];
+        var savedCompleted = new bool[LevelProgress.Levels.Length + 1];
+        bool unlockAllLevels = LevelProgress.UnlockAllLevels;
+        for (int id = 1; id < savedStars.Length; id++)
+        {
+            savedStars[id] = LevelProgress.GetStars(id);
+            savedCompleted[id] = LevelProgress.IsCompleted(id);
+        }
+
+        var taglines = LevelProgress.Levels.Select(level => level.Tagline).ToArray();
+        Require(taglines.All(text => !string.IsNullOrWhiteSpace(text) && text.Length <= 18),
+            "Every level should carry a short card title: " + string.Join(" / ", taglines));
+        Require(taglines.Distinct().Count() == taglines.Length,
+            "Level card titles should not repeat: " + string.Join(" / ", taglines));
+
+        LevelProgress.UnlockAllLevels = false;
+        try
+        {
+            SetLevelStars(0, 0, 0, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 0 && LevelProgress.IsUnlocked(1)
+                && !LevelProgress.IsUnlocked(3) && !LevelProgress.IsUnlocked(4) && !LevelProgress.IsUnlocked(5),
+                "Without stars the levels with a threshold must stay closed");
+            // Второй уровень по-прежнему открывается прохождением первого, а не звёздами:
+            // накопленные звёзды сами по себе его не выдают.
+            Require(LevelProgress.IsUnlocked(2) == LevelProgress.IsCompleted(1),
+                "The second level must keep following the first one instead of the star threshold");
+            Require(!Card(3).GetComponent<Button>().interactable && LockText(Card(3)) == "НУЖНО 5 ЗВЁЗД"
+                && HintText(Card(3)) == Tagline(3),
+                "The third card should ask for five stars");
+
+            SetLevelStars(2, 2, 0, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 4 && !LevelProgress.IsUnlocked(3)
+                && LockText(Card(3)) == "НУЖНО 5 ЗВЁЗД" && HintText(Card(3)) == Tagline(3),
+                "Four stars must not open the third level");
+            int selectedBeforeClick = LevelProgress.CurrentLevelId;
+            select.OnLevelClicked(3);
+            yield return null;
+            Require(!SceneTransition.IsLoading && SceneManager.GetActiveScene().name == "MainMenu"
+                && LevelProgress.CurrentLevelId == selectedBeforeClick,
+                "A locked level must not start loading");
+            yield return Capture("level-select-locked");
+
+            SetLevelStars(2, 3, 0, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 5 && LevelProgress.IsUnlocked(3)
+                && Card(3).GetComponent<Button>().interactable
+                && !(((GameObject)Get(Card(3), "lockOverlay")).activeSelf)
+                && HintText(Card(3)) == Tagline(3),
+                "Five stars should open the third level");
+            Require(!LevelProgress.IsUnlocked(4) && LockText(Card(4)) == "НУЖНО 8 ЗВЁЗД",
+                "The fourth level should wait for eight stars");
+
+            SetLevelStars(2, 3, 3, 0, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 8 && LevelProgress.IsUnlocked(4) && !LevelProgress.IsUnlocked(5)
+                && LockText(Card(5)) == "НУЖНО 12 ЗВЁЗД" && HintText(Card(5)) == Tagline(5),
+                "Eight stars should open the fourth level and leave the fifth one closed");
+
+            SetLevelStars(2, 3, 3, 3, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 11 && !LevelProgress.IsUnlocked(5),
+                "Eleven stars must not open the fifth level");
+
+            SetLevelStars(3, 3, 3, 3, 0);
+            RefreshLevelCards(select);
+            Require(LevelProgress.TotalStars == 12 && LevelProgress.IsUnlocked(5)
+                && Card(5).GetComponent<Button>().interactable,
+                "Twelve stars should open the fifth level");
+            Require(((TMPro.TMP_Text)Get(select, "starsSummary")).text == "СОБРАНО ЗВЁЗД: 12 / 15",
+                "The stars summary should count the collected stars");
+        }
+        finally
+        {
+            for (int id = 1; id < savedStars.Length; id++)
+            {
+                LevelProgress.ResetStarsForRun(id);
+                LevelProgress.SaveStars(id, savedStars[id]);
+                if (savedCompleted[id]) LevelProgress.MarkCompleted(id);
+            }
+
+            LevelProgress.UnlockAllLevels = unlockAllLevels;
+        }
+
+        RefreshLevelCards(select);
+        Pass("Levels 3, 4 and 5 wait for 5, 8 and 12 collected stars; locked cards show the requirement and cannot be started");
+    }
+
+    private static void SetLevelStars(int level1, int level2, int level3, int level4, int level5)
+    {
+        int[] values = { 0, level1, level2, level3, level4, level5 };
+        for (int id = 1; id < values.Length; id++)
+        {
+            LevelProgress.ResetStarsForRun(id);
+            LevelProgress.SaveStars(id, values[id]);
+        }
+    }
+
+    private static void RefreshLevelCards(LevelSelectController select)
+    {
+        typeof(LevelSelectController).GetMethod("RefreshCards", Flags).Invoke(select, null);
+    }
+
+    private static string LockText(LevelCardView card) => ((TMPro.TMP_Text)Get(card, "lockLabel")).text;
+
+    private static string HintText(LevelCardView card) => ((TMPro.TMP_Text)Get(card, "parHint")).text;
+
+    // Короткое название уровня, которое карточка показывает под звёздами.
+    private static string Tagline(int levelId) => LevelProgress.GetLevel(levelId).Tagline;
+
     private IEnumerator CatQueueChecks()
     {
         foreach (var level in LevelProgress.Levels)
@@ -245,7 +360,19 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return new WaitForSecondsRealtime(0.4f);
             yield return Click(card.GetComponent<Button>());
             yield return Scene(level.SceneName);
-            int ammo = Mathf.Min(level.Id + 1, 5);
+            // Этот прогон проверяет очередь, а не пятисекундную задержку результата.
+            var session = Find<LevelSession>();
+            Set(session, "resultDelayAfterLastShot", 0f);
+            foreach (var enemy in All<MouseEnemy>()) Set(enemy, "countsForVictory", false);
+            var blocker = new GameObject("CatQueueDefeatCheck");
+            blocker.transform.position = new Vector3(100f, 100f, 0f);
+            blocker.AddComponent<BoxCollider2D>();
+            var blockerBody = blocker.AddComponent<Rigidbody2D>();
+            blockerBody.bodyType = RigidbodyType2D.Static;
+            var blockerTarget = blocker.AddComponent<LevelTarget>();
+            Set(session, "targets", ((LevelTarget[])Get(session, "targets")).Concat(new[] { blockerTarget }).ToArray());
+            Set(session, "targetBodies", ((Rigidbody2D[])Get(session, "targetBodies")).Concat(new[] { blockerBody }).ToArray());
+            int ammo = session.MaxProjectiles;
             CheckCats(ammo);
             yield return CheckCameraButtons();
             if (level.Id == 1 || level.Id == 5)
@@ -307,6 +434,45 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return Scene("MainMenu");
             Pass(level.SceneName + ": real menu/pause clicks, all " + ammo + " cat launches, two poses, queue movement, pause during loading, exhaustion and restart passed");
         }
+    }
+
+    // Победа по мышам: убив всех обязательных мышей, уровень заканчивается, даже если
+    // постройка стоит целой и в очереди остались коты.
+    private IEnumerator MouseVictoryChecks()
+    {
+        LevelProgress.SelectLevel(1);
+        SceneTransition.Load("Gameplay");
+        yield return Scene("Gameplay");
+        yield return new WaitForSecondsRealtime(0.4f);
+        var session = Find<LevelSession>();
+        var mice = All<MouseEnemy>().Where(enemy => enemy.CountsForVictory).ToArray();
+        var standing = All<LevelTarget>().Where(target => target.CountsForVictory && !target.IsCleared).ToArray();
+        Require(mice.Length > 0, "Gameplay should have required mice for the mouse-victory check");
+        Require(standing.Length > 0, "Gameplay should keep intact boxes with CountsForVictory for the mouse-victory check");
+        Require(session.RemainingShots > 0, "Gameplay should start with cats in the queue");
+
+        foreach (var mouse in mice)
+            Set(mouse, "<IsDead>k__BackingField", true);
+
+        yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf,
+            "victory after the last required mouse", 30f);
+        var overlay = (Image[])Get(Find<LevelSession>(), "completionStars");
+        var starOn = (Sprite)Get(Find<LevelSession>(), "starOnSprite");
+        Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf,
+            "Killing every required mouse must win the level");
+        Require(overlay.Count(image => image.sprite == starOn) == 3,
+            "Killing every required mouse must award three stars");
+        Require(Find<LevelSession>().RemainingShots > 0,
+            "Cats left in the queue must not keep the level running");
+        Require(All<LevelTarget>().Any(target => target.CountsForVictory && !target.IsCleared),
+            "Boxes must stop being a victory requirement");
+        string shotsLine = ((TMPro.TMP_Text)Get(Find<LevelSession>(), "completionShotsText")).text;
+        Require(shotsLine.Contains("ВЫСТРЕЛОВ: ") && shotsLine.EndsWith(" / " + Find<LevelSession>().MaxProjectiles),
+            "The victory screen should show shots as used / total: " + shotsLine);
+        yield return Capture("mouse-victory");
+        Pass("Killing every required mouse ends the level with three stars while boxes stand and cats remain");
+        SceneTransition.Load("MainMenu");
+        yield return Scene("MainMenu");
     }
 
     private IEnumerator PauseReturnChecks()
@@ -463,7 +629,10 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(Camera.main.orthographicSize < firstSize, "Intro did not zoom in");
             Vector3 fixedPosition = camera.transform.position;
             float fixedSize = Camera.main.orthographicSize;
-            Find<LevelSession>().enabled = false;
+            var validationSession = Find<LevelSession>();
+            validationSession.enabled = false;
+            Set(validationSession, "resultDelayAfterLastShot", 0f);
+            foreach (var enemy in All<MouseEnemy>()) Set(enemy, "countsForVictory", false);
             Require(All<Transform>().All(item => item.name != "GameplayCameraCanvas"), "Removed camera UI returned");
             foreach (var renderer in All<CatProjectile>().Select(cat => cat.GetComponent<SpriteRenderer>())
                 .Concat(All<LevelTarget>().Select(target => target.GetComponent<SpriteRenderer>())).Where(item => item != null))
@@ -578,13 +747,13 @@ public sealed class ValidationRunner : MonoBehaviour
                     "Camera moved during flight");
                 yield return null;
             }
-            Require(impacts == 1 && slingshot.WaitingCatCount == Mathf.Min(level.Id + 1, 5) - 2,
+            Require(impacts == 1 && slingshot.WaitingCatCount == validationSession.MaxProjectiles - 2,
                 "Impact / queue count incorrect");
             Require(Quaternion.Angle(rest, slingshot.rotatingPart.localRotation) < 0.01f
                 && Mathf.Abs(((Rigidbody2D)Get(slingshot, "projectile")).rotation) < 0.01f,
                 "Next cat is rotated or arm did not reset");
             if (level.Id == 1) yield return MouseContactChecks(camera);
-            int ammo = Mathf.Min(level.Id + 1, 5);
+            int ammo = validationSession.MaxProjectiles;
             for (int shot = 2; shot <= ammo; shot++)
             {
                 var fired = (Rigidbody2D)Get(slingshot, "projectile");
@@ -620,7 +789,7 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(Camera.main.orthographicSize == pausedIntro, "Intro zoom moved during pause");
             Find<PauseMenuController>().ResumeGame();
             Require(Find<SlingshotController>().ShotsFired == 0
-                && Find<SlingshotController>().WaitingCatCount == Mathf.Min(level.Id + 1, 5) - 1,
+                && Find<SlingshotController>().WaitingCatCount == Find<LevelSession>().MaxProjectiles - 1,
                 "Restart did not restore the queue");
             yield return Until(() => !Find<GameplayCameraController>().IsBusy, "restart intro");
         }
@@ -689,6 +858,8 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return Until(() => !camera.IsBusy, "intro");
             var session = Find<LevelSession>();
             session.enabled = false;
+            Set(session, "resultDelayAfterLastShot", 0f);
+            foreach (var enemy in All<MouseEnemy>()) Set(enemy, "countsForVictory", false);
             var slingshot = Find<SlingshotController>();
             Require(All<Transform>().All(item => item.name != "FlatGround"), "Deleted floor remains");
             Require(camera.TerrainCollider is UnityEngine.Tilemaps.TilemapCollider2D
@@ -1291,12 +1462,14 @@ public sealed class ValidationRunner : MonoBehaviour
         Require(ids.SetEquals(All<Button>()), "Menu buttons were replaced");
         Pass("Settings, volumes, pagination and reopening preserve all menu button objects");
         yield return Capture("levels");
+        yield return StarGateChecks(select);
         yield return Click(All<LevelCardView>().First(card => card.LevelId == 1).GetComponent<Button>());
         yield return Scene("Gameplay");
         yield return new WaitForSecondsRealtime(0.4f);
         yield return Capture("gameplay");
         yield return CheckCameraButtons();
-        CheckCats(2);
+        // Боезапас берётся из сцены, чтобы проверка не устаревала при балансировке уровня.
+        CheckCats(Find<LevelSession>().MaxProjectiles);
         int particleSystems = All<ParticleSystem>().Length;
         int gameObjects = All<Transform>().Length;
         var material = Find<SlingshotController>().projectilePrefab.GetComponent<ProjectileComicEffects>();
@@ -1340,6 +1513,7 @@ public sealed class ValidationRunner : MonoBehaviour
         slingshot.gameplayCamera = null; slingshot.spawnDelay = 0.02f; slingshot.projectileLifetime = 0.8f;
         Set(slingshot, "catLoadDuration", 0.02f);
         int ammo = Find<LevelSession>().MaxProjectiles;
+        float lastShotLaunchedAt = -1f;
         for (int shot = 1; shot <= ammo; shot++)
         {
             Require(slingshot.CanAim, "Projectile missing for shot " + shot);
@@ -1347,6 +1521,7 @@ public sealed class ValidationRunner : MonoBehaviour
             Rigidbody2D next = shot < ammo ? ((List<Rigidbody2D>)Get(slingshot, "waitingCats"))[0] : null;
             Set(slingshot, "launchVelocity", new Vector2(-5f, 0f));
             slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+            if (shot == ammo) lastShotLaunchedAt = Time.time;
             yield return null;
             Require(loaded.simulated && !loaded.GetComponent<CatProjectile>().IsQueued,
                 "Loaded cat did not become the flying projectile");
@@ -1360,6 +1535,8 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return null;
         Require(slingshot.ShotsFired == ammo, "Extra shot fired");
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf, "defeat");
+        Require(Time.time - lastShotLaunchedAt >= 4.9f,
+            "Result was evaluated before five seconds had elapsed from the last cat");
         Require(Time.timeScale == 0f, "Defeat did not stop gameplay");
         Pass("Two real cat launches exhaust Level1 ammunition; queue shrinks, cat identity survives loading/flight, extra shot is blocked");
         yield return Capture("defeat");
@@ -1373,9 +1550,19 @@ public sealed class ValidationRunner : MonoBehaviour
         slingshot = Find<SlingshotController>();
         Set(slingshot, "<ShotsFired>k__BackingField", ammo);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
-        yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf, "victory on final shot");
-        Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf && LevelProgress.IsCompleted(1), "Final-shot victory lost to defeat");
-        Pass("Victory on the final projectile takes priority over defeat and saves progress");
+        var firstLevelMice = All<MouseEnemy>().Where(enemy => enemy.CountsForVictory).ToArray();
+        Require(firstLevelMice.Length >= 2, "Gameplay should have at least two required mice for the star-rating check");
+        // Оставляем одну мышь живой: частичный результат по убитым должен дать две звезды.
+        for (int mouse = 0; mouse < firstLevelMice.Length - 1; mouse++)
+            Set(firstLevelMice[mouse], "<IsDead>k__BackingField", true);
+        yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf,
+            "two-star partial victory after the last shot", 30f);
+        var firstLevelStars = (Image[])Get(Find<LevelSession>(), "completionStars");
+        Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf
+            && LevelProgress.IsCompleted(1) && LevelProgress.GetStars(1) == 2
+            && firstLevelStars.Count(image => image.sprite == (Sprite)Get(Find<LevelSession>(), "starOnSprite")) == 2,
+            "Killing every required mouse but one should complete level 1 with two stars");
+        Pass("After the last cat, killing all required mice but one earns two stars and unlocks the next level");
         yield return Capture("victory");
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("Level2");
@@ -1424,12 +1611,16 @@ public sealed class ValidationRunner : MonoBehaviour
         slingshot = Find<SlingshotController>();
         Set(slingshot, "<ShotsFired>k__BackingField", 1);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
+        foreach (var enemy in All<MouseEnemy>().Where(enemy => enemy.CountsForVictory))
+            Set(enemy, "<IsDead>k__BackingField", true);
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf, "last level victory");
+        Require(LevelProgress.GetStars(5) == 3, "All required mice defeated should award three stars");
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("MainMenu");
         Pass("Continue after the last implemented level returns to MainMenu");
         yield return PauseReturnChecks();
         yield return CatQueueChecks();
+        yield return MouseVictoryChecks();
         Require(errors.Count == 0, "Runtime produced errors");
     }
 }

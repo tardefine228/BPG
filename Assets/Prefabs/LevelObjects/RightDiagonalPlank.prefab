@@ -29,8 +29,8 @@ Transform:
   m_GameObject: {fileID: 7267905185141070907}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: 0.0028562543, w: 0.99999595}
-  m_LocalPosition: {x: -0.066, y: 4.011, z: 0}
-  m_LocalScale: {x: 3.7321982, y: 3.7049737, z: 1}
+  m_LocalPosition: {x: 0.0041, y: 4.0032, z: 0}
+  m_LocalScale: {x: 5.7751036, y: 5.7545376, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -134,7 +134,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1a5f4e3b7c95062e8f0a2b4c3d6e579, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
-  countsForVictory: 1
+  countsForVictory: 0
   fallY: -6
   impactSpeed: 2
   hitsToClear: 1
@@ -143,9 +143,13 @@ MonoBehaviour:
   damagedTint: {r: 0.32, g: 0.31, b: 0.36, a: 1}
   hitFlashColor: {r: 1, g: 0.85, b: 0.4, a: 1}
   hitFlashDuration: 0.12
-  breakOnCleared: 0
+  breakOnCleared: 1
   breakImpulse: 6
   breakTorque: 30
+  destroyOnCleared: 1
+  destroyDelay: 0.4
+  debrisPrefab: {fileID: 0}
+  shatterIntoDebris: 0
   pushResistance: 0
   slidingFriction: 1
   onHit:

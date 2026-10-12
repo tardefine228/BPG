@@ -4,118 +4,86 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-// Цель уровня: обычный блок сбивается одним сильным ударом, бронированный выдерживает несколько. Прочность и сопротивление настраиваются в Inspector.
+[DisallowMultipleComponent]
 public sealed class LevelTarget : MonoBehaviour
 {
     private const float IgnoreCollisionsFor = 0.8f;
-
-    // Сколько секунд после контакта сохраняется дополнительное трение.
     private const float SurfaceContactGrace = 0.12f;
 
     [Header("Роль на уровне")]
-    [Tooltip("Включи, если эту цель ОБЯЗАТЕЛЬНО нужно уничтожить для победы. Отключи для препятствий и декоративных коробок.")]
     [SerializeField] private bool countsForVictory = true;
     public bool CountsForVictory => countsForVictory;
 
     [Header("Сбивание")]
-    [Tooltip("Блок считается сбитым, если упал ниже этой отметки.")]
     [SerializeField] private float fallY = -6f;
-
-    [Tooltip("Минимальная скорость столкновения, при которой удар вообще засчитывается.")]
     [SerializeField, Min(0f)] private float impactSpeed = 2f;
 
     [Header("Прочность блока")]
-    [Tooltip("Сколько ударов выдерживает блок. 1 — обычный блок (как в 1 уровне). " +
-             "3–6 — бронированный: держит несколько попаданий и сдвигается от них " +
-             "слабее обычного (см. «Сопротивление сдвигу» ниже).")]
     [SerializeField, Min(1)] private int hitsToClear = 1;
-
-    [Tooltip("Пауза между засчитанными ударами, чтобы одно касание снаряда не сняло сразу несколько единиц прочности.")]
     [SerializeField, Min(0f)] private float hitCooldown = 0.35f;
 
     [Header("Отклик на удары")]
-    [Tooltip("Подсвечивать попадания у бронированных блоков (вспышка + затемнение по мере износа).")]
     [SerializeField] private bool showHitFeedback = true;
-
-    [Tooltip("Цвет блока, когда прочность кончилась.")]
-    [SerializeField] private Color damagedTint = new Color(0.32f, 0.31f, 0.36f, 1f);
-
-    [Tooltip("Цвет вспышки в момент удара.")]
-    [SerializeField] private Color hitFlashColor = new Color(1f, 0.85f, 0.4f, 1f);
-
-    [Tooltip("Длительность вспышки, секунды.")]
+    [SerializeField] private Color damagedTint =
+        new Color(0.32f, 0.31f, 0.36f, 1f);
+    [SerializeField] private Color hitFlashColor =
+        new Color(1f, 0.85f, 0.4f, 1f);
     [SerializeField, Min(0f)] private float hitFlashDuration = 0.12f;
 
     [Header("Развал после последнего удара")]
-    [Tooltip("Отбросить блок в сторону выстрела, когда он получил последний удар.")]
     [SerializeField] private bool breakOnCleared;
-
-    [Tooltip("Сила отбрасывания блока после последнего удара.")]
     [SerializeField, Min(0f)] private float breakImpulse = 6f;
-
-    [Tooltip("Вращение блока после последнего удара.")]
     [SerializeField, Min(0f)] private float breakTorque = 30f;
+    [SerializeField] private bool destroyOnCleared;
+    [SerializeField, Min(0f)] private float destroyDelay = 0.4f;
+    [SerializeField] private GameObject debrisPrefab;
+    [SerializeField] private bool shatterIntoDebris;
 
     [Header("Сопротивление сдвигу")]
-    [Tooltip("Какая доля толчка гасится в момент попадания. 0 — обычный блок отлетает как есть, " +
-             "0.6 — бронированный заметно тяжелее и только подаётся назад, " +
-             "0.9 — почти не сдвинуть.")]
     [SerializeField, Range(0f, 0.95f)] private float pushResistance;
-
-    [Tooltip("Дополнительное трение: во сколько раз сильнее блок тормозит, скользя по поверхности. " +
-             "1 — как обычный блок, 1.8 — тяжело скользит и быстро останавливается.")]
     [SerializeField, Min(1f)] private float slidingFriction = 1f;
 
     [Header("События")]
-    [Tooltip("Вызывается после каждого удара, который не снёс блок.")]
     [SerializeField] private UnityEvent onHit = new UnityEvent();
-
-    [Tooltip("Вызывается, когда блок сбит (любым способом).")]
     [SerializeField] private UnityEvent onCleared = new UnityEvent();
 
-    private readonly List<SpriteRenderer> damageSprites = new List<SpriteRenderer>();
-    private Color[] baseColors = new Color[0];
+    private readonly List<SpriteRenderer> damageSprites =
+        new List<SpriteRenderer>();
 
+    private Color[] baseColors = Array.Empty<Color>();
     private Rigidbody2D body;
     private Vector3 startPosition;
     private float nextHitTime;
     private float surfaceContactUntil;
     private Coroutine flashRoutine;
+    private bool soundPlayedForCurrentFall;
 
-    // Срабатывает при каждом засчитанном сильном ударе, включая последний.
     public event Action<LevelTarget, float> HitRegistered;
-    // Одно событие за фактическое уничтожение цели (включая падение за границу).
     public event Action<LevelTarget> Cleared;
 
     public bool IsCleared { get; private set; }
     public float MaxTravelDistance { get; private set; }
-
-    // Число уже полученных ударов.
     public int HitsTaken { get; private set; }
 
-    // Прочность блока; для обычного блока равна одному удару.
     public int HitsToClear => Mathf.Max(1, hitsToClear);
-
-    // Оставшееся число ударов до сбивания.
     public int HitsRemaining => Mathf.Max(0, HitsToClear - HitsTaken);
-
-    // Доля погашенного толчка; обычный блок не поглощает удар.
     public float PushResistance => Mathf.Clamp(pushResistance, 0f, 0.95f);
-
-    // Множитель дополнительного трения при скольжении.
     public float SlidingFriction => Mathf.Max(1f, slidingFriction);
-
-    // Признак бронированного блока.
     public bool IsReinforced => HitsToClear > 1;
 
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();
-        damageSprites.AddRange(GetComponentsInChildren<SpriteRenderer>(true));
+
+        damageSprites.AddRange(
+            GetComponentsInChildren<SpriteRenderer>(true));
+
         baseColors = new Color[damageSprites.Count];
+
         for (int i = 0; i < damageSprites.Count; i++)
         {
-            baseColors[i] = damageSprites[i].color;
+            if (damageSprites[i] != null)
+                baseColors[i] = damageSprites[i].color;
         }
 
         startPosition = transform.position;
@@ -124,18 +92,13 @@ public sealed class LevelTarget : MonoBehaviour
 
     private void Update()
     {
-        float distance = Vector2.Distance(transform.position, startPosition);
+        float distance = Vector2.Distance(
+            transform.position, startPosition);
+
         if (distance > MaxTravelDistance)
-        {
             MaxTravelDistance = distance;
-        }
 
-        if (IsCleared)
-        {
-            return;
-        }
-
-        if (transform.position.y <= fallY)
+        if (!IsCleared && transform.position.y <= fallY)
         {
             PlayBoxSound();
             ClearTarget(Vector2.zero, false);
@@ -158,45 +121,49 @@ public sealed class LevelTarget : MonoBehaviour
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (IsCleared || collision == null || collision.collider == null)
-        {
             return;
-        }
-
-        if (collision.collider.GetComponentInParent<CatProjectile>() != null || collision.collider.GetComponentInParent<ProjectileImpactReporter>() != null)
-        {
-            PlayBoxSound();
-        }
 
         if (Time.timeSinceLevelLoad < IgnoreCollisionsFor)
-        {
             return;
-        }
 
-        if (collision.collider.GetComponent<LevelTarget>() != null)
-        {
-            return;
-        }
+        LevelTarget otherTarget =
+            collision.collider.GetComponentInParent<LevelTarget>();
 
-        if (collision.rigidbody != null && collision.rigidbody.bodyType == RigidbodyType2D.Static)
-        {
+        if (otherTarget != null && otherTarget != this)
             return;
-        }
+
+        if (collision.rigidbody != null &&
+            collision.rigidbody.bodyType == RigidbodyType2D.Static)
+            return;
 
         Vector2 relativeVelocity = collision.relativeVelocity;
-        if (relativeVelocity.sqrMagnitude < impactSpeed * impactSpeed)
-        {
-            return;
-        }
+        float strength = relativeVelocity.magnitude;
 
-        RegisterHit(relativeVelocity.magnitude, relativeVelocity.normalized);
-    }
-
-    // Для взрывов и способностей котов: тот же счётчик прочности,
-    // те же события и защита от повторных попаданий.
-    public void ApplyAbilityHit(float strength, Vector2 direction)
-    {
         if (strength < impactSpeed)
             return;
+
+        bool projectileContact =
+            collision.collider.GetComponentInParent<CatProjectile>() != null ||
+            collision.collider.GetComponentInParent<ProjectileImpactReporter>() != null;
+
+        if (projectileContact)
+            PlayBoxSound();
+
+        Vector2 direction = relativeVelocity.sqrMagnitude > 0.0001f
+            ? relativeVelocity.normalized
+            : Vector2.zero;
+
+        RegisterHit(strength, direction);
+    }
+
+    public void ApplyAbilityHit(float strength, Vector2 direction)
+    {
+        if (IsCleared || strength < impactSpeed)
+            return;
+
+        if (direction.sqrMagnitude > 0.0001f)
+            direction.Normalize();
+
         RegisterHit(strength, direction);
     }
 
@@ -208,6 +175,7 @@ public sealed class LevelTarget : MonoBehaviour
         nextHitTime = Time.time + hitCooldown;
         PlayBoxSound();
         HitsTaken++;
+
         HitRegistered?.Invoke(this, strength);
         AbsorbHit();
 
@@ -217,53 +185,47 @@ public sealed class LevelTarget : MonoBehaviour
             PlayHitFeedback();
     }
 
-    // Бронированный блок поглощает часть толчка и вращения.
     private void AbsorbHit()
     {
-        if (pushResistance <= 0f || body == null || body.bodyType != RigidbodyType2D.Dynamic)
-        {
+        if (body == null ||
+            body.bodyType != RigidbodyType2D.Dynamic ||
+            PushResistance <= 0f)
             return;
-        }
 
         float keep = 1f - PushResistance;
         body.linearVelocity *= keep;
         body.angularVelocity *= keep;
     }
 
-    // Дополнительное торможение тяжёлого блока на поверхности.
     private void FixedUpdate()
     {
         float extraFriction = SlidingFriction - 1f;
-        if (extraFriction <= 0.0001f || body == null || IsCleared)
-        {
-            return;
-        }
 
-        if (body.bodyType != RigidbodyType2D.Dynamic || Time.time > surfaceContactUntil)
-        {
+        if (extraFriction <= 0.0001f ||
+            body == null ||
+            IsCleared ||
+            body.bodyType != RigidbodyType2D.Dynamic ||
+            Time.time > surfaceContactUntil)
             return;
-        }
 
         Vector2 velocity = body.linearVelocity;
-        if (Mathf.Abs(velocity.x) < 0.01f)
-        {
-            return;
-        }
 
-        // Торможение имитирует дополнительное сухое трение.
-        float deceleration = extraFriction * Mathf.Abs(Physics2D.gravity.y)
-            * Time.fixedDeltaTime;
+        if (Mathf.Abs(velocity.x) < 0.01f)
+            return;
+
+        float deceleration = extraFriction *
+            Mathf.Abs(Physics2D.gravity.y) *
+            Time.fixedDeltaTime;
+
         body.linearVelocity = new Vector2(
-            Mathf.MoveTowards(velocity.x, 0f, deceleration), velocity.y);
+            Mathf.MoveTowards(velocity.x, 0f, deceleration),
+            velocity.y);
     }
 
-    // Контакт с поверхностью продлевает действие дополнительного трения.
     private void OnCollisionStay2D(Collision2D collision)
     {
         if (IsCleared || collision == null)
-        {
             return;
-        }
 
         surfaceContactUntil = Time.time + SurfaceContactGrace;
     }
@@ -272,25 +234,25 @@ public sealed class LevelTarget : MonoBehaviour
     {
         ApplyDamageTint();
 
-        if (!IsReinforced || !showHitFeedback || damageSprites.Count == 0)
+        if (IsReinforced && showHitFeedback &&
+            damageSprites.Count > 0)
         {
-            onHit.Invoke();
-            return;
+            if (flashRoutine != null)
+                StopCoroutine(flashRoutine);
+
+            flashRoutine = StartCoroutine(FlashRoutine());
         }
 
-        if (flashRoutine != null)
-        {
-            StopCoroutine(flashRoutine);
-        }
-
-        flashRoutine = StartCoroutine(FlashRoutine());
         onHit.Invoke();
     }
 
     private IEnumerator FlashRoutine()
     {
         SetSpriteColors(hitFlashColor);
-        yield return new WaitForSeconds(Mathf.Max(0.02f, hitFlashDuration));
+
+        yield return new WaitForSeconds(
+            Mathf.Max(0.02f, hitFlashDuration));
+
         ApplyDamageTint();
         flashRoutine = null;
     }
@@ -298,33 +260,165 @@ public sealed class LevelTarget : MonoBehaviour
     private void ClearTarget(Vector2 hitDirection, bool byImpact)
     {
         if (IsCleared)
-        {
             return;
-        }
 
         IsCleared = true;
+
+        if (flashRoutine != null)
+        {
+            StopCoroutine(flashRoutine);
+            flashRoutine = null;
+        }
+
         ApplyDamageTint();
 
-        if (byImpact && breakOnCleared && hitDirection.sqrMagnitude > 0.0001f)
+        bool validDirection =
+            hitDirection.sqrMagnitude > 0.0001f;
+
+        bool shatter =
+            shatterIntoDebris && byImpact && validDirection;
+
+        if (byImpact && !shatter &&
+            breakOnCleared && validDirection)
         {
             BreakApart(hitDirection);
         }
 
         onCleared.Invoke();
         Cleared?.Invoke(this);
+
+        if (shatter)
+            Shatter(hitDirection);
+
+        if (destroyOnCleared)
+            StartCoroutine(DestroyAfterDelay());
     }
 
-    // Отбрасывает сбитый блок. Коллайдер и компонент сохраняются для подсчёта целей и физики.
-    private void BreakApart(Vector2 hitDirection)
+    private void Shatter(Vector2 hitDirection)
     {
-        if (body == null || body.bodyType != RigidbodyType2D.Dynamic)
+        Vector3 position = transform.position;
+        Quaternion rotation = transform.rotation;
+
+        if (debrisPrefab != null)
         {
-            return;
+            GameObject debris = Instantiate(
+                debrisPrefab, position, rotation);
+
+            LaunchDebris(debris, hitDirection);
+        }
+        else
+        {
+            foreach (SpriteRenderer sprite in
+                     GetComponentsInChildren<SpriteRenderer>(true))
+            {
+                if (sprite == null || sprite.sprite == null)
+                    continue;
+
+                GameObject piece =
+                    new GameObject(name + "_Debris");
+
+                piece.transform.position = sprite.transform.position;
+                piece.transform.rotation = sprite.transform.rotation;
+                piece.transform.localScale = sprite.transform.lossyScale;
+
+                SpriteRenderer clone =
+                    piece.AddComponent<SpriteRenderer>();
+
+                clone.sprite = sprite.sprite;
+                clone.color = sprite.color;
+                clone.flipX = sprite.flipX;
+                clone.flipY = sprite.flipY;
+                clone.sortingLayerID = sprite.sortingLayerID;
+                clone.sortingOrder = sprite.sortingOrder;
+                clone.drawMode = sprite.drawMode;
+                clone.size = sprite.size;
+
+                Rigidbody2D pieceBody =
+                    piece.AddComponent<Rigidbody2D>();
+
+                pieceBody.gravityScale =
+                    body != null ? Mathf.Max(0.1f, body.gravityScale) : 1f;
+
+                LaunchDebris(piece, hitDirection);
+            }
         }
 
-        body.AddForce(hitDirection * breakImpulse, ForceMode2D.Impulse);
+        foreach (SpriteRenderer sprite in
+                 GetComponentsInChildren<SpriteRenderer>(true))
+        {
+            if (sprite != null)
+                sprite.enabled = false;
+        }
+
+        if (body != null)
+            body.simulated = false;
+
+        foreach (Collider2D collider in
+                 GetComponentsInChildren<Collider2D>(true))
+        {
+            collider.enabled = false;
+        }
+    }
+
+    private void LaunchDebris(
+        GameObject debris, Vector2 hitDirection)
+    {
+        if (debris == null)
+            return;
+
+        Rigidbody2D debrisBody =
+            debris.GetComponent<Rigidbody2D>();
+
+        if (debrisBody == null)
+            debrisBody = debris.AddComponent<Rigidbody2D>();
+
+        debrisBody.bodyType = RigidbodyType2D.Dynamic;
+
+        float spread = UnityEngine.Random.Range(-0.45f, 0.45f);
+
+        Vector2 direction = (
+            hitDirection +
+            new Vector2(spread, Mathf.Abs(spread) * 0.6f)
+        ).normalized;
+
+        if (direction.sqrMagnitude < 0.0001f)
+            direction = Vector2.up;
+
+        debrisBody.AddForce(
+            direction * Mathf.Max(1f, breakImpulse),
+            ForceMode2D.Impulse);
+
+        debrisBody.AddTorque(
+            UnityEngine.Random.Range(-1f, 1f) *
+            Mathf.Max(1f, breakTorque),
+            ForceMode2D.Impulse);
+
+        Destroy(debris, 4f);
+    }
+
+    private IEnumerator DestroyAfterDelay()
+    {
+        if (destroyDelay > 0f)
+            yield return new WaitForSeconds(destroyDelay);
+
+        Destroy(gameObject);
+    }
+
+    private void BreakApart(Vector2 hitDirection)
+    {
+        if (body == null ||
+            body.bodyType != RigidbodyType2D.Dynamic)
+            return;
+
+        body.AddForce(
+            hitDirection.normalized * breakImpulse,
+            ForceMode2D.Impulse);
+
         float spin = hitDirection.x >= 0f ? -1f : 1f;
-        body.AddTorque(spin * breakTorque, ForceMode2D.Impulse);
+
+        body.AddTorque(
+            spin * breakTorque,
+            ForceMode2D.Impulse);
     }
 
     private void ApplyDamageTint()
@@ -335,16 +429,19 @@ public sealed class LevelTarget : MonoBehaviour
             return;
         }
 
-        float damage = IsCleared ? 1f : (float)HitsTaken / HitsToClear;
+        float damage = IsCleared
+            ? 1f
+            : (float)HitsTaken / HitsToClear;
+
         for (int i = 0; i < damageSprites.Count; i++)
         {
             SpriteRenderer sprite = damageSprites[i];
-            if (sprite == null)
-            {
-                continue;
-            }
 
-            sprite.color = Color.Lerp(baseColors[i], damagedTint, damage);
+            if (sprite == null)
+                continue;
+
+            sprite.color = Color.Lerp(
+                baseColors[i], damagedTint, damage);
         }
     }
 
@@ -353,12 +450,13 @@ public sealed class LevelTarget : MonoBehaviour
         for (int i = 0; i < damageSprites.Count; i++)
         {
             SpriteRenderer sprite = damageSprites[i];
+
             if (sprite == null)
-            {
                 continue;
-            }
 
             sprite.color = color ?? baseColors[i];
         }
     }
+
+
 }
