@@ -23,8 +23,8 @@ public sealed class MouseEnemy : MonoBehaviour
     [Tooltip("Защита от многократного урона за одно столкновение.")]
     [SerializeField, Min(0f)] private float hitCooldown = 0.15f;
 
-    [Header("Падение и смерть")]
-    [Tooltip("Мышь погибает, если падает ниже этой высоты.")]
+    [Header("Смерть")]
+    [Tooltip("Мышь погибает, если проваливается ниже этой высоты (за пределы уровня).")]
     [SerializeField] private float fallY = -6f;
     [Header("Отлёт при гибели")]
     [SerializeField] private Sprite deathSprite;
