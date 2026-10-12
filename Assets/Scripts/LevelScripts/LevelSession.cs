@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// Победа: все обязательные мыши И обязательные цели. Очки только растут за события.
+// Полная победа требует все обязательные цели; после исчерпания котов выдаётся частичный результат по убитым мышам.
 [DisallowMultipleComponent]
 public sealed class LevelSession : MonoBehaviour
 {
@@ -23,11 +23,13 @@ public sealed class LevelSession : MonoBehaviour
     [SerializeField] private SlingshotController gameplayController;
     [SerializeField] private float completeDelay = 1.1f;
 
-    [Header("Боезапас этого уровня")]
+    [Header("Боезапас и оценка результата")]
     [Tooltip("Максимум снарядов за попытку. Меняется отдельно в каждой сцене на GameManager.")]
     [SerializeField, Min(1)] private int maxProjectiles = 5;
-    [Tooltip("Сколько секунд ждать после остановки снарядов и ящиков перед поражением.")]
-    [SerializeField, Min(0.2f)] private float defeatSettleDelay = 1f;
+    [Tooltip("Минимум игровых секунд от последнего выстрела до подсчёта результата, если все цели ещё не выполнены.")]
+    [SerializeField, Min(5f)] private float resultDelayAfterLastShot = 5f;
+    [Tooltip("После этой паузы без движения можно безопасно подвести итог: коробки и снаряды уже не должны добить мышь.")]
+    [SerializeField, Min(0.2f)] private float resultSettleDelay = 1f;
     [SerializeField, Min(0.01f)] private float targetSettleSpeed = 0.15f;
     [SerializeField, Min(0.1f)] private float targetSettleAngularSpeed = 12f;
 
@@ -79,7 +81,7 @@ public sealed class LevelSession : MonoBehaviour
     private bool completionStarted;
     private bool completed;
     private bool failed;
-    private bool checkingDefeat;
+    private bool checkingResult;
     private int displayedScore;
     [SerializeField] private AudioSource victorySource;
 
@@ -190,18 +192,18 @@ public sealed class LevelSession : MonoBehaviour
         if (IsEnding || !HasObjectives())
             return;
 
-        // Победа только когда исчезли ВСЕ ОБЯЗАТЕЛЬНЫЕ цели любого типа.
-        // Необязательные объекты при этом продолжают давать очки.
+        // Полное досрочное прохождение — только после всех обязательных целей.
+        // Если боезапас закончится раньше, ниже будет рассчитан частичный результат по мышам.
         if (AllObjectivesCleared())
         {
             completionStarted = true;
             gameplayController?.CancelInput();
             StartCoroutine(CompleteAfterDelay());
         }
-        else if (gameplayController != null && RemainingShots == 0 && !checkingDefeat)
+        else if (gameplayController != null && RemainingShots == 0 && !checkingResult)
         {
-            checkingDefeat = true;
-            StartCoroutine(CheckDefeatAfterSettling());
+            checkingResult = true;
+            StartCoroutine(EvaluateAfterLastShot());
         }
     }
 
@@ -243,26 +245,71 @@ public sealed class LevelSession : MonoBehaviour
         return true;
     }
 
-    private IEnumerator CheckDefeatAfterSettling()
+    private IEnumerator EvaluateAfterLastShot()
     {
+        // Пять секунд считаются от последнего выстрела, а не от остановки
+        // коробок: котам нужно время долететь и вызвать цепные столкновения.
+        float evaluateAt = Time.time + Mathf.Max(0f, resultDelayAfterLastShot);
         float stillFor = 0f;
         while (!IsEnding && RemainingShots == 0)
         {
-            // Даёт всем целям обновить состояние после физического шага.
+            // Даёт физике и событиям мышей обновиться после шага симуляции.
             yield return null;
             if (IsEnding || AllObjectivesCleared())
                 break;
+
             bool moving = gameplayController.IsShotInProgress || gameplayController.HasMovingProjectiles
                 || (gameplayController.gameplayCamera != null && gameplayController.gameplayCamera.IsBusy)
                 || TargetsAreMoving();
             stillFor = moving ? 0f : stillFor + Time.deltaTime;
-            if (stillFor >= Mathf.Max(0.2f, defeatSettleDelay))
+
+            // Если на пятой секунде ещё летит кот или двигается постройка,
+            // ждём их завершения и короткой тишины, чтобы не оборвать цепную гибель.
+            if (Time.time >= evaluateAt && stillFor >= Mathf.Max(0.2f, resultSettleDelay))
             {
-                FailLevel();
+                int stars = GetMiceStars();
+                if (stars > 0)
+                    CompleteLevel(stars);
+                else
+                    FailLevel();
                 break;
             }
         }
-        checkingDefeat = false;
+        checkingResult = false;
+    }
+
+    private int GetMiceStars()
+    {
+        GetMouseKillCounts(out int defeated, out int total);
+        return LevelProgress.StarsForDefeatedMice(defeated, total);
+    }
+
+    private int GetCompletionStars(int shots)
+    {
+        GetMouseKillCounts(out int defeated, out int total);
+        // На будущих картах без обязательных мышей сохраняется старое правило.
+        return total > 0
+            ? LevelProgress.StarsForDefeatedMice(defeated, total)
+            : LevelProgress.StarsForShots(LevelId, shots);
+    }
+
+    private void GetMouseKillCounts(out int defeated, out int total)
+    {
+        defeated = 0;
+        total = 0;
+        if (enemies == null)
+            return;
+
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            MouseEnemy enemy = enemies[i];
+            if (enemy == null || !enemy.CountsForVictory)
+                continue;
+
+            total++;
+            if (enemy.IsDead)
+                defeated++;
+        }
     }
 
     private bool TargetsAreMoving()
@@ -317,16 +364,19 @@ public sealed class LevelSession : MonoBehaviour
         while (gameplayController != null && gameplayController.gameplayCamera != null
             && gameplayController.gameplayCamera.IsBusy)
             yield return null;
-        CompleteLevel();
+        int shots = gameplayController != null ? gameplayController.ShotsFired : 1;
+        CompleteLevel(GetCompletionStars(Mathf.Max(1, shots)));
     }
 
-    private void CompleteLevel()
+    private void CompleteLevel(int stars)
     {
         if (completed || failed)
         {
             return;
         }
 
+        // Победный экран всегда содержит минимум одну и максимум три звезды.
+        stars = Mathf.Clamp(stars, 1, LevelProgress.MaxStars);
         completed = true;
 
         int shots = gameplayController != null ? gameplayController.ShotsFired : 1;
@@ -335,7 +385,7 @@ public sealed class LevelSession : MonoBehaviour
             shots = 1;
         }
 
-        int stars = LevelProgress.StarsForShots(LevelId, shots);
+        GetMouseKillCounts(out int defeatedMice, out int totalMice);
         victoryBonus = Mathf.Max(0, MaxProjectiles - shots) * unusedCatVictoryBonus;
         int runScore = earnedScore + victoryBonus;
         displayedScore = runScore;
@@ -357,7 +407,7 @@ public sealed class LevelSession : MonoBehaviour
         }
 
         GetComponent<PauseMenuController>()?.SetResultScreenOpen();
-        ShowCompletionOverlay(stars, runScore, awardedScore, shots);
+        ShowCompletionOverlay(stars, runScore, awardedScore, shots, defeatedMice, totalMice);
         PlayVictorySound(stars);
     }
 
@@ -448,22 +498,19 @@ public sealed class LevelSession : MonoBehaviour
     }
 
     // Итоговое окно уже находится в сцене; здесь меняются только значения.
-    private void ShowCompletionOverlay(int stars, int score, bool awardedScore, int shots)
+    private void ShowCompletionOverlay(int stars, int score, bool awardedScore, int shots,
+        int defeatedMice, int totalMice)
     {
         // Подписи о повторном прохождении нет; о нём говорит только цвет очков.
         completionScoreText.text = "ОЧКИ  " + score;
         completionScoreText.color = awardedScore ? new Color32(230, 155, 82, 255)
             : new Color32(200, 200, 200, 255);
-        int par = LevelProgress.ThreeStarShots(LevelId);
-        completionShotsText.text = "ВЫСТРЕЛОВ: " + shots + "      3 ЗВЕЗДЫ — ДО "
-            + par + " " + ShotsWord(par);
+        completionShotsText.text = totalMice > 0
+            ? "УБИТО МЫШЕЙ: " + defeatedMice + " / " + totalMice + "      ВЫСТРЕЛОВ: " + shots
+            : "ВЫСТРЕЛОВ: " + shots;
         for (int i = 0; i < completionStars.Length; i++)
             completionStars[i].sprite = i < stars ? starOnSprite : starOffSprite;
         completionOverlay.SetActive(true);
-    }
-    private static string ShotsWord(int shots)
-    {
-        return shots == 1 ? "ВЫСТРЕЛА" : "ВЫСТРЕЛОВ";
     }
 
 }
