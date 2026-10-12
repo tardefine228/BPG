@@ -4,7 +4,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// Полная победа требует все обязательные цели; после исчерпания котов выдаётся частичный результат по убитым мышам.
+// Уровень заканчивается в двух случаях: убиты все обязательные мыши либо у игрока
+// закончились коты — тогда подводится частичный результат по убитым мышам.
 [DisallowMultipleComponent]
 public sealed class LevelSession : MonoBehaviour
 {
@@ -32,6 +33,10 @@ public sealed class LevelSession : MonoBehaviour
     [SerializeField, Min(0.2f)] private float resultSettleDelay = 1f;
     [SerializeField, Min(0.01f)] private float targetSettleSpeed = 0.15f;
     [SerializeField, Min(0.1f)] private float targetSettleAngularSpeed = 12f;
+
+    // Максимальное дополнительное ожидание после последнего выстрела: если постройка
+    // продолжает медленно катиться, уровень всё равно заканчивается.
+    private const float MaxResultExtraWait = 4f;
 
     public int MaxProjectiles => Mathf.Max(1, maxProjectiles);
     public int RemainingShots => Mathf.Max(0, MaxProjectiles
@@ -192,14 +197,16 @@ public sealed class LevelSession : MonoBehaviour
         if (IsEnding || !HasObjectives())
             return;
 
-        // Полное досрочное прохождение — только после всех обязательных целей.
-        // Если боезапас закончится раньше, ниже будет рассчитан частичный результат по мышам.
-        if (AllObjectivesCleared())
+        // Уровень заканчивается сразу, как только убита последняя обязательная мышь.
+        // Постройки при этом могут остаться целыми: они дают очки, но не мешают победе.
+        if (VictoryReached())
         {
             completionStarted = true;
             gameplayController?.CancelInput();
             StartCoroutine(CompleteAfterDelay());
         }
+        // Второй конец уровня — когда запускать больше некого: коты закончились,
+        // а мыши остались. Тогда подводится частичный результат по убитым мышам.
         else if (gameplayController != null && RemainingShots == 0 && !checkingResult)
         {
             checkingResult = true;
@@ -222,6 +229,15 @@ public sealed class LevelSession : MonoBehaviour
                 if (targets[i] != null && targets[i].CountsForVictory)
                     return true;
         return false;
+    }
+
+    // Победа: убиты все обязательные мыши. Ящики, планки и прочие постройки
+    // обязательными не считаются — на карте без обязательных мышей победа
+    // по-прежнему требует разобрать обязательные цели.
+    private bool VictoryReached()
+    {
+        GetMouseKillCounts(out int defeated, out int total);
+        return total > 0 ? defeated >= total : AllObjectivesCleared();
     }
 
     private bool AllObjectivesCleared()
@@ -255,7 +271,7 @@ public sealed class LevelSession : MonoBehaviour
         {
             // Даёт физике и событиям мышей обновиться после шага симуляции.
             yield return null;
-            if (IsEnding || AllObjectivesCleared())
+            if (IsEnding || VictoryReached())
                 break;
 
             bool moving = gameplayController.IsShotInProgress || gameplayController.HasMovingProjectiles
@@ -265,7 +281,11 @@ public sealed class LevelSession : MonoBehaviour
 
             // Если на пятой секунде ещё летит кот или двигается постройка,
             // ждём их завершения и короткой тишины, чтобы не оборвать цепную гибель.
-            if (Time.time >= evaluateAt && stillFor >= Mathf.Max(0.2f, resultSettleDelay))
+            // Долго ждать нельзя: коты закончились, и уровень обязан закончиться,
+            // даже если что-то продолжает медленно катиться.
+            bool settled = stillFor >= Mathf.Max(0.2f, resultSettleDelay);
+            bool waitedTooLong = Time.time >= evaluateAt + MaxResultExtraWait;
+            if (Time.time >= evaluateAt && (settled || waitedTooLong))
             {
                 int stars = GetMiceStars();
                 if (stars > 0)
@@ -340,7 +360,7 @@ public sealed class LevelSession : MonoBehaviour
 
     private void FailLevel()
     {
-        if (IsEnding || AllObjectivesCleared())
+        if (IsEnding || VictoryReached())
             return;
         failed = true;
         gameplayController.CancelInput();
@@ -486,7 +506,9 @@ public sealed class LevelSession : MonoBehaviour
             return;
         foreach (LevelDefinition level in LevelProgress.Levels)
         {
-            if (level.Id != LevelId + 1 || !level.CanLoad)
+            // Если следующий уровень ещё закрыт порогом звёзд, кнопка возвращает
+            // к выбору уровня: там видно, сколько звёзд до него не хватает.
+            if (level.Id != LevelId + 1 || !level.CanLoad || !LevelProgress.IsUnlocked(level.Id))
                 continue;
             AudioManager.Instance?.PlayUiClick();
             Time.timeScale = 1f;
@@ -505,9 +527,11 @@ public sealed class LevelSession : MonoBehaviour
         completionScoreText.text = "ОЧКИ  " + score;
         completionScoreText.color = awardedScore ? new Color32(230, 155, 82, 255)
             : new Color32(200, 200, 200, 255);
+        // Выстрелы показываются как «использовано / весь боезапас»: «ВЫСТРЕЛОВ: 2 / 3».
+        string shotsLine = "ВЫСТРЕЛОВ: " + shots + " / " + MaxProjectiles;
         completionShotsText.text = totalMice > 0
-            ? "ПОБЕЖДЕНО МЫШЕЙ: " + defeatedMice + " / " + totalMice + "      ВЫСТРЕЛОВ: " + shots
-            : "ВЫСТРЕЛОВ: " + shots;
+            ? "ПОБЕЖДЕНО МЫШЕЙ: " + defeatedMice + " / " + totalMice + "      " + shotsLine
+            : shotsLine;
         for (int i = 0; i < completionStars.Length; i++)
             completionStars[i].sprite = i < stars ? starOnSprite : starOffSprite;
         completionOverlay.SetActive(true);
