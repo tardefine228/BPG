@@ -83,8 +83,7 @@ public sealed class LevelCardView : MonoBehaviour, IPointerEnterHandler, IPointe
         currentHighlight.SetActive(false);
         lockOverlay.SetActive(!unlocked);
         soonOverlay.SetActive(unlocked && !level.CanLoad);
-        parHint.text = unlocked ? "3 ЗВЕЗДЫ — ДО " + level.ThreeStarShots
-            + " ВЫСТРЕЛОВ" : string.Empty;
+        parHint.text = unlocked ? "ЗВЁЗДЫ ЗА УБИТЫХ МЫШЕЙ" : string.Empty;
         int earned = LevelProgress.GetStars(levelId);
         for (int i = 0; i < stars.Length; i++)
             if (stars[i] != null) stars[i].sprite = i < earned ? starOn : starOff;

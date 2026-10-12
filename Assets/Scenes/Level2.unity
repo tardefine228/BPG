@@ -15454,7 +15454,8 @@ MonoBehaviour:
   gameplayController: {fileID: 3000000067}
   completeDelay: 1.1
   maxProjectiles: 3
-  defeatSettleDelay: 1
+  resultDelayAfterLastShot: 5
+  resultSettleDelay: 1
   targetSettleSpeed: 0.15
   targetSettleAngularSpeed: 12
   forcedLevelId: 2

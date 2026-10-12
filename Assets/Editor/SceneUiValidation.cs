@@ -13,6 +13,7 @@ public static class SceneUiValidation
     public static void Validate()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+        ValidateMouseStarRules();
         var setup = EditorSceneManager.GetSceneManagerSetup();
         try
         {
@@ -51,8 +52,11 @@ public static class SceneUiValidation
                 foreach (var audio in Find<AudioManager>()) References(audio, "musicSource", "effectsSource", "uiSource");
                 foreach (var session in Find<LevelSession>())
                 {
-                    Require(new SerializedObject(session).FindProperty("maxProjectiles").intValue >= 1,
+                    var sessionData = new SerializedObject(session);
+                    Require(sessionData.FindProperty("maxProjectiles").intValue >= 1,
                         scene.name + ": боезапас должен быть положительным");
+                    Require(sessionData.FindProperty("resultDelayAfterLastShot").floatValue >= 5f,
+                        scene.name + ": оценка результата должна ждать минимум пять секунд");
                     References(session, "gameplayController", "starOnSprite", "starOffSprite", "scoreValueText",
                         "scoreHintText", "completionOverlay", "defeatOverlay",
                         "completionScoreText", "completionShotsText", "completionStars", "victorySource");
@@ -204,6 +208,31 @@ public static class SceneUiValidation
             }
             else Require(property.objectReferenceValue != null, owner.name + ": пустая ссылка " + field);
         }
+    }
+
+    private static void ValidateMouseStarRules()
+    {
+        Require(LevelProgress.StarsForDefeatedMice(0, 8) == 0,
+            "Звёзды за мышей: без убийств должен быть нулевой результат");
+        Require(LevelProgress.StarsForDefeatedMice(1, 2) == 2,
+            "Звёзды за мышей: половина из двух мышей должна давать две звезды");
+        Require(LevelProgress.StarsForDefeatedMice(1, 4) == 1
+            && LevelProgress.StarsForDefeatedMice(2, 4) == 2,
+            "Звёзды за мышей: округление доли убийств работает неверно");
+        Require(LevelProgress.StarsForDefeatedMice(3, 4) == 2
+            && LevelProgress.StarsForDefeatedMice(6, 7) == 2,
+            "Звёзды за мышей: неполное прохождение не должно давать три звезды");
+        Require(LevelProgress.StarsForDefeatedMice(1, 7) == 1
+            && LevelProgress.StarsForDefeatedMice(1, 8) == 1,
+            "Звёзды за мышей: одно убийство не должно округляться до нуля");
+        Require(LevelProgress.StarsForDefeatedMice(7, 8) == 2
+            && LevelProgress.StarsForDefeatedMice(7, 7) == 3
+            && LevelProgress.StarsForDefeatedMice(8, 8) == 3,
+            "Звёзды за мышей: три звезды требуют уничтожить всех обязательных мышей");
+        Require(LevelProgress.StarsForDefeatedMice(9, 8) == 3
+            && LevelProgress.StarsForDefeatedMice(-1, 8) == 0
+            && LevelProgress.StarsForDefeatedMice(0, 0) == 0,
+            "Звёзды за мышей: некорректные границы количества не обработаны");
     }
 
     private static void Require(bool condition, string message)

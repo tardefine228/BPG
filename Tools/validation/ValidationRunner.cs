@@ -239,6 +239,18 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return new WaitForSecondsRealtime(0.4f);
             yield return Click(card.GetComponent<Button>());
             yield return Scene(level.SceneName);
+            // Этот прогон проверяет очередь, а не пятисекундную задержку результата.
+            var session = Find<LevelSession>();
+            Set(session, "resultDelayAfterLastShot", 0f);
+            foreach (var enemy in All<MouseEnemy>()) Set(enemy, "countsForVictory", false);
+            var blocker = new GameObject("CatQueueDefeatCheck");
+            blocker.transform.position = new Vector3(100f, 100f, 0f);
+            blocker.AddComponent<BoxCollider2D>();
+            var blockerBody = blocker.AddComponent<Rigidbody2D>();
+            blockerBody.bodyType = RigidbodyType2D.Static;
+            var blockerTarget = blocker.AddComponent<LevelTarget>();
+            Set(session, "targets", ((LevelTarget[])Get(session, "targets")).Concat(new[] { blockerTarget }).ToArray());
+            Set(session, "targetBodies", ((Rigidbody2D[])Get(session, "targetBodies")).Concat(new[] { blockerBody }).ToArray());
             int ammo = Mathf.Min(level.Id + 1, 5);
             CheckCats(ammo);
             yield return CheckCameraButtons();
@@ -457,7 +469,10 @@ public sealed class ValidationRunner : MonoBehaviour
             Require(Camera.main.orthographicSize < firstSize, "Intro did not zoom in");
             Vector3 fixedPosition = camera.transform.position;
             float fixedSize = Camera.main.orthographicSize;
-            Find<LevelSession>().enabled = false;
+            var validationSession = Find<LevelSession>();
+            validationSession.enabled = false;
+            Set(validationSession, "resultDelayAfterLastShot", 0f);
+            foreach (var enemy in All<MouseEnemy>()) Set(enemy, "countsForVictory", false);
             Require(All<Transform>().All(item => item.name != "GameplayCameraCanvas"), "Removed camera UI returned");
             foreach (var renderer in All<CatProjectile>().Select(cat => cat.GetComponent<SpriteRenderer>())
                 .Concat(All<LevelTarget>().Select(target => target.GetComponent<SpriteRenderer>())).Where(item => item != null))
@@ -683,6 +698,8 @@ public sealed class ValidationRunner : MonoBehaviour
             yield return Until(() => !camera.IsBusy, "intro");
             var session = Find<LevelSession>();
             session.enabled = false;
+            Set(session, "resultDelayAfterLastShot", 0f);
+            foreach (var enemy in All<MouseEnemy>()) Set(enemy, "countsForVictory", false);
             var slingshot = Find<SlingshotController>();
             Require(All<Transform>().All(item => item.name != "FlatGround"), "Deleted floor remains");
             Require(camera.TerrainCollider is UnityEngine.Tilemaps.TilemapCollider2D
@@ -1023,6 +1040,7 @@ public sealed class ValidationRunner : MonoBehaviour
         slingshot.gameplayCamera = null; slingshot.spawnDelay = 0.02f; slingshot.projectileLifetime = 0.8f;
         Set(slingshot, "catLoadDuration", 0.02f);
         int ammo = Find<LevelSession>().MaxProjectiles;
+        float lastShotLaunchedAt = -1f;
         for (int shot = 1; shot <= ammo; shot++)
         {
             Require(slingshot.CanAim, "Projectile missing for shot " + shot);
@@ -1030,6 +1048,7 @@ public sealed class ValidationRunner : MonoBehaviour
             Rigidbody2D next = shot < ammo ? ((List<Rigidbody2D>)Get(slingshot, "waitingCats"))[0] : null;
             Set(slingshot, "launchVelocity", new Vector2(-5f, 0f));
             slingshot.StartCoroutine((IEnumerator)typeof(SlingshotController).GetMethod("LaunchRoutine", Flags).Invoke(slingshot, null));
+            if (shot == ammo) lastShotLaunchedAt = Time.time;
             yield return null;
             Require(loaded.simulated && !loaded.GetComponent<CatProjectile>().IsQueued,
                 "Loaded cat did not become the flying projectile");
@@ -1043,6 +1062,8 @@ public sealed class ValidationRunner : MonoBehaviour
         yield return null;
         Require(slingshot.ShotsFired == ammo, "Extra shot fired");
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf, "defeat");
+        Require(Time.time - lastShotLaunchedAt >= 4.9f,
+            "Result was evaluated before five seconds had elapsed from the last cat");
         Require(Time.timeScale == 0f, "Defeat did not stop gameplay");
         Pass("Two real cat launches exhaust Level1 ammunition; queue shrinks, cat identity survives loading/flight, extra shot is blocked");
         yield return Capture("defeat");
@@ -1056,9 +1077,17 @@ public sealed class ValidationRunner : MonoBehaviour
         slingshot = Find<SlingshotController>();
         Set(slingshot, "<ShotsFired>k__BackingField", ammo);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
-        yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf, "victory on final shot");
-        Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf && LevelProgress.IsCompleted(1), "Final-shot victory lost to defeat");
-        Pass("Victory on the final projectile takes priority over defeat and saves progress");
+        var firstLevelMice = All<MouseEnemy>().Where(enemy => enemy.CountsForVictory).ToArray();
+        Require(firstLevelMice.Length == 2, "Gameplay should have two required mice for the star-rating check");
+        Set(firstLevelMice[0], "<IsDead>k__BackingField", true);
+        yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf,
+            "two-star partial victory after the last shot", 30f);
+        var firstLevelStars = (Image[])Get(Find<LevelSession>(), "completionStars");
+        Require(!((GameObject)Get(Find<LevelSession>(), "defeatOverlay")).activeSelf
+            && LevelProgress.IsCompleted(1) && LevelProgress.GetStars(1) == 2
+            && firstLevelStars.Count(image => image.sprite == (Sprite)Get(Find<LevelSession>(), "starOnSprite")) == 2,
+            "Killing half the required mice should complete level 1 with two stars");
+        Pass("After the last cat, killing half of the two required mice earns two stars and unlocks the next level");
         yield return Capture("victory");
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("Level2");
@@ -1107,7 +1136,10 @@ public sealed class ValidationRunner : MonoBehaviour
         slingshot = Find<SlingshotController>();
         Set(slingshot, "<ShotsFired>k__BackingField", 1);
         foreach (var target in All<LevelTarget>()) Set(target, "<IsCleared>k__BackingField", true);
+        foreach (var enemy in All<MouseEnemy>().Where(enemy => enemy.CountsForVictory))
+            Set(enemy, "<IsDead>k__BackingField", true);
         yield return Until(() => ((GameObject)Get(Find<LevelSession>(), "completionOverlay")).activeSelf, "last level victory");
+        Require(LevelProgress.GetStars(5) == 3, "All required mice defeated should award three stars");
         Action("GoToNextLevel").onClick.Invoke();
         yield return Scene("MainMenu");
         Pass("Continue after the last implemented level returns to MainMenu");

@@ -144,9 +144,30 @@ public static class LevelProgress
 
     public static void SaveStars(int levelId, int stars)
     {
-        int clamped = Mathf.Clamp(stars, 0, MaxStars);
-        PlayerPrefs.SetInt(StarsKey(levelId), clamped);
+        // Звёзды — лучший результат уровня: не теряем уже открытые награды
+        // при менее удачном повторном прохождении.
+        int best = Mathf.Max(GetStars(levelId), Mathf.Clamp(stars, 0, MaxStars));
+        PlayerPrefs.SetInt(StarsKey(levelId), best);
         PlayerPrefs.Save();
+    }
+
+    // Переводит долю убитых обязательных мышей в 1–3 звезды.
+    // Полный зачёт всегда требует всех мышей; при любом неполном зачёте
+    // результат ограничен двумя звёздами. Одно убийство гарантирует минимум
+    // одну звезду, чтобы небольшое число мышей на уровне не округлилось в ноль.
+    public static int StarsForDefeatedMice(int defeatedMice, int totalMice)
+    {
+        if (totalMice <= 0)
+            return 0;
+
+        int defeated = Mathf.Clamp(defeatedMice, 0, totalMice);
+        if (defeated == 0)
+            return 0;
+        if (defeated == totalMice)
+            return MaxStars;
+
+        int roundedStars = Mathf.RoundToInt((float)defeated / totalMice * MaxStars);
+        return Mathf.Clamp(roundedStars, 1, MaxStars - 1);
     }
 
     public static void MarkCompleted(int levelId)
@@ -170,7 +191,7 @@ public static class LevelProgress
         return true;
     }
 
-    // Количество звёзд зависит от числа выстрелов и порогов уровня.
+    // Резервная оценка по выстрелам для уровней без обязательных мышей.
     public static int StarsForShots(int levelId, int shotsFired)
     {
         LevelDefinition level = GetLevel(levelId);
@@ -192,13 +213,13 @@ public static class LevelProgress
         return 1;
     }
 
-    // Порог выстрелов для трёх звёзд.
+    // Порог выстрелов для резервной оценки уровней без обязательных мышей.
     public static int ThreeStarShots(int levelId)
     {
         return Mathf.Max(1, GetLevel(levelId).ThreeStarShots);
     }
 
-    // Общее правило оценки для уровней без собственных порогов.
+    // Резервное общее правило для уровней без обязательных мышей и собственных порогов.
     public static int StarsFromShots(int shotsFired)
     {
         if (shotsFired <= 1)
@@ -248,10 +269,8 @@ public readonly struct LevelDefinition
     public readonly string PreviewResourcePath;
     public readonly bool IsImplemented;
 
-    // Максимум выстрелов для трёх звёзд.
+    // Резервные пороги выстрелов для уровней без обязательных мышей.
     public readonly int ThreeStarShots;
-
-    // Максимум выстрелов для двух звёзд.
     public readonly int TwoStarShots;
 
     public LevelDefinition(
