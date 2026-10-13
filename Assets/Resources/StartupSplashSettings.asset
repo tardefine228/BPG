@@ -16,7 +16,22 @@ MonoBehaviour:
   companyName: BP GAMES
   backgroundColor: {r: 0.03529412, g: 0.03529412, b: 0.04705882, a: 1}
   textColor: {r: 0.95686275, g: 0.9372549, b: 0.88235295, a: 1}
+  showRunningCat: 1
+  runningCatFrames:
+  - {fileID: -2574099612371313896, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  - {fileID: 812072631292317105, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  - {fileID: -8771204598897666457, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  - {fileID: 6044357327318756810, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  - {fileID: -2301987248982959460, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  - {fileID: 2103577646260581605, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  - {fileID: 672107188843858711, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  - {fileID: -4859583054094725997, guid: 527f79e03a1eed443bea8b6c42ee949f, type: 3}
+  runningCatFramesPerSecond: 16
+  runningCatPixelScale: 6
+  runningCatTextGap: 40
+  runningCatDelay: 0.15
+  runningCatDuration: 3.6
   fadeInDuration: 1.2
-  holdDuration: 2
+  holdDuration: 3.9
   fadeOutDuration: 0.6
   menuRevealDuration: 0.6

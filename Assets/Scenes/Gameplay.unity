@@ -16799,10 +16799,7 @@ MonoBehaviour:
   secondIllustration: {fileID: 4500000042}
   gameplayController: {fileID: 854157704}
   pauseButton: {fileID: 43475522}
-  comicSprite: {fileID: 21300000, guid: dc63c042626e4fa48c914e62e50484dc, type: 3}
   tutorialPanel: {fileID: 4500000011}
-  comicContinueDelay: 2
-  comicFooterHeight: 0.09
 --- !u!1 &5300000000
 GameObject:
   m_ObjectHideFlags: 0

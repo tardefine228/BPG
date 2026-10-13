@@ -13,7 +13,11 @@ public sealed class StartupController : MonoBehaviour
     [SerializeField] private Image backgroundImage;
     [SerializeField] private Image logoImage;
     [SerializeField] private TMP_Text companyNameText;
+    [SerializeField] private Image runningCatImage;
     private bool ownsPresentation;
+    private Vector2 largestCatFrame;
+    private float lowestCatFrame;
+    private bool hasRunningCat;
 
     private void Awake()
     {
@@ -28,6 +32,7 @@ public sealed class StartupController : MonoBehaviour
         logoImage.enabled = settings.logo != null;
         companyNameText.text = settings.companyName;
         companyNameText.color = settings.textColor;
+        PrepareRunningCat();
     }
 
     private IEnumerator Start()
@@ -38,7 +43,7 @@ public sealed class StartupController : MonoBehaviour
         yield return Fade(brandingGroup, 1f, settings.fadeInDuration);
         var load = SceneManager.LoadSceneAsync(LevelProgress.MainMenuSceneName);
         load.allowSceneActivation = false;
-        yield return new WaitForSecondsRealtime(settings.holdDuration);
+        yield return HoldBranding();
         yield return Fade(brandingGroup, 0f, settings.fadeOutDuration);
         while (load.progress < 0.9f)
             yield return null;
@@ -50,6 +55,63 @@ public sealed class StartupController : MonoBehaviour
         SceneTransition.FinishStartupPresentation();
         ownsPresentation = false;
         Destroy(gameObject);
+    }
+
+    private void PrepareRunningCat()
+    {
+        if (runningCatImage == null) return;
+        runningCatImage.enabled = false;
+        runningCatImage.raycastTarget = false;
+        if (!settings.showRunningCat || settings.runningCatFrames == null) return;
+        lowestCatFrame = float.PositiveInfinity;
+        foreach (Sprite frame in settings.runningCatFrames)
+        {
+            if (frame == null) continue;
+            hasRunningCat = true;
+            largestCatFrame = Vector2.Max(largestCatFrame, frame.rect.size);
+            lowestCatFrame = Mathf.Min(lowestCatFrame, frame.rect.yMin);
+        }
+        runningCatImage.rectTransform.anchorMin = runningCatImage.rectTransform.anchorMax = Vector2.one * 0.5f;
+        runningCatImage.rectTransform.pivot = new Vector2(0.5f, 0f);
+    }
+
+    private IEnumerator HoldBranding()
+    {
+        float duration = Mathf.Max(0.1f, settings.runningCatDuration);
+        float delay = Mathf.Max(0f, settings.runningCatDelay);
+        // Даже при коротком Hold Duration кот успевает выйти за край экрана до затемнения.
+        float hold = hasRunningCat ? Mathf.Max(settings.holdDuration, delay + duration + 0.15f)
+            : Mathf.Max(0f, settings.holdDuration);
+        double started = Time.realtimeSinceStartupAsDouble;
+        while (Time.realtimeSinceStartupAsDouble - started < hold)
+        {
+            if (hasRunningCat)
+                UpdateRunningCat((float)(Time.realtimeSinceStartupAsDouble - started) - delay, duration);
+            yield return null;
+        }
+        if (runningCatImage != null) runningCatImage.enabled = false;
+    }
+
+    private void UpdateRunningCat(float elapsed, float duration)
+    {
+        runningCatImage.enabled = elapsed >= 0f && elapsed < duration;
+        if (!runningCatImage.enabled) return;
+        int index = Mathf.FloorToInt(elapsed * Mathf.Max(1f, settings.runningCatFramesPerSecond))
+            % settings.runningCatFrames.Length;
+        Sprite frame = settings.runningCatFrames[index];
+        if (frame == null) { runningCatImage.enabled = false; return; }
+        RectTransform rect = runningCatImage.rectTransform;
+        RectTransform parent = (RectTransform)rect.parent;
+        RectTransform title = companyNameText.rectTransform;
+        float scale = Mathf.Max(1f, settings.runningCatPixelScale);
+        float halfRunWidth = parent.rect.width * 0.5f + largestCatFrame.x * scale * 0.5f + 24f;
+        float titleBottom = parent.InverseTransformPoint(title.TransformPoint(new Vector3(0f, title.rect.yMin, 0f))).y;
+        float baseline = titleBottom - settings.runningCatTextGap - largestCatFrame.y * scale;
+        runningCatImage.sprite = frame;
+        // Разная обрезка кадров сохраняет их пропорции, масштаб пикселя и высоту относительно земли.
+        rect.sizeDelta = frame.rect.size * scale;
+        rect.anchoredPosition = new Vector2(Mathf.Round(Mathf.Lerp(-halfRunWidth, halfRunWidth, elapsed / duration)),
+            Mathf.Round(baseline + (frame.rect.yMin - lowestCatFrame) * scale));
     }
 
     private static IEnumerator Fade(CanvasGroup group, float target, float duration)
